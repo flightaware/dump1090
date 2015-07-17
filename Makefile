@@ -10,7 +10,7 @@ endif
 
 ifdef PREFIX
 BINDIR=$(PREFIX)/bin
-SHAREDIR=$(PREFIX)/share/$(PROGNAME)
+SHAREDIR=$(PREFIX)/share/$(PROGNAME)/public_html
 EXTRACFLAGS=-DHTMLPATH=\"$(SHAREDIR)\"
 endif
 
