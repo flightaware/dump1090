@@ -1,11 +1,11 @@
 html, body {
-    margin: 0; padding: 0; background-color: #ffffff; font-family: Tahoma, Sans-Serif;
-    font-size: 10pt; overflow: auto; height: 100%;
+    font-size: 10pt;
+    height: 100%;
 }
-div#map_container     { float: left; width: 100%; height: 100%; }
-div#map_canvas        { height: 100%; margin-right: 420px; }
+div#map_container     { width: 100%; height: 60%; }
+div#map_canvas        { height: 100%; }
 
-div#sidebar_container { float: left; width: 410px; margin-left: -410px; height: 100%; overflow: auto; }
+div#sidebar_container { width: 100%; height: 40%; overflow: auto; }
 
 div#SpecialSquawkWarning { position: absolute; bottom: 25px; right: 430px; border: 2px solid red;
     background-color: #FFFFA3; opacity: 0.75; filter:alpha(opacity=75); padding: 5px;
@@ -16,26 +16,27 @@ div#update_error { position: absolute; bottom: 25px; left: 25px; border: 2px sol
     text-align: center; }
 
 div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right: 0; background: #000; opacity: 0.8; filter: alpha(opacity=80); }
-#spinny { width: 128px; height: 128px; position: absolute; top: 50%; left: 50%; margin: -64px 0 0 -64px; }
+.progress { width: 50%; margin-left: auto; margin-right: auto; position: absolute; top: 50%; left: 25% }
+
 #loader_progress { width: 250px; height: 20px; position: absolute; top: 50%; left: 50%; margin: 128px 0 0 -125px; }
 
-#tableinfo, #sudo_buttons { font-size: x-small; font-family: monospace; }
+#sudo_buttons { text-align: center; padding-top: 10px; padding-bottom: 10px; }
+#tableinfo { font-family: monospace; }
+#version-container { width: 50%; margin: 0 auto; text-align: center; }
+#selected_links { float: right; }
 
-.vPosition  { font-weight: bold; background-color: #d5ffd5; }
+.vPosition  { font-weight: bold; background-color: #2ECC71; }
+.mlat       { font-weight: bold; background-color: #2ECC71; }
 .squawk7500 { font-weight: bold; background-color: #ff5555; }
 .squawk7600 { font-weight: bold; background-color: #00ffff; }
 .squawk7700 { font-weight: bold; background-color: #ffff00; }
-.selected   { background-color: #dddddd; }
+.selected   { background-color: #C0392B; }
 .plane_table_row { cursor: pointer; }
 .hidden { display: none; }
 
 .infoblock_heading    { font-size: larger; }
 .infoblock_heading a  { text-decoration: none; color: blue; font-size: x-small;}
 .infoblock_body       { font-size: small; }
-
-#selected_icao { font-size: x-small; }
-#selected_registration { font-size: x-small; }
-#selected_icaotype { font-size: x-small; }
 
 .dim    { opacity: 0.3; filter:alpha(opacity=30); /* For IE8 and earlier */ }
 

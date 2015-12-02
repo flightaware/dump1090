@@ -3,6 +3,7 @@
 function PlaneObject(icao) {
 	// Info about the plane
         this.icao      = icao;
+        this.icaorange = findICAORange(icao);
         this.flight    = null;
 	this.squawk    = null;
 	this.selected  = false;
@@ -13,6 +14,7 @@ function PlaneObject(icao) {
         this.speed     = null;
         this.track     = null;
         this.position  = null;
+        this.position_from_mlat = false
         this.sitedist  = null;
 
 	// Data packet numbers
@@ -34,8 +36,7 @@ function PlaneObject(icao) {
         // Display info
         this.visible = true;
         this.marker = null;
-        this.icon = { type: 'generic',
-                      fillOpacity: 0.9 };
+        this.icon = { type: 'generic' };
 
         // request metadata
         this.registration = null;
@@ -231,6 +232,13 @@ PlaneObject.prototype.getMarkerColor = function() {
                 l += ColorByAlt.selected.l;
         }
 
+        // If this marker is a mlat position, change color
+        if (this.position_from_mlat) {
+                h += ColorByAlt.mlat.h;
+                s += ColorByAlt.mlat.s;
+                l += ColorByAlt.mlat.l;
+        }
+
         if (h < 0) {
                 h = (h % 360) + 360;
         } else if (h >= 360) {
@@ -248,15 +256,19 @@ PlaneObject.prototype.getMarkerColor = function() {
 
 PlaneObject.prototype.updateIcon = function() {
         var col = this.getMarkerColor();
+        var opacity = (this.position_from_mlat ? 0.75 : 1.0);
+        var outline = (this.position_from_mlat ? OutlineMlatColor : OutlineADSBColor);
         var type = this.getMarkerIconType();
         var weight = this.selected ? 2 : 1;
         var rotation = (this.track === null ? 0 : this.track);
         
-        if (col === this.icon.fillColor && weight === this.icon.strokeWeight && rotation === this.icon.rotation && type == this.icon.type)
+        if (col === this.icon.fillColor && opacity == this.icon.fillOpacity && weight === this.icon.strokeWeight && outline == this.icon.strokeColor && rotation === this.icon.rotation && type == this.icon.type)
                 return false;  // no changes
         
-        this.icon.fillColor = col;                
+        this.icon.fillColor = col;
+        this.icon.fillOpacity = opacity;
         this.icon.strokeWeight = weight;
+        this.icon.strokeColor = outline;
         this.icon.rotation = rotation;
         this.icon.type = type;
         this.icon.path = MarkerIcons[type].path;
@@ -290,6 +302,16 @@ PlaneObject.prototype.updateData = function(receiver_timestamp, data) {
                 if (SitePosition !== null) {
                         this.sitedist = google.maps.geometry.spherical.computeDistanceBetween (SitePosition, this.position);
                 }
+
+                this.position_from_mlat = false;
+                if (typeof data.mlat !== "undefined") {
+                        for (var i = 0; i < data.mlat.length; ++i) {
+                                if (data.mlat[i] === "lat" || data.mlat[i] == "lon") {
+                                        this.position_from_mlat = true;
+                                        break;
+                                }
+                        }
+                }
         }
         if (typeof data.flight !== "undefined")
 		this.flight	= data.flight;
@@ -315,14 +337,16 @@ PlaneObject.prototype.updateTick = function(receiver_timestamp, last_timestamp) 
                 }
 	} else {
                 this.visible = true;
-                if (this.position !== null) {
-			if (this.updateTrack(receiver_timestamp - last_timestamp + 5)) {
+                if (this.position !== null && (this.selected || this.seen_pos < 60)) {
+			if (this.updateTrack(receiver_timestamp - last_timestamp + (this.position_from_mlat ? 30 : 5))) {
                                 this.updateLines();
                                 this.updateMarker(true);
                         } else { 
                                 this.updateMarker(false); // didn't move
                         }
-                }
+                } else {
+			this.clearMarker();
+		}
 	}
 };
 
@@ -382,8 +406,8 @@ PlaneObject.prototype.updateLines = function() {
                                 var lineSymbol = {
                                         path: 'M 0,-1 0,1',
                                         strokeOpacity : 1,
-                                        strokeColor : '#804040',
-                                        strokeWeight : 2,
+                                        strokeColor : '#F1C40F',
+                                        strokeWeight : 3,
                                         scale: 2
                                 };
                                 
@@ -399,8 +423,8 @@ PlaneObject.prototype.updateLines = function() {
                                 seg.line = new google.maps.Polyline({
                                         path: seg.track,
 					strokeOpacity: 1.0,
-					strokeColor: (seg.ground ? '#408040' : '#000000'),
-					strokeWeight: 3,
+					strokeColor: (seg.ground ? '#408040' : '#BDC3C7'),
+					strokeWeight: 4,
 					map: GoogleMap });
                         }
                 }
