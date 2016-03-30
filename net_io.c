@@ -304,7 +304,7 @@ void modesSendRawOutput(struct modesMessage *mm) {
 void modesSendSBSOutput(struct modesMessage *mm) {
     char msg[256], *p = msg;
     uint32_t     offset;
-    struct timeb epocTime_receive, epocTime_now;
+    struct timeval epocTime_receive, epocTime_now;
     struct tm    stTime_receive, stTime_now;
     int          msgType;
 
@@ -348,20 +348,20 @@ void modesSendSBSOutput(struct modesMessage *mm) {
     p += sprintf(p, "MSG,%d,111,11111,%06X,111111,", msgType, mm->addr); 
 
     // Find current system time
-    ftime(&epocTime_now);                                         // get the current system time & date
-    stTime_now = *localtime(&epocTime_now.time);
+    gettimeofday(&epocTime_now, NULL);                            // get the current system time & date
+    stTime_now = *localtime(&epocTime_now.tv_sec);
 
     // Find message reception time
     if (mm->timestampMsg && !mm->remote) {                        // Make sure the records' timestamp is valid before using it
         epocTime_receive = Modes.stSystemTimeBlk;                 // This is the time of the start of the Block we're processing
         offset   = (int) (mm->timestampMsg - Modes.timestampBlk); // This is the time (in 12Mhz ticks) into the Block
         offset   = offset / 12000;                                // convert to milliseconds
-        epocTime_receive.millitm += offset;                       // add on the offset time to the Block start time
-        if (epocTime_receive.millitm > 999) {                     // if we've caused an overflow into the next second...
-            epocTime_receive.millitm -= 1000;
-            epocTime_receive.time ++;                             //    ..correct the overflow
+        epocTime_receive.tv_usec += offset;                       // add on the offset time to the Block start time
+        if (epocTime_receive.tv_usec > 999) {                     // if we've caused an overflow into the next second...
+            epocTime_receive.tv_usec -= 1000;
+            epocTime_receive.tv_sec ++;                             //    ..correct the overflow
         }
-        stTime_receive = *localtime(&epocTime_receive.time);
+        stTime_receive = *localtime(&epocTime_receive.tv_sec);
     } else {
         epocTime_receive = epocTime_now;                          // We don't have a usable reception time; use the current system time
         stTime_receive = stTime_now;
@@ -369,11 +369,11 @@ void modesSendSBSOutput(struct modesMessage *mm) {
 
     // Fields 7 & 8 are the message reception time and date
     p += sprintf(p, "%04d/%02d/%02d,", (stTime_receive.tm_year+1900),(stTime_receive.tm_mon+1), stTime_receive.tm_mday);
-    p += sprintf(p, "%02d:%02d:%02d.%03d,", stTime_receive.tm_hour, stTime_receive.tm_min, stTime_receive.tm_sec, epocTime_receive.millitm);
+    p += sprintf(p, "%02d:%02d:%02d.%03d,", stTime_receive.tm_hour, stTime_receive.tm_min, stTime_receive.tm_sec, epocTime_receive.tv_usec);
 
     // Fields 9 & 10 are the current time and date
     p += sprintf(p, "%04d/%02d/%02d,", (stTime_now.tm_year+1900),(stTime_now.tm_mon+1), stTime_now.tm_mday);
-    p += sprintf(p, "%02d:%02d:%02d.%03d", stTime_now.tm_hour, stTime_now.tm_min, stTime_now.tm_sec, epocTime_now.millitm);
+    p += sprintf(p, "%02d:%02d:%02d.%03d", stTime_now.tm_hour, stTime_now.tm_min, stTime_now.tm_sec, epocTime_now.tv_usec);
 
     // Field 11 is the callsign (if we have it)
     if (mm->bFlags & MODES_ACFLAGS_CALLSIGN_VALID) {p += sprintf(p, ",%s", mm->flight);}

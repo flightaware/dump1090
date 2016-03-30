@@ -51,7 +51,6 @@
     #include <unistd.h>
     #include <math.h>
     #include <sys/time.h>
-    #include <sys/timeb.h>
     #include <signal.h>
     #include <fcntl.h>
     #include <ctype.h>
@@ -244,7 +243,7 @@ struct {                             // Internal state
     pthread_mutex_t data_mutex;      // Mutex to synchronize buffer access
     pthread_cond_t  data_cond;       // Conditional variable associated
     uint16_t       *pData          [MODES_ASYNC_BUF_NUMBER]; // Raw IQ sample buffers from RTL
-    struct timeb    stSystemTimeRTL[MODES_ASYNC_BUF_NUMBER]; // System time when RTL passed us this block
+    struct timeval  stSystemTimeRTL[MODES_ASYNC_BUF_NUMBER]; // System time when RTL passed us this block
     int             iDataIn;         // Fifo input pointer
     int             iDataOut;        // Fifo output pointer
     int             iDataReady;      // Fifo content count
@@ -253,7 +252,7 @@ struct {                             // Internal state
     uint16_t       *pFileData;       // Raw IQ samples buffer (from a File)
     uint16_t       *magnitude;       // Magnitude vector
     uint64_t        timestampBlk;    // Timestamp of the start of the current block
-    struct timeb    stSystemTimeBlk; // System time when RTL passed us currently processing this block
+    struct timeval  stSystemTimeBlk; // System time when RTL passed us currently processing this block
     int             fd;              // --ifile option file descriptor
     uint32_t       *icao_cache;      // Recently seen ICAO addresses cache
     uint16_t       *maglut;          // I/Q -> Magnitude lookup table

@@ -51,7 +51,6 @@ typedef int      socklen_t;
 
 #include <stdio.h>
 #include <time.h>
-#include <sys/timeb.h>
 #include <sys/stat.h>
 #include <signal.h>
 #include <io.h>

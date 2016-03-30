@@ -44,7 +44,6 @@
     #include <unistd.h>
     #include <math.h>
     #include <sys/time.h>
-    #include <sys/timeb.h>
     #include <signal.h>
     #include <fcntl.h>
     #include <ctype.h>
