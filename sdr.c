@@ -27,6 +27,9 @@
 #ifdef ENABLE_BLADERF
 #  include "sdr_bladerf.h"
 #endif
+#ifdef ENABLE_AIRSPY
+#  include "sdr_airspy.h"
+#endif
 
 typedef struct {
     const char *name;
@@ -83,6 +86,10 @@ static sdr_handler sdr_handlers[] = {
 
 #ifdef ENABLE_BLADERF
     { "bladerf", SDR_BLADERF, bladeRFInitConfig, bladeRFShowHelp, bladeRFHandleOption, bladeRFOpen, bladeRFRun, bladeRFClose },
+#endif
+
+#ifdef ENABLE_AIRSPY
+    { "airspy", SDR_AIRSPY, airspyInitConfig, airspyShowHelp, airspyHandleOption, airspyOpen, airspyRun, airspyClose },
 #endif
 
     { "ifile", SDR_IFILE, ifileInitConfig, ifileShowHelp, ifileHandleOption, ifileOpen, ifileRun, ifileClose },

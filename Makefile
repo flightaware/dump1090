@@ -2,6 +2,7 @@ PROGNAME=dump1090
 
 RTLSDR ?= yes
 BLADERF ?= yes
+AIRSPY ?= yes
 
 CC=gcc
 CPPFLAGS += -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
@@ -38,6 +39,17 @@ ifeq ($(BLADERF), yes)
   CPPFLAGS += -DENABLE_BLADERF
   CFLAGS += $(shell pkg-config --cflags libbladeRF)
   LIBS_SDR += $(shell pkg-config --libs libbladeRF)
+endif
+
+ifeq ($(AIRSPY), yes)
+  SDR_OBJ += sdr_airspy.o
+  CPPFLAGS += -DENABLE_AIRSPY
+  ifeq ($(RTLSDR), no)
+    CFLAGS += $(shell pkg-config --cflags libusb-1.0)
+    LIBS_SDR += $(shell pkg-config --libs libusb-1.0)
+  endif
+  CFLAGS += $(shell pkg-config --cflags libairspy soxr)
+  LIBS_SDR += $(shell pkg-config --libs libairspy soxr)
 endif
 
 all: dump1090 view1090
