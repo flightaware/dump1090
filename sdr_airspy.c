@@ -224,7 +224,7 @@ bool airspyOpen(void) {
     #define AIRSPY_STATUS(status, message) \
         if (status != 0) { \
         fprintf(stderr, "%s\n", message); \
-        airspy_close(AIRSPY.dev); \
+        airspyClose(); \
         return false; \
         } \
 
