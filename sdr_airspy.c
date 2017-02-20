@@ -357,12 +357,13 @@ int airspyCallback(airspy_transfer *transfer) {
     static int dropping = 0;
     static uint64_t sampleCounter = 0;
 
-    // Lock the data buffer variables before accessing them
-    pthread_mutex_lock(&Modes.data_mutex);
     if (Modes.exit) {
         airspy_stop_rx(AIRSPY.dev);
         return 0;
     }
+
+    // Lock the data buffer variables before accessing them
+    pthread_mutex_lock(&Modes.data_mutex);
 
     next_free_buffer = (Modes.first_free_buffer + 1) % MODES_MAG_BUFFERS;
     outbuf = &Modes.mag_buffers[Modes.first_free_buffer];
