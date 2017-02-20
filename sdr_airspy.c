@@ -100,28 +100,15 @@ void airspyInitConfig()
 
 static bool parse_uintt(char *s, uint64_t *const value, int utype)
 {
-    uint_fast8_t base = 10;
     char *s_end;
     uint64_t u64_val;
 
     if (s[0] == '-')  // likely forgot a parameter
         return false;
 
-    if (!isdigit(s[0]))  // we expect at least one number
-        return false;
-
-    if( strlen(s) > 2 ) {  // check for hexadecimal
-        if(s[0] == '0') {
-            if( tolower(s[1]) == 'x' ) {
-                base = 16;
-                s += 2;
-            }
-        }
-    }
-
     s_end = s;
 
-    u64_val = strtoull(s, &s_end, base);
+    u64_val = strtoull(s, &s_end, 0);
     if( (s != s_end) && (*s_end == 0) ) {
         switch(utype) {
             case 8:
