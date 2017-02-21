@@ -362,6 +362,8 @@ int airspyCallback(airspy_transfer *transfer) {
     lastbuf = &Modes.mag_buffers[(Modes.first_free_buffer + MODES_MAG_BUFFERS - 1) % MODES_MAG_BUFFERS];
     free_bufs = (Modes.first_filled_buffer - next_free_buffer + MODES_MAG_BUFFERS) % MODES_MAG_BUFFERS;
 
+    pthread_mutex_unlock(&Modes.data_mutex);
+
     // Give the demodulater what it expects
     soxr_process(AIRSPY.resampler, inptr, i_len, &i_done, outptr, MODES_RTL_BUF_SIZE, &o_done);
     for (i = 0; i < o_done; i++)
@@ -378,12 +380,10 @@ int airspyCallback(airspy_transfer *transfer) {
         dropping = 1;
         outbuf->dropped += slen;
         sampleCounter += slen;
-        pthread_mutex_unlock(&Modes.data_mutex);
         return 0;
     }
 
     dropping = 0;
-    pthread_mutex_unlock(&Modes.data_mutex);
 
     // Compute the sample timestamp and system timestamp for the start of the block
     outbuf->sampleTimestamp = sampleCounter + 12e6 / Modes.sample_rate;
