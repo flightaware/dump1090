@@ -103,9 +103,6 @@ static bool parse_uintt(char *s, uint64_t *const value, int utype)
     char *s_end;
     uint64_t u64_val;
 
-    if (s[0] == '-')  // likely forgot a parameter
-        return false;
-
     s_end = s;
 
     u64_val = strtoull(s, &s_end, 0);
@@ -113,23 +110,31 @@ static bool parse_uintt(char *s, uint64_t *const value, int utype)
         switch(utype) {
             case 8:
             {
+                if (u64_val > UCHAR_MAX)
+                    return false;
                 uint8_t *u8_ptr = (uint8_t *)value;
                 *u8_ptr = (uint8_t)u64_val;
                 break;
             }
             case 16:
             {
+                if (u64_val > USHRT_MAX)
+                    return false;
                 uint16_t *u16_ptr = (uint16_t *)value;
                 *u16_ptr = (uint16_t)u64_val;
                 break;
             }
             case 32:
             {
+                if (u64_val > UINT_MAX)
+                    return false;
                 uint32_t *u32_ptr = (uint32_t *)value;
                 *u32_ptr = (uint32_t)u64_val;
                 break;
             }
             case 64:
+                if (u64_val > ULONG_MAX)
+                    return false;
                 *value = u64_val;
                 break;
             default:
