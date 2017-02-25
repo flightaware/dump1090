@@ -12,9 +12,11 @@ It is designed to build as a Debian package.
 
 You will need a build of libbladeRF. You can build packages from source:
 
+````
 $ git clone https://github.com/Nuand/bladeRF.git
 $ cd bladeRF
 $ dpkg-buildpackage -b
+````
 
 Or Nuand has some build/install instructions including an Ubuntu PPA
 at https://github.com/Nuand/bladeRF/wiki/Getting-Started:-Linux
@@ -26,6 +28,33 @@ see https://flightaware.com/adsb/piaware/install
 
 This is packaged with jessie. "sudo apt-get install librtlsdr-dev"
 
+### Dependencies - Airspy
+
+While libairspy is available via apt-get, unfortunately it is an old version that does not provide some of the functionality used by this package. As such, you should build manually:
+
+````
+$ git clone https://github.com/airspy/host.git
+$ cd host
+$ mkdir build
+$ cd build
+$ cmake ../ -DINSTALL_UDEV_RULES=ON
+$ make
+$ sudo make install
+$ sudo ldconfig
+````
+
+You will also need the sox resampler library:
+
+````
+$ sudo apt-get install libsoxr-dev
+````
+
+If you've already installed the rtlsdr dependencies as detailed above, you should be all set. If not, you will also need the usb-1.0 development package if not already installed:
+
+````
+$ sudo apt-get install libusb-1.0-0-dev
+````
+
 ### Actually building it
 
 Nothing special, just build it ("dpkg-buildpackage -b")
@@ -35,7 +64,7 @@ Nothing special, just build it ("dpkg-buildpackage -b")
 First run "prepare-wheezy-tree.sh". This will create a package tree in
 package-wheezy/. Build in there ("dpkg-buildpackage -b")
 
-The wheezy build does not include bladeRF support.
+The wheezy build does not include bladeRF or Airspy support.
 
 ## Building manually
 
@@ -48,3 +77,8 @@ libbladeRF.
 
 "make RTLSDR=no" will disable rtl-sdr support and remove the dependency on
 librtlsdr.
+
+"make AIRSPY=no" will disable Airspy support and remove the dependency on
+libairspy.
+
+You may use a combination of these options to exclude support for more than one device if you wish.
