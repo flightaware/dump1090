@@ -31,7 +31,7 @@ case "$1" in
             adduser --system --home /usr/share/$NAME --no-create-home --quiet "$RUNAS"
         fi
 
-        # plugdev required for bladeRF USB access
+        # plugdev required for bladeRF and Airspy USB access
         adduser "$RUNAS" plugdev
 
         # set up lighttpd
