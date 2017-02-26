@@ -369,10 +369,6 @@ int airspyCallback(airspy_transfer *transfer) {
     for (i = 0; i < o_done; i++)
         AIRSPY.airspy_bytes[i] = (int8_t)(outptr[i] >> 4) + 127;
 
-    // The resampler often produces an odd sample count, no real value in tracking how often
-    if (o_done & 1)
-        o_done -= 1;
-
     slen = o_done;
 
     if (free_bufs == 0 || (dropping && free_bufs < MODES_MAG_BUFFERS/2)) {
