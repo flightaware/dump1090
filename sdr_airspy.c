@@ -63,6 +63,7 @@ static struct {
     bool enable_linearity;
     bool enable_sensitivity;
     bool enable_airspy_biast;
+    bool enable_bit_packing;
     uint8_t linearity_gain;
     uint8_t sensitivity_gain;
     uint8_t mixer_gain;
@@ -88,6 +89,7 @@ void airspyInitConfig()
     AIRSPY.enable_linearity = false;
     AIRSPY.enable_sensitivity = false;
     AIRSPY.enable_airspy_biast = false;
+    AIRSPY.enable_bit_packing = false;
     AIRSPY.linearity_gain = 0;
     AIRSPY.sensitivity_gain = 0; 
     AIRSPY.mixer_gain = 8;
@@ -160,6 +162,7 @@ void airspyShowHelp()
     printf("--lna-gain <n>           Set LNA gain (0-14, default 13)\n");
     printf("--vga-gain <n>           Set VGA gain (0-15, default 5)\n");
     printf("--enable-airspy-biast    Set bias tee supply on (default off)\n");
+    printf("--enable-bit-packing     Enable USB bit packing (default off)\n");
     printf("\n");
 }
 
@@ -177,6 +180,8 @@ bool airspyHandleOption(int argc, char **argv, int *jptr)
         AIRSPY.enable_mixer_agc = true;
     } else if (!strcmp(argv[j], "--enable-airspy-biast")) {
         AIRSPY.enable_airspy_biast = true;
+    } else if (!strcmp(argv[j], "--enable-bit-packing")) {
+        AIRSPY.enable_bit_packing = true;
     } else if (!strcmp(argv[j], "--linearity-gain") && more) {
         result = parse_uintt(argv[++j], (uint64_t *)&AIRSPY.linearity_gain, 8);
         AIRSPY.enable_linearity = true;
@@ -309,12 +314,23 @@ bool airspyOpen(void) {
     if (AIRSPY.enable_airspy_biast) {
         status = airspy_set_rf_bias(AIRSPY.dev, 1);
         AIRSPY_STATUS(status, "airspy_set_rf_bias (on) failed");
-        fprintf(stderr, "Bias-t: On\n");
+        fprintf(stderr, "Bias-t: On, ");
     }
     else {
         status = airspy_set_rf_bias(AIRSPY.dev, 0);
         AIRSPY_STATUS(status, "airspy_set_rf_bias (off) failed");
-        fprintf(stderr, "Bias-t: Off\n");
+        fprintf(stderr, "Bias-t: Off, ");
+    }
+
+    if (AIRSPY.enable_bit_packing) {
+        status = airspy_set_packing(AIRSPY.dev, 1);
+        AIRSPY_STATUS(status, "airspy_set_packing (on) failed");
+        fprintf(stderr, "Packing: On\n");
+    }
+    else {
+        status = airspy_set_packing(AIRSPY.dev, 0);
+        AIRSPY_STATUS(status, "airspy_set_packing (off) failed");
+        fprintf(stderr, "Packing: Off\n");
     }
 
     AIRSPY.converter = init_converter(INPUT_UC8,
@@ -431,7 +447,7 @@ void airspyRun()
         airspy_start_rx(AIRSPY.dev, airspyCallback, NULL);
 
         while ((airspy_is_streaming(AIRSPY.dev) == AIRSPY_TRUE) && (!Modes.exit)) {
-            usleep(500);
+            usleep(1000);
         }
     }
 }
