@@ -66,7 +66,6 @@ static void convert_uc8_nodc(void *iq_data,
     uint16_t *in = iq_data;
     unsigned i;
     uint64_t sum_level = 0;
-    uint64_t sum_power = 0;
     uint16_t mag;
 
     MODES_NOTUSED(state);
@@ -78,7 +77,6 @@ static void convert_uc8_nodc(void *iq_data,
         mag = uc8_lookup[*in++];                    \
         *mag_data++ = mag;                          \
         sum_level += mag;                           \
-        sum_power += (uint32_t)mag * (uint32_t)mag; \
     } while(0)
 
     // unroll this a bit
@@ -104,7 +102,7 @@ static void convert_uc8_nodc(void *iq_data,
     }
 
     if (out_mean_power) {
-        *out_mean_power = sum_power / 65535.0 / 65535.0 / nsamples;
+        *out_mean_power = *out_mean_level * *out_mean_level;
     }
 }
 
@@ -124,7 +122,7 @@ static void convert_uc8_generic(void *iq_data,
     unsigned i;
     uint8_t I, Q;
     float fI, fQ, magsq;
-    float sum_level = 0, sum_power = 0;
+    float sum_level = 0;
 
     for (i = 0; i < nsamples; ++i) {
         I = *in++;
@@ -143,7 +141,6 @@ static void convert_uc8_generic(void *iq_data,
             magsq = 1;
 
         float mag = sqrtf(magsq);
-        sum_power += magsq;
         sum_level += mag;
         *mag_data++ = (uint16_t)(mag * 65535.0f + 0.5f);
     }
@@ -156,7 +153,7 @@ static void convert_uc8_generic(void *iq_data,
     }
 
     if (out_mean_power) {
-        *out_mean_power = sum_power / nsamples;
+        *out_mean_power = *out_mean_level * *out_mean_level;
     }
 }
 
@@ -176,7 +173,7 @@ static void convert_sc16_generic(void *iq_data,
     unsigned i;
     int16_t I, Q;
     float fI, fQ, magsq;
-    float sum_level = 0, sum_power = 0;
+    float sum_level = 0;
 
     for (i = 0; i < nsamples; ++i) {
         I = (int16_t)le16toh(*in++);
@@ -195,7 +192,6 @@ static void convert_sc16_generic(void *iq_data,
             magsq = 1;
 
         float mag = sqrtf(magsq);
-        sum_power += magsq;
         sum_level += mag;
         *mag_data++ = (uint16_t)(mag * 65535.0f + 0.5f);
     }
@@ -208,7 +204,7 @@ static void convert_sc16_generic(void *iq_data,
     }
 
     if (out_mean_power) {
-        *out_mean_power = sum_power / nsamples;
+        *out_mean_power = *out_mean_level * *out_mean_level;
     }
 }
 
@@ -226,7 +222,7 @@ static void convert_sc16_nodc(void *iq_data,
     unsigned i;
     int16_t I, Q;
     float fI, fQ, magsq;
-    float sum_level = 0, sum_power = 0;
+    float sum_level = 0;
 
     for (i = 0; i < nsamples; ++i) {
         I = (int16_t)le16toh(*in++);
@@ -239,7 +235,6 @@ static void convert_sc16_nodc(void *iq_data,
             magsq = 1;
 
         float mag = sqrtf(magsq);
-        sum_power += magsq;
         sum_level += mag;
         *mag_data++ = (uint16_t)(mag * 65535.0f + 0.5f);
     }
@@ -249,7 +244,7 @@ static void convert_sc16_nodc(void *iq_data,
     }
 
     if (out_mean_power) {
-        *out_mean_power = sum_power / nsamples;
+        *out_mean_power = *out_mean_level * *out_mean_level;
     }
 }
 
@@ -306,7 +301,6 @@ static void convert_sc16q11_table(void *iq_data,
     unsigned i;
     uint16_t I, Q;
     uint64_t sum_level = 0;
-    uint64_t sum_power = 0;
     uint16_t mag;
 
     MODES_NOTUSED(state);
@@ -317,7 +311,6 @@ static void convert_sc16q11_table(void *iq_data,
         mag = sc16q11_lookup[((I >> LOSE_BITS) << USE_BITS) | (Q >> LOSE_BITS)];
         *mag_data++ = mag;
         sum_level += mag;
-        sum_power += (uint32_t)mag * (uint32_t)mag;
     }
 
     if (out_mean_level) {
@@ -325,7 +318,7 @@ static void convert_sc16q11_table(void *iq_data,
     }
 
     if (out_mean_power) {
-        *out_mean_power = sum_power / 65535.0 / 65535.0 / nsamples;
+        *out_mean_power = *out_mean_level * *out_mean_level;
     }
 }
 
@@ -345,7 +338,7 @@ static void convert_sc16q11_nodc(void *iq_data,
     unsigned i;
     int16_t I, Q;
     float fI, fQ, magsq;
-    float sum_level = 0, sum_power = 0;
+    float sum_level = 0;
 
     for (i = 0; i < nsamples; ++i) {
         I = (int16_t)le16toh(*in++);
@@ -358,7 +351,6 @@ static void convert_sc16q11_nodc(void *iq_data,
             magsq = 1;
 
         float mag = sqrtf(magsq);
-        sum_power += magsq;
         sum_level += mag;
         *mag_data++ = (uint16_t)(mag * 65535.0f + 0.5f);
     }
@@ -368,7 +360,7 @@ static void convert_sc16q11_nodc(void *iq_data,
     }
 
     if (out_mean_power) {
-        *out_mean_power = sum_power / nsamples;
+        *out_mean_power = *out_mean_level * *out_mean_level;
     }
 }
 
@@ -390,7 +382,7 @@ static void convert_sc16q11_generic(void *iq_data,
     unsigned i;
     int16_t I, Q;
     float fI, fQ, magsq;
-    float sum_level = 0, sum_power = 0;
+    float sum_level = 0;
 
     for (i = 0; i < nsamples; ++i) {
         I = (int16_t)le16toh(*in++);
@@ -409,7 +401,6 @@ static void convert_sc16q11_generic(void *iq_data,
             magsq = 1;
 
         float mag = sqrtf(magsq);
-        sum_power += magsq;
         sum_level += mag;
         *mag_data++ = (uint16_t)(mag * 65535.0f + 0.5f);
     }
@@ -422,7 +413,7 @@ static void convert_sc16q11_generic(void *iq_data,
     }
 
     if (out_mean_power) {
-        *out_mean_power = sum_power / nsamples;
+        *out_mean_power = *out_mean_level * *out_mean_level;
     }
 }
 
