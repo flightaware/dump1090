@@ -110,10 +110,10 @@ var TypeDesignatorIcons = {
         'B773': 'heavy_2e',
         'B77L': 'heavy_2e',
 
-        'DH8A': 'twin_small',
-        'DH8B': 'twin_small',
-        'DH8C': 'twin_small',
-        'DH8D': 'twin_small',
+        'DH8A': 'twin_large', // all pretty similar except for length
+        'DH8B': 'twin_large',
+        'DH8C': 'twin_large',
+        'DH8D': 'twin_large',
 
         'E170': 'jet_swept',
         'E45X': 'jet_swept',
