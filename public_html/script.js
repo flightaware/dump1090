@@ -328,24 +328,20 @@ function initialize() {
 
 var CurrentHistoryFetch = null;
 var PositionHistoryBuffer = []
+var HistoryItemsReturned = 0;
 function start_load_history() {
         if (PositionHistorySize > 0 && window.location.hash != '#nohistory') {
                 $("#loader_progress").attr('max',PositionHistorySize);
                 console.log("Starting to load history (" + PositionHistorySize + " items)");
-                load_history_item(0);
-        } else {
-                end_load_history();
+                //Load history items in parallel
+                for (var i = 0; i < PositionHistorySize; i++) {
+                        load_history_item(i);
+                }
         }
 }
 
 function load_history_item(i) {
-        if (i >= PositionHistorySize) {
-                end_load_history();
-                return;
-        }
-
         console.log("Loading history #" + i);
-        $("#loader_progress").attr('value',i);
 
         $.ajax({ url: 'data/history_' + i + '.json',
                  timeout: 5000,
@@ -354,12 +350,19 @@ function load_history_item(i) {
 
                 .done(function(data) {
                         PositionHistoryBuffer.push(data);
-                        load_history_item(i+1);
+                        HistoryItemsReturned++;
+                        $("#loader_progress").attr('value',HistoryItemsReturned);
+                        if (HistoryItemsReturned == PositionHistorySize) {
+                                end_load_history();
+                        }
                 })
 
                 .fail(function(jqxhr, status, error) {
-                        // No more history
-                        end_load_history();
+                        //Doesn't matter if it failed, we'll just be missing a data point
+                        HistoryItemsReturned++;
+                        if (HistoryItemsReturned == PositionHistorySize) {
+                                end_load_history();
+                        }
                 });
 }
 
@@ -378,7 +381,7 @@ function end_load_history() {
                 // Process history
                 for (var h = 0; h < PositionHistoryBuffer.length; ++h) {
                         now = PositionHistoryBuffer[h].now;
-                        console.log("Applying history " + h + "/" + PositionHistoryBuffer.length + " at: " + now);
+                        console.log("Applying history " + (h + 1) + "/" + PositionHistoryBuffer.length + " at: " + now);
                         processReceiverUpdate(PositionHistoryBuffer[h]);
 
                         // update track

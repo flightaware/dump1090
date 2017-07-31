@@ -110,11 +110,6 @@ var TypeDesignatorIcons = {
         'B773': 'heavy_2e',
         'B77L': 'heavy_2e',
 
-        'DH8A': 'twin_small',
-        'DH8B': 'twin_small',
-        'DH8C': 'twin_small',
-        'DH8D': 'twin_small',
-
         'E170': 'jet_swept',
         'E45X': 'jet_swept',
         'B712': 'jet_swept',
@@ -223,8 +218,8 @@ var TypeDescriptionIcons = {
         'L1T': 'cessna',
         'L1J': 'hi_perf',
 
-        'L2T': 'twin_small',
-        'L2P': 'twin_large',
+        'L2P': 'twin_small',
+        'L2T': 'twin_large',
 
         'L2J-L': 'jet_swept',
         'L2J-M': 'airliner',

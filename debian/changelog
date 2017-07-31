@@ -1,3 +1,16 @@
+dump1090-fa (3.5.1) stable; urgency=medium
+
+  * Skyview: fix font mappings
+  * Skyview: mark tisb_icao and tisb_other addresses as TIS-B
+  * Skyview: fix unit selection on Firefox
+  * Skyview: report data source correctly in popup
+  * Skyview: change default color for grounded aircraft to brown
+  * Skyview: initial history load speedups (Steven Davies)
+  * Skyview: fix L2T/L2P icon selection
+  * Makefile cleanups (Michael Tatarinov)
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Mon, 31 Jul 2017 13:43:32 +0100
+
 dump1090-fa (3.5.0) stable; urgency=medium
 
   * SkyView map UI added.
