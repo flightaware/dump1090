@@ -101,7 +101,7 @@ var TypeDesignatorIcons = {
         'B74D': 'heavy_4e',
         'B74S': 'heavy_4e',
         'B74R': 'heavy_4e',
-        'BLCF': 'heavy_2e',
+        'BLCF': 'heavy_4e',
         'BSCA': 'heavy_4e', // hah!
         'B748': 'heavy_4e',
 
@@ -110,7 +110,6 @@ var TypeDesignatorIcons = {
         'B773': 'heavy_2e',
         'B77L': 'heavy_2e',
 
-        'E170': 'jet_swept',
         'E45X': 'jet_swept',
         'B712': 'jet_swept',
         'C650': 'jet_swept',
