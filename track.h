@@ -222,6 +222,8 @@ struct aircraft {
     unsigned      nac_p : 4;      // NACp from TSS or opstatus
     unsigned      nac_v : 3;      // NACv from airborne velocity or opstatus
     unsigned      sil : 2;        // SIL from TSS or opstatus
+    unsigned      gva : 2;
+    unsigned      sda : 2;
     sil_type_t    sil_type;       // SIL supplement from TSS or opstatus
     unsigned      gva : 2;        // GVA from opstatus
     unsigned      sda : 2;        // SDA from opstatus
