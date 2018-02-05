@@ -141,7 +141,6 @@ ifeq ($(BLADERF), yes)
   LIBS_SDR += $(shell pkg-config --libs libbladeRF)
 endif
 
-<<<<<<< HEAD
 ifeq ($(HACKRF), yes)
   SDR_OBJ += sdr_hackrf.o
   DUMP1090_CPPFLAGS += -DENABLE_HACKRF
@@ -221,7 +220,7 @@ starch-benchmark: cpu.o dsp/helpers/tables.o $(CPUFEATURES_OBJS) $(STARCH_OBJS) 
 	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS)
 
 clean:
-	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o cpu_features/src/*.o dsp/generated/*.o dsp/helpers/*.o $(CPUFEATURES_OBJS) dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
+	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o cpu_features/src/*.o dsp/generated/*.o dsp/helpers/*.o $(CPUFEATURES_OBJS) dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark $(DISTDIR)
 
 test: cprtests
 	./cprtests
