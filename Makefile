@@ -97,7 +97,7 @@ ifeq ($(CPUFEATURES),yes)
 endif
 
 DISTDIR = build
-DISTFILES = dump1090 view1090 COPYING LICENSE README.md README-json.md public_html
+DISTFILES = dump1090 view1090 dump1090.sh COPYING LICENSE README.md README-json.md README-IFD.md public_html data
 
 RTLSDR ?= yes
 BLADERF ?= yes
