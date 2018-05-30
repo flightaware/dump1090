@@ -159,7 +159,7 @@ var ICAO_Ranges = [
         { start: 0x768000, end: 0x76FFFF, country: "Singapore", flag_image: "Singapore.png" },
         { start: 0x505C00, end: 0x505FFF, country: "Slovakia", flag_image: "Slovakia.png" },
         { start: 0x506C00, end: 0x506FFF, country: "Slovenia", flag_image: "Slovenia.png" },
-        { start: 0x897000, end: 0x8973FF, country: "Solomon Islands", flag_image: "Soloman_Islands.png" }, // flag typo?
+        { start: 0x897000, end: 0x8973FF, country: "Solomon Islands", flag_image: "Solomon_Islands.png" },
         { start: 0x078000, end: 0x078FFF, country: "Somalia", flag_image: "Somalia.png" },
         { start: 0x008000, end: 0x00FFFF, country: "South Africa", flag_image: "South_Africa.png" },
         { start: 0x340000, end: 0x37FFFF, country: "Spain", flag_image: "Spain.png" },

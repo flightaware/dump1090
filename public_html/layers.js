@@ -46,6 +46,7 @@ function createBaseLayers() {
                         sec: "Sectional Charts",
                         tac: "Terminal Area Charts",
                         wac: "World Aeronautical Charts",
+                        hel: "Helicopter Charts",
                         enrl: "IFR Enroute Low Charts",
                         enra: "IFR Area Charts",
                         enrh: "IFR Enroute High Charts"

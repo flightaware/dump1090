@@ -36,6 +36,8 @@ static uint32_t crc_table[256];
 // correction tables.
 static uint32_t single_bit_syndrome[112];
 
+static uint32_t double_bit_syndrome[112][112];
+
 static void initLookupTables()
 {
     int i;
@@ -56,8 +58,14 @@ static void initLookupTables()
 
     memset(msg, 0, sizeof(msg));
     for (i = 0; i < 112; ++i) {
+        int j;
         msg[i/8] ^= 1 << (7 - (i & 7));
         single_bit_syndrome[i] = modesChecksum(msg, 112);
+        for (j = 0; j < 112; ++j) {
+            msg[j/8] ^= 1 << (7 - (j & 7));
+            double_bit_syndrome[i][j] = modesChecksum(msg, 112);
+            msg[j/8] ^= 1 << (7 - (j & 7));
+        }
         msg[i/8] ^= 1 << (7 - (i & 7));
     }
 }
@@ -374,8 +382,8 @@ void modesChecksumInit(int fixBits)
         // Detect out to 4 bit errors; this reduces our 2-bit coverage to about 65%.
         // This can take a little while - tell the user.
         fprintf(stderr, "Preparing error correction tables.. ");
-        bitErrorTable_short = prepareErrorTable(MODES_SHORT_MSG_BITS, 2, 4, &bitErrorTableSize_short);
-        bitErrorTable_long = prepareErrorTable(MODES_LONG_MSG_BITS, 2, 4, &bitErrorTableSize_long);
+        bitErrorTable_short = prepareErrorTable(MODES_SHORT_MSG_BITS, 3, 5, &bitErrorTableSize_short);
+        bitErrorTable_long = prepareErrorTable(MODES_LONG_MSG_BITS, 3, 5, &bitErrorTableSize_long);
         fprintf(stderr, "done.\n");
         break;
     }

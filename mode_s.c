@@ -1813,7 +1813,7 @@ void useModesMessage(struct modesMessage *mm) {
     // forward messages when we have seen two of them.
 
     if (Modes.net) {
-        if (Modes.net_verbatim || mm->msgtype == 32) {
+        if (true || Modes.net_verbatim || mm->msgtype == 32) {
             // Unconditionally send
             modesQueueOutput(mm, a);
         } else if (a->messages > 1) {

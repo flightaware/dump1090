@@ -70,6 +70,14 @@ function format_altitude_brief(alt, vr, displayUnits) {
 	return alt_text + verticalRateTriangle;
 }
 
+// alt in ft
+function _alt_to_unit(alt, m) {
+	if (m)
+		return Math.round(alt * 0.3048) + NBSP + "m";
+	else
+		return Math.round(alt) + NBSP + "ft";
+}
+
 // alt in feet
 function format_altitude_long(alt, vr, displayUnits) {
 	var alt_text = "";

@@ -56,7 +56,7 @@
 #endif
 
 #ifndef MODES_DUMP1090_VARIANT
-# define MODES_DUMP1090_VARIANT     "dump1090-mutability"
+# define MODES_DUMP1090_VARIANT     "dump1090-paulyc"
 #endif
 
 // ============================= Include files ==========================
@@ -87,6 +87,8 @@
 
 // ============================= #defines ===============================
 
+#define HAVE_RTL_BIAST             1
+#define MODES_DEFAULT_PPM          0
 #define MODES_DEFAULT_FREQ         1090000000
 #define MODES_DEFAULT_WIDTH        1000
 #define MODES_DEFAULT_HEIGHT       700
@@ -282,6 +284,10 @@ struct {                             // Internal state
     char *        dev_name;
     int           gain;
     int           freq;
+    int           ppm_error;
+#ifdef HAVE_RTL_BIAST
+    int           enable_rtlsdr_biast;
+#endif
 
     // Networking
     char           aneterr[ANET_ERR_LEN];
@@ -552,8 +558,28 @@ void  interactiveInit(void);
 void  interactiveShowData(void);
 void  interactiveCleanup(void);
 
+void log_with_timestamp(const char *format, ...) __attribute__((format (printf, 1, 2) ));
+
 // Provided by dump1090.c / view1090.c / faup1090.c
+void dump1090ReceiverPositionChanged(float lat, float lon, float alt);
+void faup1090ReceiverPositionChanged(float lat, float lon, float alt);
+void view1090ReceiverPositionChanged(float lat, float lon, float alt);
 void receiverPositionChanged(float lat, float lon, float alt);
+
+void faupInitConfig(void);
+void faupInit(void);
+int faupMainLoop(char *bo_connect_ipaddr, int bo_connect_port);
+void faupBackgroundTasks(void);
+
+void view1090InitConfig(void);
+void view1090Init(void);
+
+void modesInitConfig(void);
+void modesInit(void);
+void *readerThreadEntryPoint(void *arg);
+void snipMode(int level);
+void display_total_stats(void);
+void backgroundTasks(void);
 
 #ifdef __cplusplus
 }

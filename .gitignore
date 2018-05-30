@@ -1,3 +1,6 @@
+build/
+*.kate-swp
+lib1090.*
 *.o
 dump1090
 testfiles/*.bin

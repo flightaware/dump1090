@@ -58,7 +58,7 @@
 static int convert_altitude(int ft)
 {
     if (Modes.metric)
-        return (ft / 3.2828);
+        return (ft * 0.3048);
     else
         return ft;
 }

@@ -23,7 +23,7 @@
 #include <stdint.h>
 
 // Global max for fixable bit erros
-#define MODES_MAX_BITERRORS 2
+#define MODES_MAX_BITERRORS 3
 
 struct errorinfo {
     uint32_t syndrome;                 // CRC syndrome
