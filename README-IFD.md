@@ -5,6 +5,9 @@ Copy the whole dump1090 directory into it, so the starting scritp could be found
 dump1090 requires following library to be installed:
 apt install libbladerf1
 
+MongoC/BSON libs version required:
+mongo-c-driver-1.12.0
+
 Create a file /etc/systemd/system/dump1090.service with following content:
 '''
 [Unit]
