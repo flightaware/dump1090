@@ -18,3 +18,5 @@ oneoff/decode_comm_b
 starch-benchmark
 wisdom.local
 build
+.idea
+data

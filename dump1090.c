@@ -285,6 +285,9 @@ static void showVersion()
 #ifdef ENABLE_LIMESDR
            "ENABLE_LIMESDR "
 #endif
+#ifdef ENABLE_MONGOC
+           "ENABLE_MONGOC "
+#endif
            );
     printf("-----------------------------------------------------------------------------\n");
 }
@@ -548,6 +551,21 @@ static void backgroundTasks(void) {
         next_json = now + Modes.json_interval;
     }
 
+#ifdef ENABLE_MONGOC
+    if (Modes.mongo_uri) {
+        int len = 0;
+        int code = writeJsonToMongo(generateAircraftJson(NULL, &len));
+
+        if(len == 0) {
+            fprintf(stderr, "Tried to write empty JSON to Mongo\n");
+        }
+
+        if(code != 0) {
+            fprintf(stderr, "Error while writing JSON to Mongo\n");
+        }
+    }
+#endif
+
     if (now >= next_history) {
         int rewrite_receiver_json = (Modes.json_dir && Modes.json_aircraft_history[HISTORY_SIZE-1].content == NULL);
 
@@ -804,6 +822,13 @@ int main(int argc, char **argv) {
             Modes.adaptive_range_scan_delay = atoi(argv[++j]);
         } else if (!strcmp(argv[j], "--adaptive-range-rescan-delay") && more) {
             Modes.adaptive_range_rescan_delay = atoi(argv[++j]);
+         // Mongo flags
+        } else if (!strcmp(argv[j], "--write-mongo-uri") && more) {
+            Modes.mongo_uri = strdup(argv[++j]);
+        } else if (!strcmp(argv[j], "--write-mongo-db") && more) {
+            Modes.mongo_database = strdup(argv[++j]);
+        } else if (!strcmp(argv[j], "--write-mongo-col") && more) {
+            Modes.mongo_collection = strdup(argv[++j]);
         } else if (sdrHandleOption(argc, argv, &j)) {
             /* handled */
         } else {

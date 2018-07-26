@@ -79,6 +79,7 @@
 #include <sys/ioctl.h>
 #include <time.h>
 #include <limits.h>
+#include <mongoc.h>
 
 #include "compat/compat.h"
 #include "dsp/generated/starch.h"
@@ -295,6 +296,10 @@ typedef enum {
 #include "fifo.h"
 #include "adaptive.h"
 
+#ifdef ENABLE_MONGOC
+#  include "mongo_conn.h"
+#endif
+
 //======================== structure declarations =========================
 
 typedef enum {
@@ -392,6 +397,11 @@ struct _Modes {                             // Internal state
         char *content;
         int clen;
     } json_aircraft_history[HISTORY_SIZE];
+
+    // Mongo connection options
+    char * mongo_uri;               // Mongo URI connection string
+    char * mongo_database;          // Mongo DB name
+    char * mongo_collection;        // Mongo collection name
 
     // User details
     double fUserLat;                // Users receiver/antenna lat/lon needed for initial surface location
