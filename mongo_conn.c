@@ -6,6 +6,8 @@
 
 int writeJsonToMongo(const char *json) {
     const char *uri_string = Modes.mongo_uri;
+    const char *database_string = Modes.mongo_database;
+    const char *collection_string = Modes.mongo_collection;
     mongoc_uri_t *uri;
     mongoc_client_t *client;
     mongoc_database_t *database;
@@ -47,8 +49,8 @@ int writeJsonToMongo(const char *json) {
     /*
      * Get a handle on the database "db_name" and collection "coll_name"
      */
-    database = mongoc_client_get_database(client, "db_name");
-    collection = mongoc_client_get_collection(client, "db_name", "coll_name");
+    database = mongoc_client_get_database(client, database_string);
+    collection = mongoc_client_get_collection(client, database_string, collection_string);
 
     /*
      * Parse JSON into BSON
