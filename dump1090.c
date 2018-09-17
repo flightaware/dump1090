@@ -119,6 +119,8 @@ void modesInitConfig(void) {
     Modes.interactive_display_ttl = MODES_INTERACTIVE_DISPLAY_TTL;
     Modes.json_interval           = 1000;
     Modes.json_location_accuracy  = 1;
+    Modes.json_history_size = HISTORY_SIZE;
+    Modes.json_history_interval = HISTORY_INTERVAL;
     Modes.maxRange                = 1852 * 300; // 300NM default max range
     Modes.mode_ac_auto            = 1;
 
@@ -153,6 +155,13 @@ void modesInit(void) {
         Modes.mag_buffers[i].length = 0;
         Modes.mag_buffers[i].dropped = 0;
         Modes.mag_buffers[i].sampleTimestamp = 0;
+    }
+
+    // Allocate buffer for the json history
+    if ( (Modes.json_aircraft_history = calloc(Modes.json_history_size, sizeof(struct json_aircraft_history_entry))) == NULL)
+    {
+        fprintf(stderr, "Out of memory allocating json history.\n");
+        exit(1);
     }
 
     // Validate the users Lat/Lon home location inputs
@@ -331,6 +340,8 @@ void showHelp(void) {
 "--write-json <dir>       Periodically write json output to <dir> (for serving by a separate webserver)\n"
 "--write-json-every <t>   Write json output every t seconds (default 1)\n"
 "--json-location-accuracy <n>  Accuracy of receiver location in json metadata: 0=no location, 1=approximate, 2=exact\n"
+"--json-history-size <n>  Number of data points kept in json history, default is 120 (Caution: This setting can increase WebView load time)\n"
+"--json-history-interval <t> Time between history data points in seconds, default is 30\n"
 "--dcfilter               Apply a 1Hz DC filter to input data (requires more CPU)\n"
 "--help                   Show this help\n"
 "\n"
@@ -433,7 +444,7 @@ void backgroundTasks(void) {
     }
 
     if (now >= next_history) {
-        int rewrite_receiver_json = (Modes.json_dir && Modes.json_aircraft_history[HISTORY_SIZE-1].content == NULL);
+        int rewrite_receiver_json = (Modes.json_dir && Modes.json_aircraft_history[Modes.json_history_size-1].content == NULL);
 
         free(Modes.json_aircraft_history[Modes.json_aircraft_history_next].content); // might be NULL, that's OK.
         Modes.json_aircraft_history[Modes.json_aircraft_history_next].content =
@@ -445,12 +456,12 @@ void backgroundTasks(void) {
             writeJsonToFile(filebuf, generateHistoryJson);
         }
 
-        Modes.json_aircraft_history_next = (Modes.json_aircraft_history_next+1) % HISTORY_SIZE;
+        Modes.json_aircraft_history_next = (Modes.json_aircraft_history_next+1) % Modes.json_history_size;
 
         if (rewrite_receiver_json)
             writeJsonToFile("receiver.json", generateReceiverJson); // number of history entries changed
 
-        next_history = now + HISTORY_INTERVAL;
+        next_history = now + Modes.json_history_interval;
     }
 }
 
@@ -612,6 +623,10 @@ int main(int argc, char **argv) {
                 Modes.json_interval = 100;
         } else if (!strcmp(argv[j], "--json-location-accuracy") && more) {
             Modes.json_location_accuracy = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--json-history-size") && more) {
+            Modes.json_history_size = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--json-history-interval") && more) {
+            Modes.json_history_interval = (int) 1000 * atof(argv[++j]); // convert from s to ms
 #endif
         } else if (sdrHandleOption(argc, argv, &j)) {
             /* handled */

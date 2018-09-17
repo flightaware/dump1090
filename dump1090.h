@@ -288,6 +288,11 @@ struct mag_buf {
     double          mean_power;      // Mean of normalized (0..1) power level
 };
 
+struct json_aircraft_history_entry {
+    char *content;
+    int clen;
+};
+
 // Program global state
 struct {                             // Internal state
     pthread_t       reader_thread;
@@ -365,10 +370,9 @@ struct {                             // Internal state
     int   json_location_accuracy;    // Accuracy of location metadata: 0=none, 1=approx, 2=exact
 
     int   json_aircraft_history_next;
-    struct {
-        char *content;
-        int clen;
-    } json_aircraft_history[HISTORY_SIZE];
+    int   json_history_size;
+    int   json_history_interval;
+    struct json_aircraft_history_entry *json_aircraft_history;
 
     // User details
     double fUserLat;                // Users receiver/antenna lat/lon needed for initial surface location

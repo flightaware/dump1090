@@ -1551,10 +1551,10 @@ char *generateReceiverJson(const char *url_path, int *len)
     MODES_NOTUSED(url_path);
 
     // work out number of valid history entries
-    if (Modes.json_aircraft_history[HISTORY_SIZE-1].content == NULL)
+    if (Modes.json_aircraft_history[Modes.json_history_size-1].content == NULL)
         history_size = Modes.json_aircraft_history_next;
     else
-        history_size = HISTORY_SIZE;
+        history_size = Modes.json_history_size;
 
     p += sprintf(p, "{ " \
                  "\"version\" : \"%s\", "
@@ -1589,7 +1589,7 @@ char *generateHistoryJson(const char *url_path, int *len)
     if (sscanf(url_path, "/data/history_%d.json", &history_index) != 1)
         return NULL;
 
-    if (history_index < 0 || history_index >= HISTORY_SIZE)
+    if (history_index < 0 || history_index >= Modes.json_history_size)
         return NULL;
 
     if (!Modes.json_aircraft_history[history_index].content)
