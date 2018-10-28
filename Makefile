@@ -49,6 +49,13 @@ view1090: view1090.o anet.o interactive.o mode_ac.o mode_s.o comm_b.o net_io.o c
 faup1090: faup1090.o anet.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o stats.o cpr.o icao_filter.o track.o util.o $(COMPAT)
 	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS)
 
+install: dump1090 view1090
+	install -d $(DESTDIR)/usr/local/bin
+	install -t $(DESTDIR)/usr/local/bin $?
+
+uninstall:
+	rm -f $(DESTDIR)/usr/local/bin/dump1090 $(DESTDIR)/usr/local/bin/view1090
+
 clean:
 	rm -f *.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o dump1090 view1090 faup1090 cprtests crctests convert_benchmark
 

@@ -40,8 +40,8 @@ The wheezy build does not include bladeRF support.
 ## Building manually
 
 You can probably just run "make" after installing the required dependencies.
-Binaries are built in the source directory; you will need to arrange to
-install them (and a method for starting them) yourself.
+Binaries are built in the source directory. "make install" will copy those
+binaries to "/usr/local/bin".
 
 "make BLADERF=no" will disable bladeRF support and remove the dependency on
 libbladeRF.
