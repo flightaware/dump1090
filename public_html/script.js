@@ -215,7 +215,6 @@ function initialize() {
 			handles: {
 				s: '#splitter-infoblock'
 			},
-			containment: "#sidebar_container",
 			minHeight: 50
 		});
 
