@@ -122,6 +122,7 @@ var TypeDesignatorIcons = {
         'CL60': 'jet_swept',
         'G150': 'jet_swept',
         'GL5T': 'jet_swept',
+		'GLEX': 'jet_swept',
         'GLF2': 'jet_swept', // close enough
         'GLF3': 'jet_swept',
         'GLF4': 'jet_swept',
