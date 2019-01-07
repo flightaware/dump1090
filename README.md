@@ -56,6 +56,13 @@ package-wheezy/. Build in there (`dpkg-buildpackage -b`)
 
 The wheezy build does not include bladeRF, HackRF, or LimeSDR support.
 
+## Building on FreeBSD
+
+To build, you will need librtlsdr, pkgconf and GNU Make. For users of pkg(8):
+`pkg install rtl-sdr pkgconf gmake`.
+
+Then proceed by building with `gmake`.
+
 ## Building manually
 
 You can probably just run "make" after installing the required dependencies.
