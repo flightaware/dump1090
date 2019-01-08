@@ -40,7 +40,7 @@ ifeq ($(RTLSDR), yes)
       LIBS_SDR += -L$(RTLSDR_PREFIX)/lib -lrtlsdr -lusb-1.0
     endif
   else
-    CFLAGS += $(shell pkg-config --cflags librtlsdr)
+    CFLAGS += $(shell pkg-config --cflags-only-I librtlsdr)
     # some packaged .pc files are massively broken, try to handle it
     RTLSDR_LFLAGS := $(shell pkg-config --libs-only-L librtlsdr)
     ifeq ($(RTLSDR_LFLAGS),-L)
