@@ -2,12 +2,16 @@ PROGNAME=dump1090
 
 RTLSDR ?= yes
 BLADERF ?= yes
+DARWIN ?= no
 
 CPPFLAGS += -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
 
 DIALECT = -std=c11
 CFLAGS += $(DIALECT) -O2 -g -Wall -Werror -W -D_DEFAULT_SOURCE
 LIBS = -lpthread -lm -lrt
+ifeq ($(DARWIN), yes)
+  LIBS = -lpthread -lm
+endif
 
 ifeq ($(RTLSDR), yes)
   SDR_OBJ += sdr_rtlsdr.o
@@ -33,6 +37,10 @@ ifeq ($(BLADERF), yes)
   CPPFLAGS += -DENABLE_BLADERF
   CFLAGS += $(shell pkg-config --cflags libbladeRF)
   LIBS_SDR += $(shell pkg-config --libs libbladeRF)
+endif
+
+ifeq ($(DARWIN), yes)
+  CFLAGS += -DPOSIX_MACH_TIMING
 endif
 
 all: dump1090 view1090

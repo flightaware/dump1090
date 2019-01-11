@@ -51,6 +51,10 @@
 #include "dump1090.h"
 #include "sdr_ifile.h"
 
+#ifdef POSIX_MACH_TIMING
+#include "timing_mach.h"
+#endif
+
 static struct {
     const char *filename;
     input_format_t input_format;
@@ -242,7 +246,11 @@ void ifileRun()
 
         if (ifile.throttle || Modes.interactive) {
             // Wait until we are allowed to release this buffer to the main thread
+#ifdef POSIX_MACH_TIMING
+            while (clock_nanosleep_abstime(&next_buffer_delivery) == EINTR)
+#else
             while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next_buffer_delivery, NULL) == EINTR)
+#endif
                 ;
 
             // compute the time we can deliver the next buffer.
