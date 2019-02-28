@@ -73,19 +73,19 @@ static struct {
 	// Time related stuff
 	mlat_time_t mlat_decoder;		// Type of MLAT processor
 	mlatprocessor_t MLATtimefunc; 	// The processor function for time calculations in specified manner (none, beast, dump1090)
-	uint64_t firsttimestampMsg;	    // Timestamp of the first message (12MHz clock)
-	uint64_t previoustimestampMsg;  // Timestamp of the last processed message (12MHz clock)
+	unsigned long long firsttimestampMsg;	  // Timestamp of the first message (12MHz clock)
+	unsigned long long previoustimestampMsg;  // Timestamp of the last processed message (12MHz clock)
 	time_t initTime;                // Base time (UNIX format) to calculate relative time for messages using MLAT timestamps
 
 	// Other options stuff
 	bool isFindICAO;			   	// *NOT REALIZED* Find only ICAO
-	uint64_t limitMsgCount;         // Max output messages
+	unsigned long long limitMsgCount;         // Max output messages
 	bool isExtract;					// Extract to file
 	bool isSBSoutput;				// Output in SBS-format
 
 	// Counters
-	uint64_t msgProc;				// Messages processed
-	uint64_t msgExtr;				// Messages extracted
+	unsigned long long msgProc;		// Messages processed
+	unsigned long long msgExtr;		// Messages extracted
 } beastfile;
 
 // Function int time_offset() has been grabbed from stackoverflow.com
@@ -498,7 +498,7 @@ bool beastOpen(void) {
 					"Input filename.........%s\r\n"
 					"Initial unix time......%ld\r\n"
 					"MLAT timestamps proc...%s\r\n"
-					"Limit messages count...%lu\r\n"
+					"Limit messages count...%llu\r\n"
 					"Text output type.......%s\r\n", beastfile.desc,
 			Modes.fUserLat, Modes.fUserLon, beastfile.fnameIn,
 			beastfile.initTime / 1000, mlattostr(beastfile.mlat_decoder),
@@ -620,8 +620,8 @@ void beastClose() {
 	printf(
 			"============================================================================="
 			"\r\n"
-			"Messages processed.....%lu\r\n"
-			"Messages extracted.....%lu\r\n",
+			"Messages processed.....%llu\r\n"
+			"Messages extracted.....%llu\r\n",
 			beastfile.msgProc, beastfile.msgExtr);
 	
 	if(Modes.stats_current.demod_rejected_bad) printf("WARNING! Rejected %d messages with bad CRC\r\n", Modes.stats_current.demod_rejected_bad);
