@@ -388,14 +388,21 @@ static void modesSendBeastOutput(struct modesMessage *mm) {
         return;
 
     *p++ = 0x1a;
-    if      (msgLen == MODES_SHORT_MSG_BYTES)
-      {*p++ = '2';}
-    else if (msgLen == MODES_LONG_MSG_BYTES)
-      {*p++ = '3';}
-    else if (msgLen == MODEAC_MSG_BYTES)
-      {*p++ = '1';}
-    else
-      {return;}
+    
+    // Many compilers generates faster code with 'switch' statement 
+    // than classical multuple 'if' statements 
+    switch (msgLen) {
+    case MODES_SHORT_MSG_BYTES:
+    	*p++ = '2';
+    	break;
+    case MODES_LONG_MSG_BYTES:
+    	*p++ = '3';
+    	break;
+    case MODEAC_MSG_BYTES:
+    	*p++ = '1';
+    	break;
+    default: return;
+    }    
 
     /* timestamp, big-endian */
     *p++ = (ch = (mm->timestampMsg >> 40));
@@ -498,8 +505,11 @@ static void send_raw_heartbeat(struct net_service *service)
 //
 // Write SBS output to TCP clients
 //
-static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
-    char *p;
+
+// Generate SBS output
+// No safety checks! Be sure that *out points to enough memory heap
+void modesPrepareSBSOutput(struct modesMessage *mm, struct aircraft *a, char *out) {
+    
     struct timespec now;
     struct tm    stTime_receive, stTime_now;
     int          msgType;
@@ -507,11 +517,6 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     // For now, suppress non-ICAO addresses
     if (mm->addr & MODES_NON_ICAO_ADDRESS)
         return;
-
-    p = prepareWrite(&Modes.sbs_out, 200);
-    if (!p)
-        return;
-
     //
     // SBS BS style output checked against the following reference
     // http://www.homepages.mcb.net/bones/SBS/Article/Barebones42_Socket_Data.htm - seems comprehensive
@@ -559,7 +564,7 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     }
 
     // Fields 1 to 6 : SBS message type and ICAO address of the aircraft and some other stuff
-    p += sprintf(p, "MSG,%d,1,1,%06X,1,", msgType, mm->addr);
+    out += sprintf(out, "MSG,%d,1,1,%06X,1,", msgType, mm->addr);
 
     // Find current system time
     clock_gettime(CLOCK_REALTIME, &now);
@@ -570,133 +575,141 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     localtime_r(&received, &stTime_receive);
 
     // Fields 7 & 8 are the message reception time and date
-    p += sprintf(p, "%04d/%02d/%02d,", (stTime_receive.tm_year+1900),(stTime_receive.tm_mon+1), stTime_receive.tm_mday);
-    p += sprintf(p, "%02d:%02d:%02d.%03u,", stTime_receive.tm_hour, stTime_receive.tm_min, stTime_receive.tm_sec, (unsigned) (mm->sysTimestampMsg % 1000));
+    out += sprintf(out, "%04d/%02d/%02d,", (stTime_receive.tm_year+1900),(stTime_receive.tm_mon+1), stTime_receive.tm_mday);
+    out += sprintf(out, "%02d:%02d:%02d.%03u,", stTime_receive.tm_hour, stTime_receive.tm_min, stTime_receive.tm_sec, (unsigned) (mm->sysTimestampMsg % 1000));
 
     // Fields 9 & 10 are the current time and date
-    p += sprintf(p, "%04d/%02d/%02d,", (stTime_now.tm_year+1900),(stTime_now.tm_mon+1), stTime_now.tm_mday);
-    p += sprintf(p, "%02d:%02d:%02d.%03u", stTime_now.tm_hour, stTime_now.tm_min, stTime_now.tm_sec, (unsigned) (now.tv_nsec / 1000000U));
+    out += sprintf(out, "%04d/%02d/%02d,", (stTime_now.tm_year+1900),(stTime_now.tm_mon+1), stTime_now.tm_mday);
+    out += sprintf(out, "%02d:%02d:%02d.%03u", stTime_now.tm_hour, stTime_now.tm_min, stTime_now.tm_sec, (unsigned) (now.tv_nsec / 1000000U));
 
     // Field 11 is the callsign (if we have it)
-    if (mm->callsign_valid) {p += sprintf(p, ",%s", mm->callsign);}
-    else                    {p += sprintf(p, ",");}
+    if (mm->callsign_valid) {out += sprintf(out, ",%s", mm->callsign);}
+    else                    {out += sprintf(out, ",");}
 
     // Field 12 is the altitude (if we have it)
     if (Modes.use_gnss) {
         if (mm->altitude_geom_valid) {
-            p += sprintf(p, ",%dH", mm->altitude_geom);
+        	out += sprintf(out, ",%dH", mm->altitude_geom);
         } else if (mm->altitude_baro_valid && trackDataValid(&a->geom_delta_valid)) {
-            p += sprintf(p, ",%dH", mm->altitude_baro + a->geom_delta);
+        	out += sprintf(out, ",%dH", mm->altitude_baro + a->geom_delta);
         } else if (mm->altitude_baro_valid) {
-            p += sprintf(p, ",%d", mm->altitude_baro);
+        	out += sprintf(out, ",%d", mm->altitude_baro);
         } else {
-            p += sprintf(p, ",");
+        	out += sprintf(out, ",");
         }
     } else {
         if (mm->altitude_baro_valid) {
-            p += sprintf(p, ",%d", mm->altitude_baro);
+        	out += sprintf(out, ",%d", mm->altitude_baro);
         } else if (mm->altitude_geom_valid && trackDataValid(&a->geom_delta_valid)) {
-            p += sprintf(p, ",%d", mm->altitude_geom - a->geom_delta);
+        	out += sprintf(out, ",%d", mm->altitude_geom - a->geom_delta);
         } else {
-            p += sprintf(p, ",");
+        	out += sprintf(out, ",");
         }
     }
 
     // Field 13 is the ground Speed (if we have it)
     if (mm->gs_valid) {
-        p += sprintf(p, ",%.0f", mm->gs.selected);
+    	out += sprintf(out, ",%.0f", mm->gs.selected);
     } else {
-        p += sprintf(p, ",");
+    	out += sprintf(out, ",");
     }
 
     // Field 14 is the ground Heading (if we have it)
     if (mm->heading_valid && mm->heading_type == HEADING_GROUND_TRACK) {
-        p += sprintf(p, ",%.0f", mm->heading);
+    	out += sprintf(out, ",%.0f", mm->heading);
     } else {
-        p += sprintf(p, ",");
+    	out += sprintf(out, ",");
     }
 
     // Fields 15 and 16 are the Lat/Lon (if we have it)
     if (mm->cpr_decoded) {
-        p += sprintf(p, ",%1.5f,%1.5f", mm->decoded_lat, mm->decoded_lon);
+    	out += sprintf(out, ",%1.5f,%1.5f", mm->decoded_lat, mm->decoded_lon);
     } else {
-        p += sprintf(p, ",,");
+    	out += sprintf(out, ",,");
     }
 
     // Field 17 is the VerticalRate (if we have it)
     if (Modes.use_gnss) {
         if (mm->geom_rate_valid) {
-            p += sprintf(p, ",%dH", mm->geom_rate);
+        	out += sprintf(out, ",%dH", mm->geom_rate);
         } else if (mm->baro_rate_valid) {
-            p += sprintf(p, ",%d", mm->baro_rate);
+        	out += sprintf(out, ",%d", mm->baro_rate);
         } else {
-            p += sprintf(p, ",");
+        	out += sprintf(out, ",");
         }
     } else {
         if (mm->baro_rate_valid) {
-            p += sprintf(p, ",%d", mm->baro_rate);
+        	out += sprintf(out, ",%d", mm->baro_rate);
         } else if (mm->geom_rate_valid) {
-            p += sprintf(p, ",%d", mm->geom_rate);
+        	out += sprintf(out, ",%d", mm->geom_rate);
         } else {
-            p += sprintf(p, ",");
+        	out += sprintf(out, ",");
         }
     }
 
     // Field 18 is  the Squawk (if we have it)
     if (mm->squawk_valid) {
-        p += sprintf(p, ",%04x", mm->squawk);
+    	out += sprintf(out, ",%04x", mm->squawk);
     } else {
-        p += sprintf(p, ",");
+    	out += sprintf(out, ",");
     }
 
     // Field 19 is the Squawk Changing Alert flag (if we have it)
     if (mm->alert_valid) {
         if (mm->alert) {
-            p += sprintf(p, ",-1");
+        	out += sprintf(out, ",-1");
         } else {
-            p += sprintf(p, ",0");
+        	out += sprintf(out, ",0");
         }
     } else {
-        p += sprintf(p, ",");
+    	out += sprintf(out, ",");
     }
 
     // Field 20 is the Squawk Emergency flag (if we have it)
     if (mm->squawk_valid) {
         if ((mm->squawk == 0x7500) || (mm->squawk == 0x7600) || (mm->squawk == 0x7700)) {
-            p += sprintf(p, ",-1");
+        	out += sprintf(out, ",-1");
         } else {
-            p += sprintf(p, ",0");
+        	out += sprintf(out, ",0");
         }
     } else {
-        p += sprintf(p, ",");
+    	out += sprintf(out, ",");
     }
 
     // Field 21 is the Squawk Ident flag (if we have it)
     if (mm->spi_valid) {
         if (mm->spi) {
-            p += sprintf(p, ",-1");
+        	out += sprintf(out, ",-1");
         } else {
-            p += sprintf(p, ",0");
+        	out += sprintf(out, ",0");
         }
     } else {
-        p += sprintf(p, ",");
+    	out += sprintf(out, ",");
     }
 
     // Field 22 is the OnTheGround flag (if we have it)
     switch (mm->airground) {
     case AG_GROUND:
-        p += sprintf(p, ",-1");
+    	out += sprintf(out, ",-1");
         break;
     case AG_AIRBORNE:
-        p += sprintf(p, ",0");
+    	out += sprintf(out, ",0");
         break;
     default:
-        p += sprintf(p, ",");
+    	out += sprintf(out, ",");
         break;
     }
 
-    p += sprintf(p, "\r\n");
+    out += sprintf(out, "\r\n");	
+}
 
+static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
+	
+    char *p;
+    p = prepareWrite(&Modes.sbs_out, 200);
+    if (!p)
+        return;
+    modesPrepareSBSOutput(mm, a, p);
     completeWrite(&Modes.sbs_out, p);
 }
 
@@ -781,7 +794,7 @@ float ieee754_binary32_le_to_float(uint8_t *data)
     return ldexp(sign * ((1 << 23) | raw_significand), raw_exponent - 127 - 23);
 }
 
-static void handle_radarcape_position(float lat, float lon, float alt)
+void handle_radarcape_position(float lat, float lon, float alt)
 {
     if (!isfinite(lat) || lat < -90 || lat > 90 || !isfinite(lon) || lon < -180 || lon > 180 || !isfinite(alt))
         return;
@@ -871,37 +884,39 @@ static int decodeBinMessage(struct client *c, char *p) {
     int msgLen = 0;
     int  j;
     char ch;
+    float lat, lon, alt;
     unsigned char msg[MODES_LONG_MSG_BYTES + 7];
     static struct modesMessage zeroMessage;
     struct modesMessage mm;
     MODES_NOTUSED(c);
     memset(&mm, 0, sizeof(mm));
+    
 
     ch = *p++; /// Get the message type
-
-    if (ch == '1' && Modes.mode_ac) {
-        msgLen = MODEAC_MSG_BYTES;
-    } else if (ch == '2') {
-        msgLen = MODES_SHORT_MSG_BYTES;
-    } else if (ch == '3') {
-        msgLen = MODES_LONG_MSG_BYTES;
-    } else if (ch == '5') {
-        // Special case for Radarcape position messages.
-        float lat, lon, alt;
-
-        for (j = 0; j < 21; j++) { // and the data
-            msg[j] = ch = *p++;
-            if (0x1A == ch) {p++;}
-        }
-
-        lat = ieee754_binary32_le_to_float(msg + 4);
-        lon = ieee754_binary32_le_to_float(msg + 8);
-        alt = ieee754_binary32_le_to_float(msg + 12);
-
-        handle_radarcape_position(lat, lon, alt);
-    } else {
-        // Ignore this.
-        return 0;
+    
+    switch (ch) {
+    case '1':
+    	if (Modes.mode_ac) msgLen = MODEAC_MSG_BYTES; 
+    	else return 0;  
+    	break;
+    case '2':
+    	msgLen = MODES_SHORT_MSG_BYTES;
+    	break;
+    case '3':
+    	msgLen = MODES_LONG_MSG_BYTES;
+    	break;
+    case '5':
+    	// Special case for Radarcape position messages.    	
+    	for (j = 0; j < 21; j++) { // and the data
+    		msg[j] = ch = *p++;
+    		if (0x1A == ch) {p++;}
+    	}
+    	lat = ieee754_binary32_le_to_float(msg + 4);
+    	lon = ieee754_binary32_le_to_float(msg + 8);
+    	alt = ieee754_binary32_le_to_float(msg + 12);
+    	handle_radarcape_position(lat, lon, alt);
+    	break;
+    default: return 0;
     }
 
     if (msgLen) {
@@ -953,7 +968,7 @@ static int decodeBinMessage(struct client *c, char *p) {
 
         useModesMessage(&mm);
     }
-    return (0);
+    return 0;
 }
 //
 //=========================================================================

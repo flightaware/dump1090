@@ -21,6 +21,8 @@
 #include "dump1090.h"
 
 #include "sdr_ifile.h"
+#include "sdr_beast.h"
+
 #ifdef ENABLE_RTLSDR
 #  include "sdr_rtlsdr.h"
 #endif
@@ -86,6 +88,7 @@ static sdr_handler sdr_handlers[] = {
 #endif
 
     { "ifile", SDR_IFILE, ifileInitConfig, ifileShowHelp, ifileHandleOption, ifileOpen, ifileRun, ifileClose },
+    { "beastfile", SDR_BEASTFILE, beastInitConfig, beastShowHelp, beastHandleOption, beastOpen, beastRun, beastClose },
     { "none", SDR_NONE, noInitConfig, noShowHelp, noHandleOption, noOpen, noRun, noClose },
 
     { NULL, SDR_NONE, NULL, NULL, NULL, NULL, NULL, NULL } /* must come last */

@@ -670,6 +670,25 @@ int main(int argc, char **argv) {
 
             usleep(100000);
         }
+    } else
+    	if(Modes.sdr_type == SDR_BEASTFILE) {
+            // Create the thread that will read the data from the device.
+
+            pthread_create(&Modes.reader_thread, NULL, readerThreadEntryPoint, NULL);
+
+            while (!Modes.exit) {
+                struct timespec start_time;
+
+                start_cpu_timing(&start_time);
+                backgroundTasks();
+                end_cpu_timing(&start_time, &Modes.stats_current.background_cpu);                
+            }
+
+            log_with_timestamp("Waiting for receive thread termination");
+            pthread_join(Modes.reader_thread,NULL);     // Wait on reader thread exit
+            pthread_cond_destroy(&Modes.data_cond);     // Thread cleanup - only after the reader thread is dead!
+            pthread_mutex_destroy(&Modes.data_mutex);
+    
     } else {
         int watchdogCounter = 10; // about 1 second
 

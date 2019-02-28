@@ -59,6 +59,7 @@
 # define MODES_DUMP1090_VARIANT     "dump1090-mutability"
 #endif
 
+
 // ============================= Include files ==========================
 
 #ifndef _WIN32
@@ -274,7 +275,7 @@ typedef enum {
 //======================== structure declarations =========================
 
 typedef enum {
-    SDR_NONE, SDR_IFILE, SDR_RTLSDR, SDR_BLADERF
+    SDR_NONE, SDR_IFILE, SDR_BEASTFILE, SDR_RTLSDR, SDR_BLADERF
 } sdr_type_t;
 
 // Structure representing one magnitude buffer

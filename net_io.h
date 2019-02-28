@@ -89,6 +89,11 @@ void modesNetPeriodicWork(void);
 
 void writeFATSVHeader();
 
+// These functions are required by sdr_beast.c module
+void modesPrepareSBSOutput(struct modesMessage *mm, struct aircraft *a, char *out);
+void handle_radarcape_position(float lat, float lon, float alt);
+float ieee754_binary32_le_to_float(uint8_t *data);
+
 // TODO: move these somewhere else
 char *generateAircraftJson(const char *url_path, int *len);
 char *generateStatsJson(const char *url_path, int *len);
