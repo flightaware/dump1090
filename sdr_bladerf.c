@@ -28,6 +28,7 @@ static struct {
     const char *fpga_path;
     unsigned decimation;
     bladerf_lpf_mode lpf_mode;
+    bool biastee_rx;
     unsigned lpf_bandwidth;
 
     struct bladerf *device;
@@ -46,6 +47,7 @@ void bladeRFInitConfig()
     BladeRF.lpf_mode = BLADERF_LPF_NORMAL;
     BladeRF.lpf_bandwidth = 1750000;
     BladeRF.device = NULL;
+    BladeRF.biastee_rx = false;
 }
 
 bool bladeRFHandleOption(int argc, char **argv, int *jptr)
@@ -64,6 +66,8 @@ bool bladeRFHandleOption(int argc, char **argv, int *jptr)
             BladeRF.lpf_mode = BLADERF_LPF_NORMAL;
             BladeRF.lpf_bandwidth = atoi(argv[j]);
         }
+    } else if (!strcmp(argv[j], "--bladerf-biastee") && more) {
+        BladeRF.biastee_rx = true;
     } else {
         return false;
     }
@@ -80,63 +84,73 @@ void bladeRFShowHelp()
     printf("--bladerf-fpga <path>    use alternative FPGA bitstream ('' to disable FPGA load)\n");
     printf("--bladerf-decimation <N> assume FPGA decimates by a factor of N\n");
     printf("--bladerf-bandwidth <hz> set LPF bandwidth ('bypass' to bypass the LPF)\n");
+    printf("--bladerf-biastee        enable bias tee to power a LNA on RX ports (BladeRF Micro only)\n");
     printf("\n");
-}
-
-static int lna_gain_db(bladerf_lna_gain gain)
-{
-    switch (gain) {
-    case BLADERF_LNA_GAIN_BYPASS:
-        return 0;
-    case BLADERF_LNA_GAIN_MID:
-        return BLADERF_LNA_GAIN_MID_DB;
-    case BLADERF_LNA_GAIN_MAX:
-        return BLADERF_LNA_GAIN_MAX_DB;
-    default:
-        return -1;
-    }
 }
 
 static void show_config()
 {
     int status;
 
-    unsigned rate;
-    unsigned freq;
+    bladerf_sample_rate rate;
+    bladerf_frequency freq;
     bladerf_lpf_mode lpf_mode;
-    unsigned lpf_bw;
-    bladerf_lna_gain lna_gain;
-    int rxvga1_gain;
-    int rxvga2_gain;
+    bladerf_bandwidth bw;
+    bladerf_gain gain;
     int16_t lms_dc_i, lms_dc_q;
     int16_t fpga_phase, fpga_gain;
     struct bladerf_lms_dc_cals dc_cals;
+    bool biastee;
 
-    if ((status = bladerf_get_sample_rate(BladeRF.device, BLADERF_MODULE_RX, &rate)) < 0 ||
-        (status = bladerf_get_frequency(BladeRF.device, BLADERF_MODULE_RX, &freq)) < 0 ||
-        (status = bladerf_get_lpf_mode(BladeRF.device, BLADERF_MODULE_RX, &lpf_mode)) < 0 ||
-        (status = bladerf_get_bandwidth(BladeRF.device, BLADERF_MODULE_RX, &lpf_bw)) < 0 ||
-        (status = bladerf_get_lna_gain(BladeRF.device, &lna_gain)) < 0 ||
-        (status = bladerf_get_rxvga1(BladeRF.device, &rxvga1_gain)) < 0 ||
-        (status = bladerf_get_rxvga2(BladeRF.device, &rxvga2_gain)) < 0 ||
-        (status = bladerf_get_correction(BladeRF.device, BLADERF_MODULE_RX, BLADERF_CORR_LMS_DCOFF_I, &lms_dc_i)) < 0 ||
+    if ((status = bladerf_get_sample_rate(BladeRF.device, BLADERF_MODULE_RX, &rate)) < 0) {
+       fprintf(stderr, "bladeRF: couldn't read back device sample rate: %s\n", bladerf_strerror(status));
+       return;
+    }
+
+    if ((status = bladerf_get_frequency(BladeRF.device, BLADERF_MODULE_RX, &freq)) < 0) {
+       fprintf(stderr, "bladeRF: couldn't read back device frequency: %s\n", bladerf_strerror(status));
+       return;
+    }
+
+    if ((status = bladerf_get_bandwidth(BladeRF.device, BLADERF_MODULE_RX, &bw)) < 0) {
+      fprintf(stderr, "bladeRF: couldn't read back device bandwidth: %s\n", bladerf_strerror(status));
+       return;
+    }
+
+    if ((status = bladerf_get_gain(BladeRF.device, BLADERF_MODULE_RX, &gain)) < 0) {
+        fprintf(stderr, "bladeRF: couldn't read back device gain: %s\n", bladerf_strerror(status));
+    }
+
+    if ((status = bladerf_get_correction(BladeRF.device, BLADERF_MODULE_RX, BLADERF_CORR_LMS_DCOFF_I, &lms_dc_i)) < 0 ||
         (status = bladerf_get_correction(BladeRF.device, BLADERF_MODULE_RX, BLADERF_CORR_LMS_DCOFF_Q, &lms_dc_q)) < 0 ||
         (status = bladerf_get_correction(BladeRF.device, BLADERF_MODULE_RX, BLADERF_CORR_FPGA_PHASE, &fpga_phase)) < 0 ||
-        (status = bladerf_get_correction(BladeRF.device, BLADERF_MODULE_RX, BLADERF_CORR_FPGA_GAIN, &fpga_gain)) < 0 ||
-        (status = bladerf_lms_get_dc_cals(BladeRF.device, &dc_cals)) < 0) {
-        fprintf(stderr, "bladeRF: couldn't read back device configuration\n");
-        return;
+        (status = bladerf_get_correction(BladeRF.device, BLADERF_MODULE_RX, BLADERF_CORR_FPGA_GAIN, &fpga_gain)) < 0 
+        ) {
+        fprintf(stderr, "bladeRF: couldn't read back device configuration (correction values)\n");
+        //return;
+    }
+
+    if (!strcmp("bladerf1", bladerf_get_board_name(BladeRF.device))) {
+        if ((status = bladerf_get_lpf_mode(BladeRF.device, BLADERF_MODULE_RX, &lpf_mode)) < 0 ||
+            (status = bladerf_lms_get_dc_cals(BladeRF.device, &dc_cals)) < 0) {
+            fprintf(stderr, "bladeRF: couldn't read back device configuration (BladeRF 1 values)\n");
+            return;
+        }
+    }
+
+    if (!strcmp("bladerf2", bladerf_get_board_name(BladeRF.device))) {
+        if ((status = bladerf_get_bias_tee(BladeRF.device, BLADERF_CHANNEL_RX(0), &biastee)) < 0) {
+            fprintf(stderr, "bladeRF: couldn't read back BladeRF Micro bias tee configuration\n");
+        }
     }
 
     fprintf(stderr, "bladeRF: sampling rate: %.1f MHz\n", rate/1e6);
     fprintf(stderr, "bladeRF: frequency:     %.1f MHz\n", freq/1e6);
-    fprintf(stderr, "bladeRF: LNA gain:      %ddB\n", lna_gain_db(lna_gain));
-    fprintf(stderr, "bladeRF: RXVGA1 gain:   %ddB\n", rxvga1_gain);
-    fprintf(stderr, "bladeRF: RXVGA2 gain:   %ddB\n", rxvga2_gain);
+    fprintf(stderr, "bladeRF: gain:          %ddB\n", gain);
 
     switch (lpf_mode) {
     case BLADERF_LPF_NORMAL:
-        fprintf(stderr, "bladeRF: LPF bandwidth: %.2f MHz\n", lpf_bw/1e6);
+        fprintf(stderr, "bladeRF: LPF bandwidth: %.2f MHz\n", bw/1e6);
         break;
     case BLADERF_LPF_BYPASSED:
         fprintf(stderr, "bladeRF: LPF bypassed\n");
@@ -170,6 +184,7 @@ bool bladeRFOpen()
     int status;
 
     bladerf_set_usb_reset_on_open(true);
+    fprintf(stderr, "Opening BladeRF: %s\n", Modes.dev_name);
     if ((status = bladerf_open(&BladeRF.device, Modes.dev_name)) < 0) {
         fprintf(stderr, "Failed to open bladeRF: %s\n", bladerf_strerror(status));
         goto error;
@@ -191,6 +206,9 @@ bool bladeRFOpen()
             break;
         case BLADERF_FPGA_115KLE:
             fpga_path = "/usr/share/Nuand/bladeRF/hostedx115.rbf";
+            break;
+        case  BLADERF_FPGA_A4:
+            fpga_path = "/usr/share/Nuand/bladeRF/hostedxA4.rbf";
             break;
         default:
             fprintf(stderr, "bladeRF: unknown FPGA size, skipping FPGA load");
@@ -228,14 +246,16 @@ bool bladeRFOpen()
         fprintf(stderr, "bladerf_set_frequency failed: %s\n", bladerf_strerror(status));
         goto error;
     }
-
-    if ((status = bladerf_set_lpf_mode(BladeRF.device, BLADERF_MODULE_RX, BladeRF.lpf_mode)) < 0) {
-        fprintf(stderr, "bladerf_set_lpf_mode failed: %s\n", bladerf_strerror(status));
-        goto error;
+ 
+    if (!strcmp("bladerf1",bladerf_get_board_name(BladeRF.device))) {
+        if ((status = bladerf_set_lpf_mode(BladeRF.device, BLADERF_MODULE_RX, BladeRF.lpf_mode)) < 0) {
+            fprintf(stderr, "bladerf_set_lpf_mode failed: %s\n", bladerf_strerror(status));
+            goto error;
+        }
     }
 
     if ((status = bladerf_set_bandwidth(BladeRF.device, BLADERF_MODULE_RX, BladeRF.lpf_bandwidth, NULL)) < 0) {
-        fprintf(stderr, "bladerf_set_lpf_bandwidth failed: %s\n", bladerf_strerror(status));
+        fprintf(stderr, "bladerf_set_bandwidth failed: %s\n", bladerf_strerror(status));
         goto error;
     }
 
@@ -245,29 +265,54 @@ bool bladeRFOpen()
         goto error;
     }
 
-    if ((status = bladerf_set_gain(BladeRF.device, BLADERF_MODULE_RX, Modes.gain / 10.0)) < 0) {
-        fprintf(stderr, "bladerf_set_gain(RX) failed: %s\n", bladerf_strerror(status));
-        goto error;
+    /* Gain = -100 is AGC */
+    if (Modes.gain == -100) {
+       fprintf(stderr, "BladeRF: using AGC\n"); 
+       /* Note: we should really query the BladeRF library to find out what modes we are allowed to use */
+       if ((status = bladerf_set_gain_mode(BladeRF.device, BLADERF_MODULE_RX, BLADERF_GAIN_DEFAULT)) < 0) {
+           fprintf(stderr, "bladerf_set_gain_mode to default/AGC failed: %s\n", bladerf_strerror(status));
+       }
+    } else {
+        if ((status = bladerf_set_gain_mode(BladeRF.device, BLADERF_MODULE_RX, BLADERF_GAIN_MGC)) < 0) {
+            fprintf(stderr, "bladerf_set_gain_mode to manual failed: %s\n", bladerf_strerror(status));
+        }
+        fprintf(stderr, "BladeRF: setting manual gain to %d\n", Modes.gain/10);
+        if ((status = bladerf_set_gain(BladeRF.device, BLADERF_MODULE_RX, Modes.gain / 10)) < 0) {
+            fprintf(stderr, "bladerf_set_gain(RX) failed: %s\n", bladerf_strerror(status));
+            goto error;
+        }
     }
 
-    if ((status = bladerf_set_loopback(BladeRF.device, BLADERF_LB_NONE)) < 0) {
-        fprintf(stderr, "bladerf_set_loopback() failed: %s\n", bladerf_strerror(status));
-        goto error;
+    if (!strcmp("bladerf2", bladerf_get_board_name(BladeRF.device))) {
+        if (BladeRF.biastee_rx) {
+            // Note: the BladeRF micro enables/disables on both RX channels at the same time
+            fprintf(stderr, "Enabling Bias on RX channels\n");
+            if ((status = bladerf_set_bias_tee(BladeRF.device, BLADERF_CHANNEL_RX(0), true)) < 0) {
+                fprintf(stderr, "bladerf_set_bias_tee failed for channel 0: %s\n",bladerf_strerror(status));
+            }
+        }
     }
 
-    if ((status = bladerf_calibrate_dc(BladeRF.device, BLADERF_DC_CAL_LPF_TUNING)) < 0) {
-        fprintf(stderr, "bladerf_calibrate_dc(LPF_TUNING) failed: %s\n", bladerf_strerror(status));
-        goto error;
-    }
+    if (!strcmp("bladerf1",bladerf_get_board_name(BladeRF.device))) {
+        if ((status = bladerf_set_loopback(BladeRF.device, BLADERF_LB_NONE)) < 0) {
+            fprintf(stderr, "bladerf_set_loopback() failed: %s\n", bladerf_strerror(status));
+            goto error;
+        }
 
-    if ((status = bladerf_calibrate_dc(BladeRF.device, BLADERF_DC_CAL_RX_LPF)) < 0) {
-        fprintf(stderr, "bladerf_calibrate_dc(RX_LPF) failed: %s\n", bladerf_strerror(status));
-        goto error;
-    }
+        if ((status = bladerf_calibrate_dc(BladeRF.device, BLADERF_DC_CAL_LPF_TUNING)) < 0) {
+            fprintf(stderr, "bladerf_calibrate_dc(LPF_TUNING) failed: %s\n", bladerf_strerror(status));
+            goto error;
+        }
 
-    if ((status = bladerf_calibrate_dc(BladeRF.device, BLADERF_DC_CAL_RXVGA2)) < 0) {
-        fprintf(stderr, "bladerf_calibrate_dc(RXVGA2) failed: %s\n", bladerf_strerror(status));
-        goto error;
+        if ((status = bladerf_calibrate_dc(BladeRF.device, BLADERF_DC_CAL_RX_LPF)) < 0) {
+            fprintf(stderr, "bladerf_calibrate_dc(RX_LPF) failed: %s\n", bladerf_strerror(status));
+            goto error;
+        }
+
+        if ((status = bladerf_calibrate_dc(BladeRF.device, BLADERF_DC_CAL_RXVGA2)) < 0) {
+            fprintf(stderr, "bladerf_calibrate_dc(RXVGA2) failed: %s\n", bladerf_strerror(status));
+            goto error;
+        }
     }
 
     show_config();
