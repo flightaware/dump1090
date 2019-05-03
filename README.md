@@ -9,8 +9,8 @@ It is designed to build as a Debian package.
 ## Building under stretch
 
 ```bash
-$ sudo apt-get install build-essential debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev
-$ dpkg-buildpackage -b
+sudo apt-get install build-essential debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev
+dpkg-buildpackage -b
 ```
 
 ## Building under jessie
@@ -20,10 +20,10 @@ $ dpkg-buildpackage -b
 You will need a build of libbladeRF. You can build packages from source:
 
 ```bash
-$ git clone https://github.com/Nuand/bladeRF.git  
-$ cd bladeRF  
-$ git checkout 2017.12-rc1  
-$ dpkg-buildpackage -b
+git clone https://github.com/Nuand/bladeRF.git  
+cd bladeRF  
+git checkout 2017.12-rc1  
+dpkg-buildpackage -b
 ```
 
 Or Nuand has some build/install instructions including an Ubuntu PPA
