@@ -1190,7 +1190,8 @@ function refreshHighlighted() {
 }
 
 function refreshClock() {
-	$('#clock_div').text(new Date().toLocaleString());
+        var dopt = { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false };
+        $('#clock_div').text(new Date().toLocaleString(undefined,dopt));
 	var c = setTimeout(refreshClock, 500);
 }
 
