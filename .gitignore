@@ -20,3 +20,5 @@ wisdom.local
 build
 .idea
 data
+oneoff/convert_benchmark
+oneoff/decode_comm_b
