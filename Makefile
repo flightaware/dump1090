@@ -159,8 +159,10 @@ endif
 ifeq ($(MONGOC), yes)
   SDR_OBJ += mongo_conn.o
   CPPFLAGS += -DENABLE_MONGOC
-  CFLAGS += $(shell pkg-config --cflags libmongoc-static-1.0)
-  LIBS_SDR += $(shell pkg-config --libs libmongoc-static-1.0)
+  #CFLAGS += $(shell pkg-config --cflags libmongoc-static-1.0)
+  #LIBS_SDR += $(shell pkg-config --libs libmongoc-static-1.0)
+  CFLAGS += $(shell pkg-config --cflags libmongoc-1.0)
+  LIBS_SDR += $(shell pkg-config --libs libmongoc-1.0)
 endif
 
 
