@@ -8,6 +8,15 @@ apt install libbladerf1
 MongoC/BSON libs version required:
 mongo-c-driver-1.12.0
 
+In order to use the mongoc static libraries:
+`git clone https://github.com/mongodb/mongo-c-driver`
+`cd mongo-c-driver`
+`cmake .`
+`make`
+`sudo make install`
+`export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig/`
+And then run `make clean && make` on the dump1090 folder
+
 Create a file /etc/systemd/system/dump1090.service with following content:
 '''
 [Unit]
