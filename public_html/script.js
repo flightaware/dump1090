@@ -42,6 +42,7 @@ var ReceiverClock = null;
 var LastReceiverTimestamp = 0;
 var StaleReceiverCount = 0;
 var FetchPending = null;
+var QueryPending = null;
 
 var MessageCountHistory = [];
 var MessageRate = 0;
@@ -195,6 +196,8 @@ function initialize() {
         PlaneRowTemplate = document.getElementById("plane_row_template");
 
         refreshClock();
+        $('#dump1090_infoblock tr.infoblock_heading td:eq(1)').append('<span id="cpu_temp"/>').wrapInner('<div/>');
+        refreshCPUTemp();
 
         $("#loader").removeClass("hidden");
 
@@ -1169,6 +1172,23 @@ function refreshHighlighted() {
 function refreshClock() {
 	$('#clock_div').text(new Date().toLocaleString());
 	var c = setTimeout(refreshClock, 500);
+}
+
+function refreshCPUTemp() {
+        if (QueryPending !== null && QueryPending.state() == 'pending') {
+                // don't double up on queries, let the last one resolve
+                return;
+        }
+        QueryPending = $.ajax({ url: 'data/CPUtemp',
+                                timeout: 5000,
+                                cache: false});
+        QueryPending.done(function(temp){
+                $('#cpu_temp').text(temp);
+        }).always(function() {
+                var c = setTimeout(refreshCPUTemp, 60000);
+        }).fail(function() {
+                $('#cpu_temp').text('CPU');
+        });
 }
 
 function removeHighlight() {
