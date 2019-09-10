@@ -1,0 +1,192 @@
+.\" Man page generated from reStructuredText.
+.
+.TH "MONGOC_SSL_OPT_T" "3" "Aug 30, 2019" "1.15.1" "MongoDB C Driver"
+.SH NAME
+mongoc_ssl_opt_t \- mongoc_ssl_opt_t
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH SYNOPSIS
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+typedef struct {
+   const char *pem_file;
+   const char *pem_pwd;
+   const char *ca_file;
+   const char *ca_dir;
+   const char *crl_file;
+   bool weak_cert_validation;
+   bool allow_invalid_hostname;
+   void *padding[7];
+} mongoc_ssl_opt_t;
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH DESCRIPTION
+.sp
+This structure is used to set the SSL options for a \fBmongoc_client_t\fP or \fBmongoc_client_pool_t\fP\&.
+.sp
+Beginning in version 1.2.0, once a pool or client has any SSL options set, all connections use SSL, even if \fBssl=true\fP is omitted from the MongoDB URI. Before, SSL options were ignored unless \fBssl=true\fP was included in the URI.
+.sp
+As of 1.4.0, the \fBmongoc_client_pool_set_ssl_opts\fP and \fBmongoc_client_set_ssl_opts\fP will not only shallow copy the struct, but will also copy the \fBconst char*\fP\&. It is therefore no longer needed to make sure the values remain valid after setting them.
+.SH CONFIGURATION THROUGH URI OPTIONS
+.sp
+Most of the configurable options can be using the Connection URI.
+.TS
+center;
+|l|l|.
+_
+T{
+\fBmongoc_ssl_opt_t key\fP
+T}	T{
+\fBURI key\fP
+T}
+_
+T{
+pem_file
+T}	T{
+sslClientCertificateKeyFile
+T}
+_
+T{
+pem_pwd
+T}	T{
+sslClientCertificateKeyPassword
+T}
+_
+T{
+ca_file
+T}	T{
+sslCertificateAuthorityFile
+T}
+_
+T{
+weak_cert_validation
+T}	T{
+sslAllowInvalidCertificates
+T}
+_
+T{
+allow_invalid_hostname
+T}	T{
+sslAllowInvalidHostnames
+T}
+_
+.TE
+.SH CLIENT AUTHENTICATION
+.sp
+When MongoDB is started with SSL enabled, it will by default require the client to provide a client certificate issued by a certificate authority specified by \fB\-\-sslCAFile\fP, or an authority trusted by the native certificate store in use on the server.
+.sp
+To provide the client certificate, the user must configure the \fBpem_file\fP to point at a PEM armored certificate.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mongoc_ssl_opt_t ssl_opts = {0};
+
+ssl_opts.pem_file = "/path/to/client\-certificate.pem"
+
+/* Then set the client ssl_opts, when using a single client mongoc_client_t */
+mongoc_client_pool_set_ssl_opts (pool, &ssl_opts);
+
+/* or, set the pool ssl_opts, when using a the thread safe mongoc_client_pool_t */
+mongoc_client_set_ssl_opts (client, &ssl_opts);
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH SERVER CERTIFICATE VERIFICATION
+.sp
+The MongoDB C Driver will automatically verify the validity of the server certificate, such as issued by configured Certificate Authority, hostname validation, and expiration.
+.sp
+To overwrite this behaviour, it is possible to disable hostname validation, and/or allow otherwise invalid certificates. This behaviour is controlled using the \fBallow_invalid_hostname\fP and \fBweak_cert_validation\fP fields. By default, both are set to \fBfalse\fP\&. It is not recommended to change these defaults as it exposes the client to \fIMan In The Middle\fP attacks (when \fBallow_invalid_hostname\fP is set) and otherwise invalid certificates when \fBweak_cert_validation\fP is set to \fBtrue\fP\&.
+.SH OPENSSL
+.sp
+The MongoDB C Driver uses OpenSSL, if available, on Linux and Unix platforms (besides macOS). Industry best practices and some regulations require the use of TLS 1.1 or newer, which requires at least OpenSSL 1.0.1. Check your OpenSSL version like so:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ openssl version
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Ensure your system\(aqs OpenSSL is a recent version (at least 1.0.1), or install a recent version in a non\-system path and build against it with:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+cmake \-DOPENSSL_ROOT_DIR=/absolute/path/to/openssl
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+When compiled against OpenSSL, the driver will attempt to load the system default certificate store, as configured by the distribution, if the \fBca_file\fP and \fBca_dir\fP are not set.
+.SH LIBRESSL / LIBTLS
+.sp
+The MongoDB C Driver supports LibreSSL through the use of OpenSSL compatibility checks when configured to compile against \fBopenssl\fP\&. It also supports the new \fBlibtls\fP library when configured to build against \fBlibressl\fP\&.
+.SH NATIVE TLS SUPPORT ON WINDOWS (SECURE CHANNEL)
+.sp
+The MongoDB C Driver supports the Windows native TLS library (Secure Channel, or SChannel), and its native crypto library (Cryptography API: Next Generation, or CNG).
+.sp
+When compiled against the Windows native libraries, the \fBca_dir\fP option is not supported, and will issue an error if used.
+.sp
+Encrypted PEM files (e.g., requiring \fBpem_pwd\fP) are also not supported, and will result in error when attempting to load them.
+.sp
+When \fBca_file\fP is provided, the driver will only allow server certificates issued by the authority (or authorities) provided. When no \fBca_file\fP is provided, the driver will look up the Certificate Authority using the \fBSystem Local Machine Root\fP certificate store to confirm the provided certificate.
+.sp
+When \fBcrl_file\fP is provided, the driver will import the revocation list to the \fBSystem Local Machine Root\fP certificate store.
+.SH NATIVE TLS SUPPORT ON MACOS / DARWIN (SECURE TRANSPORT)
+.sp
+The MongoDB C Driver supports the Darwin (OS X, macOS, iOS, etc.) native TLS library (Secure Transport), and its native crypto library (Common Crypto, or CC).
+.sp
+When compiled against Secure Transport, the \fBca_dir\fP option is not supported, and will issue an error if used.
+.sp
+When \fBca_file\fP is provided, the driver will only allow server certificates issued by the authority (or authorities) provided. When no \fBca_file\fP is provided, the driver will use the Certificate Authorities in the currently unlocked keychains.
+.SH SEE ALSO
+.INDENT 0.0
+.IP \(bu 2
+mongoc_client_set_ssl_opts
+.IP \(bu 2
+mongoc_client_pool_set_ssl_opts
+.UNINDENT
+.SH AUTHOR
+MongoDB, Inc
+.SH COPYRIGHT
+2017-present, MongoDB, Inc
+.\" Generated by docutils manpage writer.
+.

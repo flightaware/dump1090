@@ -1,0 +1,1 @@
+Use this function in a topology-changed callback registered with :symbol:`mongoc_apm_set_topology_changed_cb`. For historical reasons, the :symbol:`mongoc_topology_description_t` passed to the callback is a const pointer, you must cast away const to pass the pointer to |td-func|.

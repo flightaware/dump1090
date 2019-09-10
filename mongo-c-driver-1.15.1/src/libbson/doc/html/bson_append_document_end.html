@@ -1,0 +1,130 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /><link rel="canonical" href="http://mongoc.org/libbson/current/bson_append_document_end.html"/>
+    <title>bson_append_document_end() &#8212; libbson 1.15.1</title>
+    <link rel="stylesheet" href="_static/mongoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="bson_append_double()" href="bson_append_double.html" />
+    <link rel="prev" title="bson_append_document_begin()" href="bson_append_document_begin.html" />
+   
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head><body>  
+
+    <div class="document">
+  <div class="documentwrapper">
+    <div class="bodywrapper" id="bson_append_document_end">
+      <div class="body" role="main">
+        
+            <div class="related">
+              <ul>
+                <li class="nav-item nav-item-0"><a href="index.html">libbson 1.15.1</a> &#187;</li>
+                
+                  <li class="nav-item nav-item-1"><a href="api.html">API Reference</a> &#187;</li>
+                
+                  <li class="nav-item nav-item-2"><a href="bson_t.html">bson_t</a></li>
+                
+              </ul>
+            </div>
+          
+        
+  <div class="section" id="bson-append-document-end">
+<h1>bson_append_document_end()<a class="headerlink" href="#bson-append-document-end" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>Synopsis<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">bool</span>
+<span class="nf">bson_append_document_end</span> <span class="p">(</span><span class="n">bson_t</span> <span class="o">*</span><span class="n">bson</span><span class="p">,</span> <span class="n">bson_t</span> <span class="o">*</span><span class="n">child</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="parameters">
+<h2>Parameters<a class="headerlink" href="#parameters" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">bson</span></code>: A <a class="symbol reference internal" href="bson_t.html"><span class="doc">bson_t</span></a>.</li>
+<li><code class="docutils literal notranslate"><span class="pre">child</span></code>: The child <a class="symbol reference internal" href="bson_t.html"><span class="doc">bson_t</span></a> initialized in a call to <a class="symbol reference internal" href="bson_append_document_begin.html"><span class="doc">bson_append_document_begin()</span></a>.</li>
+</ul>
+</div>
+<div class="section" id="description">
+<h2>Description<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="symbol reference internal" href="#"><span class="doc">bson_append_document_end()</span></a> function shall complete the appending of a document with <a class="symbol reference internal" href="bson_append_document_begin.html"><span class="doc">bson_append_document_begin()</span></a>. <code class="docutils literal notranslate"><span class="pre">child</span></code> is invalid after calling this function.</p>
+</div>
+<div class="section" id="returns">
+<h2>Returns<a class="headerlink" href="#returns" title="Permalink to this headline">¶</a></h2>
+<p>Returns <code class="docutils literal notranslate"><span class="pre">true</span></code> if successful.</p>
+</div>
+</div>
+
+
+      </div>
+      <div class="footer">
+        <div class="footer-nav">
+          <a class="footer-nav-button footer-nav-button-prev" title="bson_append_document_begin()" href="bson_append_document_begin.html">&laquo; Previous: bson_append_document_begin()</a>
+          <a class="footer-nav-button footer-nav-button-next" title="bson_append_double()" href="bson_append_double.html">Next: bson_append_double() &raquo;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><h3><a href="index.html">libbson 1.15.1</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="guides.html">Guides</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="cross-platform-notes.html">Cross Platform Notes</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="api.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="bson_t.html">bson_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_context_t.html">bson_context_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_decimal128_t.html">bson_decimal128_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_error_t.html">bson_error_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_iter_t.html">bson_iter_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_json_reader_t.html">bson_json_reader_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_md5_t.html">bson_md5_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_oid_t.html">bson_oid_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_reader_t.html">bson_reader_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="character_and_string_routines.html">Character and String Routines</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_string_t.html">bson_string_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_subtype_t.html">bson_subtype_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_type_t.html">bson_type_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_unichar_t.html">bson_unichar_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_value_t.html">bson_value_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_visitor_t.html">bson_visitor_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_writer_t.html">bson_writer_t</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_get_monotonic_time.html">System Clock</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bson_memory.html">Memory Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version.html">Libbson Versioning</a></li>
+</ul>
+</li>
+</ul>
+
+<ul>
+  <li class="toctree-l1 ">
+    <a href="full_index.html">Index</a>
+  </li>
+</ul>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="colophon">
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5, based on <a href="https://sphinx-readable-theme.readthedocs.io/en/latest/">Sphinx Readable Theme</a>.
+  </div>
+
+  </body>
+</html>

@@ -1,0 +1,11 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${exec_prefix}/include
+
+Name: libmongoc
+Description: The libmongoc MongoDB client library.
+Version: 1.15.1
+Requires: libbson-static-1.0
+Libs: -L${libdir} -lmongoc-static-1.0  -L/usr/lib/x86_64-linux-gnu -lssl -L/usr/lib/x86_64-linux-gnu -lcrypto -lrt -lresolv -pthread -L/usr/lib/x86_64-linux-gnu -lz -L/usr/lib/x86_64-linux-gnu -lsnappy
+Cflags: -I${includedir}/libmongoc-1.0 -DMONGOC_STATIC

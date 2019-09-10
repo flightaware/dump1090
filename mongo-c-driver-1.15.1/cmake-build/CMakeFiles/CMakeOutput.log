@@ -1,0 +1,704 @@
+The system is: Linux - 5.0.0-27-generic - x86_64
+Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+Compiler: /usr/bin/cc 
+Build flags: 
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+
+The C compiler identification is GNU, found in "/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/3.10.2/CompilerIdC/a.out"
+
+Determining if the C compiler works passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_76ffb/fast"
+/usr/bin/make -f CMakeFiles/cmTC_76ffb.dir/build.make CMakeFiles/cmTC_76ffb.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_76ffb.dir/testCCompiler.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_76ffb.dir/testCCompiler.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/testCCompiler.c
+Linking C executable cmTC_76ffb
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_76ffb.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_76ffb.dir/testCCompiler.c.o  -o cmTC_76ffb 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Detecting C compiler ABI info compiled with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_35cfa/fast"
+/usr/bin/make -f CMakeFiles/cmTC_35cfa.dir/build.make CMakeFiles/cmTC_35cfa.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_35cfa.dir/CMakeCCompilerABI.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_35cfa.dir/CMakeCCompilerABI.c.o   -c /usr/share/cmake-3.10/Modules/CMakeCCompilerABI.c
+Linking C executable cmTC_35cfa
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_35cfa.dir/link.txt --verbose=1
+/usr/bin/cc     -v -rdynamic CMakeFiles/cmTC_35cfa.dir/CMakeCCompilerABI.c.o  -o cmTC_35cfa 
+Using built-in specs.
+COLLECT_GCC=/usr/bin/cc
+COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-linux-gnu/7/lto-wrapper
+OFFLOAD_TARGET_NAMES=nvptx-none
+OFFLOAD_TARGET_DEFAULT=1
+Target: x86_64-linux-gnu
+Configured with: ../src/configure -v --with-pkgversion='Ubuntu 7.4.0-1ubuntu1~18.04.1' --with-bugurl=file:///usr/share/doc/gcc-7/README.Bugs --enable-languages=c,ada,c++,go,brig,d,fortran,objc,obj-c++ --prefix=/usr --with-gcc-major-version-only --program-suffix=-7 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --with-sysroot=/ --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-libmpx --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu
+Thread model: posix
+gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1) 
+COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/7/:/usr/lib/gcc/x86_64-linux-gnu/7/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/7/:/usr/lib/gcc/x86_64-linux-gnu/
+LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/7/:/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/7/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/7/../../../:/lib/:/usr/lib/
+COLLECT_GCC_OPTIONS='-v' '-rdynamic' '-o' 'cmTC_35cfa' '-mtune=generic' '-march=x86-64'
+ /usr/lib/gcc/x86_64-linux-gnu/7/collect2 -plugin /usr/lib/gcc/x86_64-linux-gnu/7/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/7/lto-wrapper -plugin-opt=-fresolution=/tmp/cccX3Og2.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --sysroot=/ --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o cmTC_35cfa /usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/7/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/7 -L/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/7/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/7/../../.. CMakeFiles/cmTC_35cfa.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-linux-gnu/7/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/crtn.o
+COLLECT_GCC_OPTIONS='-v' '-rdynamic' '-o' 'cmTC_35cfa' '-mtune=generic' '-march=x86-64'
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Parsed C implicit link information from above output:
+  link line regex: [^( *|.*[/\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
+  ignore line: [Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp]
+  ignore line: []
+  ignore line: [Run Build Command:"/usr/bin/make" "cmTC_35cfa/fast"]
+  ignore line: [/usr/bin/make -f CMakeFiles/cmTC_35cfa.dir/build.make CMakeFiles/cmTC_35cfa.dir/build]
+  ignore line: [make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp']
+  ignore line: [Building C object CMakeFiles/cmTC_35cfa.dir/CMakeCCompilerABI.c.o]
+  ignore line: [/usr/bin/cc    -o CMakeFiles/cmTC_35cfa.dir/CMakeCCompilerABI.c.o   -c /usr/share/cmake-3.10/Modules/CMakeCCompilerABI.c]
+  ignore line: [Linking C executable cmTC_35cfa]
+  ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_35cfa.dir/link.txt --verbose=1]
+  ignore line: [/usr/bin/cc     -v -rdynamic CMakeFiles/cmTC_35cfa.dir/CMakeCCompilerABI.c.o  -o cmTC_35cfa ]
+  ignore line: [Using built-in specs.]
+  ignore line: [COLLECT_GCC=/usr/bin/cc]
+  ignore line: [COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-linux-gnu/7/lto-wrapper]
+  ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none]
+  ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+  ignore line: [Target: x86_64-linux-gnu]
+  ignore line: [Configured with: ../src/configure -v --with-pkgversion='Ubuntu 7.4.0-1ubuntu1~18.04.1' --with-bugurl=file:///usr/share/doc/gcc-7/README.Bugs --enable-languages=c,ada,c++,go,brig,d,fortran,objc,obj-c++ --prefix=/usr --with-gcc-major-version-only --program-suffix=-7 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --with-sysroot=/ --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-libmpx --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu]
+  ignore line: [Thread model: posix]
+  ignore line: [gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1) ]
+  ignore line: [COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/7/:/usr/lib/gcc/x86_64-linux-gnu/7/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/7/:/usr/lib/gcc/x86_64-linux-gnu/]
+  ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/7/:/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/7/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/7/../../../:/lib/:/usr/lib/]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-rdynamic' '-o' 'cmTC_35cfa' '-mtune=generic' '-march=x86-64']
+  link line: [ /usr/lib/gcc/x86_64-linux-gnu/7/collect2 -plugin /usr/lib/gcc/x86_64-linux-gnu/7/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/7/lto-wrapper -plugin-opt=-fresolution=/tmp/cccX3Og2.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --sysroot=/ --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o cmTC_35cfa /usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/7/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/7 -L/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/7/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/7/../../.. CMakeFiles/cmTC_35cfa.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-linux-gnu/7/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/crtn.o]
+    arg [/usr/lib/gcc/x86_64-linux-gnu/7/collect2] ==> ignore
+    arg [-plugin] ==> ignore
+    arg [/usr/lib/gcc/x86_64-linux-gnu/7/liblto_plugin.so] ==> ignore
+    arg [-plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/7/lto-wrapper] ==> ignore
+    arg [-plugin-opt=-fresolution=/tmp/cccX3Og2.res] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [-plugin-opt=-pass-through=-lc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [--sysroot=/] ==> ignore
+    arg [--build-id] ==> ignore
+    arg [--eh-frame-hdr] ==> ignore
+    arg [-m] ==> ignore
+    arg [elf_x86_64] ==> ignore
+    arg [--hash-style=gnu] ==> ignore
+    arg [--as-needed] ==> ignore
+    arg [-export-dynamic] ==> ignore
+    arg [-dynamic-linker] ==> ignore
+    arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+    arg [-pie] ==> ignore
+    arg [-znow] ==> ignore
+    arg [-zrelro] ==> ignore
+    arg [-o] ==> ignore
+    arg [cmTC_35cfa] ==> ignore
+    arg [/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/Scrt1.o] ==> ignore
+    arg [/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/crti.o] ==> ignore
+    arg [/usr/lib/gcc/x86_64-linux-gnu/7/crtbeginS.o] ==> ignore
+    arg [-L/usr/lib/gcc/x86_64-linux-gnu/7] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/7]
+    arg [-L/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu]
+    arg [-L/usr/lib/gcc/x86_64-linux-gnu/7/../../../../lib] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/7/../../../../lib]
+    arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+    arg [-L/lib/../lib] ==> dir [/lib/../lib]
+    arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+    arg [-L/usr/lib/../lib] ==> dir [/usr/lib/../lib]
+    arg [-L/usr/lib/gcc/x86_64-linux-gnu/7/../../..] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/7/../../..]
+    arg [CMakeFiles/cmTC_35cfa.dir/CMakeCCompilerABI.c.o] ==> ignore
+    arg [-lgcc] ==> lib [gcc]
+    arg [--push-state] ==> ignore
+    arg [--as-needed] ==> ignore
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [--pop-state] ==> ignore
+    arg [-lc] ==> lib [c]
+    arg [-lgcc] ==> lib [gcc]
+    arg [--push-state] ==> ignore
+    arg [--as-needed] ==> ignore
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [--pop-state] ==> ignore
+    arg [/usr/lib/gcc/x86_64-linux-gnu/7/crtendS.o] ==> ignore
+    arg [/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu/crtn.o] ==> ignore
+  collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/7] ==> [/usr/lib/gcc/x86_64-linux-gnu/7]
+  collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+  collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/7/../../../../lib] ==> [/usr/lib]
+  collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+  collapse library dir [/lib/../lib] ==> [/lib]
+  collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+  collapse library dir [/usr/lib/../lib] ==> [/usr/lib]
+  collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/7/../../..] ==> [/usr/lib]
+  implicit libs: [gcc;gcc_s;c;gcc;gcc_s]
+  implicit dirs: [/usr/lib/gcc/x86_64-linux-gnu/7;/usr/lib/x86_64-linux-gnu;/usr/lib;/lib/x86_64-linux-gnu;/lib]
+  implicit fwks: []
+
+
+
+
+Detecting C [-std=c11] compiler features compiled with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_c5edf/fast"
+/usr/bin/make -f CMakeFiles/cmTC_c5edf.dir/build.make CMakeFiles/cmTC_c5edf.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_c5edf.dir/feature_tests.c.o
+/usr/bin/cc   -std=c11 -o CMakeFiles/cmTC_c5edf.dir/feature_tests.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/feature_tests.c
+Linking C executable cmTC_c5edf
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c5edf.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_c5edf.dir/feature_tests.c.o  -o cmTC_c5edf 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+    Feature record: C_FEATURE:1c_function_prototypes
+    Feature record: C_FEATURE:1c_restrict
+    Feature record: C_FEATURE:1c_static_assert
+    Feature record: C_FEATURE:1c_variadic_macros
+
+
+Detecting C [-std=c99] compiler features compiled with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_3f817/fast"
+/usr/bin/make -f CMakeFiles/cmTC_3f817.dir/build.make CMakeFiles/cmTC_3f817.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_3f817.dir/feature_tests.c.o
+/usr/bin/cc   -std=c99 -o CMakeFiles/cmTC_3f817.dir/feature_tests.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/feature_tests.c
+Linking C executable cmTC_3f817
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3f817.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_3f817.dir/feature_tests.c.o  -o cmTC_3f817 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+    Feature record: C_FEATURE:1c_function_prototypes
+    Feature record: C_FEATURE:1c_restrict
+    Feature record: C_FEATURE:0c_static_assert
+    Feature record: C_FEATURE:1c_variadic_macros
+
+
+Detecting C [-std=c90] compiler features compiled with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_6f8b7/fast"
+/usr/bin/make -f CMakeFiles/cmTC_6f8b7.dir/build.make CMakeFiles/cmTC_6f8b7.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_6f8b7.dir/feature_tests.c.o
+/usr/bin/cc   -std=c90 -o CMakeFiles/cmTC_6f8b7.dir/feature_tests.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/feature_tests.c
+Linking C executable cmTC_6f8b7
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6f8b7.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_6f8b7.dir/feature_tests.c.o  -o cmTC_6f8b7 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+    Feature record: C_FEATURE:1c_function_prototypes
+    Feature record: C_FEATURE:0c_restrict
+    Feature record: C_FEATURE:0c_static_assert
+    Feature record: C_FEATURE:0c_variadic_macros
+Determining if the include file sys/types.h exists passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_bead3/fast"
+/usr/bin/make -f CMakeFiles/cmTC_bead3.dir/build.make CMakeFiles/cmTC_bead3.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_bead3.dir/CheckIncludeFile.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_bead3.dir/CheckIncludeFile.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_bead3
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_bead3.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_bead3.dir/CheckIncludeFile.c.o  -o cmTC_bead3 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining if the include file stdint.h exists passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_bd8d3/fast"
+/usr/bin/make -f CMakeFiles/cmTC_bd8d3.dir/build.make CMakeFiles/cmTC_bd8d3.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_bd8d3.dir/CheckIncludeFile.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_bd8d3.dir/CheckIncludeFile.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_bd8d3
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_bd8d3.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_bd8d3.dir/CheckIncludeFile.c.o  -o cmTC_bd8d3 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining if the include file stddef.h exists passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_c2375/fast"
+/usr/bin/make -f CMakeFiles/cmTC_c2375.dir/build.make CMakeFiles/cmTC_c2375.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_c2375.dir/CheckIncludeFile.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_c2375.dir/CheckIncludeFile.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_c2375
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c2375.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_c2375.dir/CheckIncludeFile.c.o  -o cmTC_c2375 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining size of unsigned short passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_00609/fast"
+/usr/bin/make -f CMakeFiles/cmTC_00609.dir/build.make CMakeFiles/cmTC_00609.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_00609.dir/CMAKE_SIZEOF_UNSIGNED_SHORT.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_00609.dir/CMAKE_SIZEOF_UNSIGNED_SHORT.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CheckTypeSize/CMAKE_SIZEOF_UNSIGNED_SHORT.c
+Linking C executable cmTC_00609
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_00609.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_00609.dir/CMAKE_SIZEOF_UNSIGNED_SHORT.c.o  -o cmTC_00609 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining if the system is big endian passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_825b3/fast"
+/usr/bin/make -f CMakeFiles/cmTC_825b3.dir/build.make CMakeFiles/cmTC_825b3.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_825b3.dir/TestEndianess.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_825b3.dir/TestEndianess.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/TestEndianess.c
+Linking C executable cmTC_825b3
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_825b3.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_825b3.dir/TestEndianess.c.o  -o cmTC_825b3 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+TestEndianess.c:
+/* A 16 bit integer is required. */
+typedef unsigned short cmakeint16;
+
+/* On a little endian machine, these 16bit ints will give "THIS IS LITTLE ENDIAN."
+   On a big endian machine the characters will be exchanged pairwise. */
+const cmakeint16 info_little[] =  {0x4854, 0x5349, 0x4920, 0x2053, 0x494c, 0x5454, 0x454c, 0x4520, 0x444e, 0x4149, 0x2e4e, 0x0000};
+
+/* on a big endian machine, these 16bit ints will give "THIS IS BIG ENDIAN."
+   On a little endian machine the characters will be exchanged pairwise. */
+const cmakeint16 info_big[] =     {0x5448, 0x4953, 0x2049, 0x5320, 0x4249, 0x4720, 0x454e, 0x4449, 0x414e, 0x2e2e, 0x0000};
+
+#ifdef __CLASSIC_C__
+int main(argc, argv) int argc; char *argv[];
+#else
+int main(int argc, char *argv[])
+#endif
+{
+  int require = 0;
+  require += info_little[argc];
+  require += info_big[argc];
+  (void)argv;
+  return require;
+}
+
+
+Determining if the snprintf exist passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_ca2d1/fast"
+/usr/bin/make -f CMakeFiles/cmTC_ca2d1.dir/build.make CMakeFiles/cmTC_ca2d1.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_ca2d1.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_ca2d1.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_ca2d1
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ca2d1.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_ca2d1.dir/CheckSymbolExists.c.o  -o cmTC_ca2d1 /usr/lib/x86_64-linux-gnu/librt.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stdio.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef snprintf
+  return ((int*)(&snprintf))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Performing C SOURCE FILE Test BSON_HAVE_TIMESPEC succeeded with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_b8cb4/fast"
+/usr/bin/make -f CMakeFiles/cmTC_b8cb4.dir/build.make CMakeFiles/cmTC_b8cb4.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_b8cb4.dir/src.c.o
+/usr/bin/cc   -DBSON_HAVE_TIMESPEC   -o CMakeFiles/cmTC_b8cb4.dir/src.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_b8cb4
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b8cb4.dir/link.txt --verbose=1
+/usr/bin/cc  -DBSON_HAVE_TIMESPEC    -rdynamic CMakeFiles/cmTC_b8cb4.dir/src.c.o  -o cmTC_b8cb4 /usr/lib/x86_64-linux-gnu/librt.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+Source file was:
+
+#include <time.h>
+
+int main()
+{
+   (void)sizeof(((struct timespec *)0)->tv_sec);
+   return 0;
+}
+
+Determining if the gmtime_r exist passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_af333/fast"
+/usr/bin/make -f CMakeFiles/cmTC_af333.dir/build.make CMakeFiles/cmTC_af333.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_af333.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_af333.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_af333
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_af333.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_af333.dir/CheckSymbolExists.c.o  -o cmTC_af333 /usr/lib/x86_64-linux-gnu/librt.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <time.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef gmtime_r
+  return ((int*)(&gmtime_r))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the function rand_r exists passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_5a3e1/fast"
+/usr/bin/make -f CMakeFiles/cmTC_5a3e1.dir/build.make CMakeFiles/cmTC_5a3e1.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_5a3e1.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=rand_r   -o CMakeFiles/cmTC_5a3e1.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.10/Modules/CheckFunctionExists.c
+Linking C executable cmTC_5a3e1
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5a3e1.dir/link.txt --verbose=1
+/usr/bin/cc  -DCHECK_FUNCTION_EXISTS=rand_r    -rdynamic CMakeFiles/cmTC_5a3e1.dir/CheckFunctionExists.c.o  -o cmTC_5a3e1 /usr/lib/x86_64-linux-gnu/librt.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining if the include file strings.h exists passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_1b864/fast"
+/usr/bin/make -f CMakeFiles/cmTC_1b864.dir/build.make CMakeFiles/cmTC_1b864.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_1b864.dir/CheckIncludeFile.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_1b864.dir/CheckIncludeFile.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_1b864
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_1b864.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_1b864.dir/CheckIncludeFile.c.o  -o cmTC_1b864 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining if the clock_gettime exist passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_19bae/fast"
+/usr/bin/make -f CMakeFiles/cmTC_19bae.dir/build.make CMakeFiles/cmTC_19bae.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_19bae.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_19bae.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_19bae
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_19bae.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_19bae.dir/CheckSymbolExists.c.o  -o cmTC_19bae /usr/lib/x86_64-linux-gnu/librt.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <time.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef clock_gettime
+  return ((int*)(&clock_gettime))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the strnlen exist passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_4b242/fast"
+/usr/bin/make -f CMakeFiles/cmTC_4b242.dir/build.make CMakeFiles/cmTC_4b242.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_4b242.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_4b242.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_4b242
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_4b242.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_4b242.dir/CheckSymbolExists.c.o  -o cmTC_4b242 /usr/lib/x86_64-linux-gnu/librt.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <string.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef strnlen
+  return ((int*)(&strnlen))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the include file stdbool.h exists passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_f7f68/fast"
+/usr/bin/make -f CMakeFiles/cmTC_f7f68.dir/build.make CMakeFiles/cmTC_f7f68.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_f7f68.dir/CheckIncludeFile.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_f7f68.dir/CheckIncludeFile.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_f7f68
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f7f68.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_f7f68.dir/CheckIncludeFile.c.o  -o cmTC_f7f68 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining if the SYS_gettid exist passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_c5980/fast"
+/usr/bin/make -f CMakeFiles/cmTC_c5980.dir/build.make CMakeFiles/cmTC_c5980.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_c5980.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_c5980.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_c5980
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c5980.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_c5980.dir/CheckSymbolExists.c.o  -o cmTC_c5980 /usr/lib/x86_64-linux-gnu/librt.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/syscall.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef SYS_gettid
+  return ((int*)(&SYS_gettid))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the syscall exist passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_a41ae/fast"
+/usr/bin/make -f CMakeFiles/cmTC_a41ae.dir/build.make CMakeFiles/cmTC_a41ae.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_a41ae.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_a41ae.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_a41ae
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a41ae.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_a41ae.dir/CheckSymbolExists.c.o  -o cmTC_a41ae /usr/lib/x86_64-linux-gnu/librt.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <unistd.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef syscall
+  return ((int*)(&syscall))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Performing C SOURCE FILE Test HAVE_ATOMIC_32_ADD_AND_FETCH succeeded with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_23701/fast"
+/usr/bin/make -f CMakeFiles/cmTC_23701.dir/build.make CMakeFiles/cmTC_23701.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_23701.dir/src.c.o
+/usr/bin/cc   -DHAVE_ATOMIC_32_ADD_AND_FETCH   -o CMakeFiles/cmTC_23701.dir/src.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_23701
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_23701.dir/link.txt --verbose=1
+/usr/bin/cc  -DHAVE_ATOMIC_32_ADD_AND_FETCH    -rdynamic CMakeFiles/cmTC_23701.dir/src.c.o  -o cmTC_23701 /usr/lib/x86_64-linux-gnu/librt.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+Source file was:
+
+   #include <stdint.h>
+
+   int
+   main ()
+   {
+      int32_t v = 1;
+      return __sync_add_and_fetch_4 (&v, (int32_t) 10);
+   }
+Performing C SOURCE FILE Test HAVE_ATOMIC_64_ADD_AND_FETCH succeeded with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_e9e6c/fast"
+/usr/bin/make -f CMakeFiles/cmTC_e9e6c.dir/build.make CMakeFiles/cmTC_e9e6c.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_e9e6c.dir/src.c.o
+/usr/bin/cc   -DHAVE_ATOMIC_64_ADD_AND_FETCH   -o CMakeFiles/cmTC_e9e6c.dir/src.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_e9e6c
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e9e6c.dir/link.txt --verbose=1
+/usr/bin/cc  -DHAVE_ATOMIC_64_ADD_AND_FETCH    -rdynamic CMakeFiles/cmTC_e9e6c.dir/src.c.o  -o cmTC_e9e6c /usr/lib/x86_64-linux-gnu/librt.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+Source file was:
+
+   #include <stdint.h>
+
+   int
+   main ()
+   {
+      int64_t v = 1;
+      return __sync_add_and_fetch_8 (&v, (int64_t) 10);
+   }
+Determining if the include file pthread.h exists passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_8b82a/fast"
+/usr/bin/make -f CMakeFiles/cmTC_8b82a.dir/build.make CMakeFiles/cmTC_8b82a.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_8b82a.dir/CheckIncludeFile.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_8b82a.dir/CheckIncludeFile.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+Linking C executable cmTC_8b82a
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8b82a.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_8b82a.dir/CheckIncludeFile.c.o  -o cmTC_8b82a 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining if files unistd.h exist passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_8c3b0/fast"
+/usr/bin/make -f CMakeFiles/cmTC_8c3b0.dir/build.make CMakeFiles/cmTC_8c3b0.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_8c3b0.dir/CheckIncludeFiles.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_8c3b0.dir/CheckIncludeFiles.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+Linking C executable cmTC_8c3b0
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8c3b0.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_8c3b0.dir/CheckIncludeFiles.c.o  -o cmTC_8c3b0 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining if files stdarg.h exist passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_8fda0/fast"
+/usr/bin/make -f CMakeFiles/cmTC_8fda0.dir/build.make CMakeFiles/cmTC_8fda0.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_8fda0.dir/CheckIncludeFiles.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_8fda0.dir/CheckIncludeFiles.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+Linking C executable cmTC_8fda0
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8fda0.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_8fda0.dir/CheckIncludeFiles.c.o  -o cmTC_8fda0 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining if the function ASN1_STRING_get0_data exists in the /usr/lib/x86_64-linux-gnu/libcrypto.so passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_631f0/fast"
+/usr/bin/make -f CMakeFiles/cmTC_631f0.dir/build.make CMakeFiles/cmTC_631f0.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_631f0.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=ASN1_STRING_get0_data   -o CMakeFiles/cmTC_631f0.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.10/Modules/CheckFunctionExists.c
+Linking C executable cmTC_631f0
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_631f0.dir/link.txt --verbose=1
+/usr/bin/cc  -DCHECK_FUNCTION_EXISTS=ASN1_STRING_get0_data    -rdynamic CMakeFiles/cmTC_631f0.dir/CheckFunctionExists.c.o  -o cmTC_631f0  -L/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/openssl/asn1.h -Wl,-rpath,/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/openssl/asn1.h /usr/lib/x86_64-linux-gnu/libcrypto.so 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining size of socklen_t passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_d6f16/fast"
+/usr/bin/make -f CMakeFiles/cmTC_d6f16.dir/build.make CMakeFiles/cmTC_d6f16.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_d6f16.dir/HAVE_SOCKLEN.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_d6f16.dir/HAVE_SOCKLEN.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CheckTypeSize/HAVE_SOCKLEN.c
+Linking C executable cmTC_d6f16
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_d6f16.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_d6f16.dir/HAVE_SOCKLEN.c.o  -o cmTC_d6f16 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+
+Determining if the res_nsearch exist passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_a6322/fast"
+/usr/bin/make -f CMakeFiles/cmTC_a6322.dir/build.make CMakeFiles/cmTC_a6322.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_a6322.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_a6322.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_a6322
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a6322.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_a6322.dir/CheckSymbolExists.c.o  -o cmTC_a6322 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <resolv.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef res_nsearch
+  return ((int*)(&res_nsearch))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the res_nclose exist passed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_ec0a0/fast"
+/usr/bin/make -f CMakeFiles/cmTC_ec0a0.dir/build.make CMakeFiles/cmTC_ec0a0.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_ec0a0.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_ec0a0.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_ec0a0
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ec0a0.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_ec0a0.dir/CheckSymbolExists.c.o  -o cmTC_ec0a0 
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <resolv.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef res_nclose
+  return ((int*)(&res_nclose))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+

@@ -1,0 +1,3 @@
+[submodule "bladeRF"]
+	path = bladeRF
+	url = https://github.com/Nuand/bladeRF.git
