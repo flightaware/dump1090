@@ -224,15 +224,12 @@ void *readerThreadEntryPoint(void *arg)
 
     // Wake the main thread (if it's still waiting)
     pthread_mutex_lock(&Modes.data_mutex);
-    Modes.exit = 1; // just in case
+    if (!Modes.exit)
+        Modes.exit = 2; // unexpected exit
     pthread_cond_signal(&Modes.data_cond);
     pthread_mutex_unlock(&Modes.data_mutex);
 
-#ifndef _WIN32
-    pthread_exit(NULL);
-#else
     return NULL;
-#endif
 }
 //
 // ============================== Snip mode =================================
@@ -306,17 +303,16 @@ void showHelp(void) {
 "--net-ro-interval <rate> TCP output memory flush rate in seconds (default: 0)\n"
 "--net-heartbeat <rate>   TCP heartbeat rate in seconds (default: 60 sec; 0 to disable)\n"
 "--net-buffer <n>         TCP buffer size 64Kb * (2^n) (default: n=0, 64Kb)\n"
-"--net-verbatim           Do not apply CRC corrections to messages we forward; send unchanged\n"
+"--net-verbatim           Make Beast-format output connections default to verbatim mode\n"
+"                         (forward all messages, without applying CRC corrections)\n"
 "--forward-mlat           Allow forwarding of received mlat results to output ports\n"
 "--lat <latitude>         Reference/receiver latitude for surface posn (opt)\n"
 "--lon <longitude>        Reference/receiver longitude for surface posn (opt)\n"
 "--max-range <distance>   Absolute maximum range for position decoding (in nm, default: 300)\n"
 "--fix                    Enable single-bits error correction using CRC\n"
-"--no-fix                 Disable single-bits error correction using CRC\n"
+"                         (specify twice for two-bit error correction)\n"
+"--no-fix                 Disable error correction using CRC\n"
 "--no-crc-check           Disable messages with broken CRC (discouraged)\n"
-#ifdef ALLOW_AGGRESSIVE
-"--aggressive             More CPU for more messages (two bits fixes, ...)\n"
-#endif
 "--mlat                   display raw messages in Beast ascii mode\n"
 "--stats                  With --ifile print stats at exit. No other output\n"
 "--stats-range            Collect/show range histogram\n"
@@ -485,7 +481,7 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[j],"--measure-noise")) {
             // Ignored
         } else if (!strcmp(argv[j],"--fix")) {
-            Modes.nfix_crc = 1;
+            ++Modes.nfix_crc;
         } else if (!strcmp(argv[j],"--no-fix")) {
             Modes.nfix_crc = 0;
         } else if (!strcmp(argv[j],"--no-crc-check")) {
@@ -549,11 +545,7 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[j],"--hae") || !strcmp(argv[j],"--gnss")) {
             Modes.use_gnss = 1;
         } else if (!strcmp(argv[j],"--aggressive")) {
-#ifdef ALLOW_AGGRESSIVE
-            Modes.nfix_crc = MODES_MAX_BITERRORS;
-#else
-            fprintf(stderr, "warning: --aggressive not supported in this build, option ignored.\n");
-#endif
+            fprintf(stderr, "warning: --aggressive not supported in this build, option ignored (consider '--fix --fix' instead)\n");
         } else if (!strcmp(argv[j],"--interactive")) {
             Modes.interactive = 1;
         } else if (!strcmp(argv[j],"--interactive-ttl") && more) {
@@ -629,6 +621,9 @@ int main(int argc, char **argv) {
     if (!Modes.quiet) {showCopyright();}
 #endif
 
+    if (Modes.nfix_crc > MODES_MAX_BITERRORS)
+        Modes.nfix_crc = MODES_MAX_BITERRORS;
+
     // Initialization
     log_with_timestamp("%s %s starting up.", MODES_DUMP1090_VARIANT, MODES_DUMP1090_VERSION);
     modesInit();
@@ -663,12 +658,13 @@ int main(int argc, char **argv) {
     if (Modes.sdr_type == SDR_NONE) {
         while (!Modes.exit) {
             struct timespec start_time;
+            struct timespec slp = { 0, 100 * 1000 * 1000};
 
             start_cpu_timing(&start_time);
             backgroundTasks();
             end_cpu_timing(&start_time, &Modes.stats_current.background_cpu);
 
-            usleep(100000);
+            nanosleep(&slp, NULL);
         }
     } else {
         int watchdogCounter = 10; // about 1 second
@@ -760,15 +756,15 @@ int main(int argc, char **argv) {
         display_total_stats();
     }
 
-    log_with_timestamp("Normal exit.");
-
     sdrClose();
 
-#ifndef _WIN32
-    pthread_exit(0);
-#else
-    return (0);
-#endif
+    if (Modes.exit == 1) {
+        log_with_timestamp("Normal exit.");
+        return 0;
+    } else {
+        log_with_timestamp("Abnormal exit.");
+        return 1;
+    }
 }
 //
 //=========================================================================

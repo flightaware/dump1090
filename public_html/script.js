@@ -388,6 +388,9 @@ function start_load_history() {
 		for (var i = 0; i < PositionHistorySize; i++) {
 			load_history_item(i);
 		}
+	} else {
+		// Nothing to load
+		end_load_history();
 	}
 }
 
@@ -440,7 +443,7 @@ function end_load_history() {
                         console.log("Updating tracks at: " + now);
                         for (var i = 0; i < PlanesOrdered.length; ++i) {
                                 var plane = PlanesOrdered[i];
-                                plane.updateTrack((now - last) + 1);
+                                plane.updateTrack(now, last);
                         }
 
                         last = now;
@@ -1102,55 +1105,39 @@ function refreshHighlighted() {
 		highlighted = Planes[HighlightedPlane];
 	}
 
-	// no highlighted plane
-	if (!highlighted) {
-		$('#highlighted_infoblock').hide();
+	var infoBox = $('#highlighted_infoblock');
+
+	// no highlighted plane or in process of removing plane
+	if (!highlighted || !highlighted.marker) {
+		infoBox.fadeOut();
 		return;
 	}
 
-	$('#highlighted_infoblock').show();
-
-	// Get info box position and size
-	var infoBox = $('#highlighted_infoblock');
-	var infoBoxPosition = infoBox.position();
-	if (typeof infoBoxOriginalPosition.top === 'undefined') {
-		infoBoxOriginalPosition.top = infoBoxPosition.top;
-		infoBoxOriginalPosition.left = infoBoxPosition.left;
-	} else {
-		infoBox.css("left", infoBoxOriginalPosition.left);
-		infoBox.css("top", infoBoxOriginalPosition.top);
-		infoBoxPosition = infoBox.position();
-	}
-	var infoBoxExtent = getExtent(infoBoxPosition.left, infoBoxPosition.top, infoBox.outerWidth(), infoBox.outerHeight());
-
-	// Get map size
 	var mapCanvas = $('#map_canvas');
-	var mapExtent = getExtent(0, 0, mapCanvas.width(), mapCanvas.height());
-
-	var marker = highlighted.marker;
 	var markerCoordinates = highlighted.marker.getGeometry().getCoordinates();
-    var markerPosition = OLMap.getPixelFromCoordinate(markerCoordinates);
-
-	// Check for overlap
-	//FIXME TODO: figure out this/remove this check
-	if (isPointInsideExtent(markerPosition[0], markerPosition[1], infoBoxExtent) || true) {
-		// Array of possible new positions for info box
-		var candidatePositions = [];
-		candidatePositions.push( { x: 40, y: 80 } );
-		candidatePositions.push( { x: markerPosition[0] + 20, y: markerPosition[1] + 60 } );
-
-		// Find new position
-		for (var i = 0; i < candidatePositions.length; i++) {
-			var candidatePosition = candidatePositions[i];
-			var candidateExtent = getExtent(candidatePosition.x, candidatePosition.y, infoBox.outerWidth(), infoBox.outerHeight());
-
-			if (!isPointInsideExtent(markerPosition[0],  markerPosition[1], candidateExtent) && isPointInsideExtent(candidatePosition.x, candidatePosition.y, mapExtent)) {
-				// Found a new position that doesn't overlap marker - move box to that position
-				infoBox.css("left", candidatePosition.x);
-				infoBox.css("top", candidatePosition.y);
-			}
-		}
+	var markerPosition = OLMap.getPixelFromCoordinate(markerCoordinates);
+	var x = markerPosition[0];
+	var y = markerPosition[1];
+	if (x < 0 || y < 0 || x > mapCanvas.width() || y > mapCanvas.height()) {
+		infoBox.fadeOut();
+		return;
 	}
+	x = x + 20;
+	y = y + 60;
+	var w = infoBox.outerWidth() + 20;
+	var h = infoBox.outerHeight();
+	if (x > mapCanvas.width() - w) {
+		x -= w + 20;
+	}
+	if (y > mapCanvas.height() - h) {
+		y -= h;
+	}
+	if (infoBox.css('visibility', 'visible')) {
+		infoBox.animate({ left: x, top: y }, 500);
+	} else {
+		infoBox.css({ left: x, top: y });
+	}
+	infoBox.fadeIn(100);
 
 	if (highlighted.flight !== null && highlighted.flight !== "") {
 		$('#highlighted_callsign').text(highlighted.flight);
@@ -1892,11 +1879,11 @@ function updatePiAwareOrFlightFeeder() {
 	if (isFlightFeeder) {
 		$('.piAwareLogo').hide();
 		$('.flightfeederLogo').show();
-		PageName = 'FlightFeeder Skyview';
+		PageName = 'FlightFeeder SkyAware';
 	} else {
 		$('.flightfeederLogo').hide();
 		$('.piAwareLogo').show();
-		PageName = 'PiAware Skyview';
+		PageName = 'PiAware SkyAware';
 	}
 	refreshPageTitle();
 }

@@ -199,17 +199,17 @@ int main(int argc, char **argv) {
         exit (1);
     }
 
-    sendBeastSettings(c, "Cdfj"); // Beast binary, no filters, CRC checks on, no mode A/C
+    sendBeastSettings(c, "CdfjV"); // Beast binary, no filters, CRC checks on, no mode A/C, verbatim mode on
 
     // Set up output connection on stdout
     fatsv_output = makeFatsvOutputService();
     createGenericClient(fatsv_output, STDOUT_FILENO);
-    writeFATSVHeader();
 
     // Run it until we've lost either connection
     while (!Modes.exit && beast_input->connections && fatsv_output->connections) {
+        struct timespec r = { 0, 100 * 1000 * 1000};
         backgroundTasks();
-        usleep(100000);
+        nanosleep(&r, NULL);
     }
 
     return 0;

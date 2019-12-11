@@ -6,7 +6,7 @@ html, body {
 
 #layout_container { 
     display: flex;
-    height: calc(100% - 60px);;
+    height: calc(100% - 60px);
 }
 
 #selected_infoblock {
@@ -22,8 +22,8 @@ html, body {
 	height: 100%;
 }
 #sidebar_canvas { 
-    padding: 10px;
-	overflow: scroll;
+    	padding: 10px;
+	overflow: auto;
 }
 #sidebar_container {
 	display: flex;
@@ -627,6 +627,7 @@ select.error, textarea.error, input.error {
     background-image: url('images/box-empty.png');
     background-repeat: no-repeat;
     background-position: center;
+    background-size: contain;
     cursor: pointer;
 }
 

@@ -7,17 +7,15 @@ Wants=network.target
 After=network.target
 
 [Service]
-EnvironmentFile=/etc/default/dump1090-fa
-EnvironmentFile=-/var/cache/piaware/location.env
 User=dump1090
 RuntimeDirectory=dump1090-fa
 RuntimeDirectoryMode=0755
-ExecStart=/usr/bin/dump1090-fa \
- $RECEIVER_OPTIONS $DECODER_OPTIONS $NET_OPTIONS $JSON_OPTIONS $PIAWARE_DUMP1090_LOCATION_OPTIONS \
- --write-json /run/dump1090-fa --quiet
+ExecStart=/usr/share/dump1090-fa/start-dump1090-fa --write-json %t/dump1090-fa --quiet
+SyslogIdentifier=dump1090-fa
 Type=simple
 Restart=on-failure
 RestartSec=30
+RestartPreventExitStatus=64
 Nice=-5
 
 [Install]

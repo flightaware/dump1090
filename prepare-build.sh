@@ -11,6 +11,9 @@ then
     exit 1
 fi
 
+export DEBFULLNAME="${DEBFULLNAME:-FlightAware build automation}"
+export DEBEMAIL="${DEBEMAIL:-adsb-devs@flightaware.com}"
+
 TOP=`dirname $0`
 DIST=$1
 OUT=$2
@@ -28,7 +31,7 @@ then
     exit 1
 fi
 
-FILES=$(find $TOP -mindepth 1 -maxdepth 1 -name .git -prune -o -name 'debian*' -prune -o -print)
+FILES=$(find $TOP -mindepth 1 -maxdepth 1 -name .git -prune -o -name 'debian*' -prune -o -name 'package-*' -prune -o -print)
 mkdir -p $OUT
 cp -a $FILES $OUT
 cp -a $TOP/debian $OUT
@@ -49,6 +52,11 @@ case "$DIST" in
         ;;
 
     stretch)
+        echo "Updating changelog for stretch backport build" >&2
+        dch --changelog $OUT/debian/changelog --local ~bpo9+ --force-distribution --distribution stretch-backports "Automated backport build for jessie"
+        ;;
+
+    buster)
         ;;
 
     *)

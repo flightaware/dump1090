@@ -23,6 +23,15 @@
 #include <libbladeRF.h>
 #include <inttypes.h>
 
+#if !defined(LIBBLADERF_API_VERSION) || (LIBBLADERF_API_VERSION < 0x01060100)
+#error This libbladeRF is too old, upgrade or disable bladerf support
+#endif
+
+// Polyfill for the older bladerf API
+#if LIBBLADERF_API_VERSION < 0x02000000
+typedef unsigned int bladerf_frequency;
+#endif
+
 static struct {
     const char *device_str;
     const char *fpga_path;
@@ -102,7 +111,7 @@ static void show_config()
     int status;
 
     unsigned rate;
-    unsigned freq;
+    bladerf_frequency freq;
     bladerf_lpf_mode lpf_mode;
     unsigned lpf_bw;
     bladerf_lna_gain lna_gain;

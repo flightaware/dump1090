@@ -1,12 +1,15 @@
 # dump1090-fa configuration
-# This is read by the systemd service file as an environment file,
-# and evaluated by some scripts as a POSIX shell fragment.
+# This is sourced by /usr/share/dump1090-fa/start-dump1090-fa as a
+# shellscript fragment.
 
 # If you are using a PiAware sdcard image, this config file is regenerated
 # on boot based on the contents of piaware-config.txt; any changes made to this
 # file will be lost.
 
-RECEIVER_OPTIONS="--device-index 0 --gain -10 --ppm 0 --net-bo-port 30005"
-DECODER_OPTIONS="--max-range 360"
-NET_OPTIONS="--net --net-heartbeat 60 --net-ro-size 1000 --net-ro-interval 1 --net-ri-port 0 --net-ro-port 30002 --net-sbs-port 30003 --net-bi-port 30004,30104 --net-bo-port 30005"
+# dump1090-fa won't automatically start unless ENABLED=yes
+ENABLED=yes
+
+RECEIVER_OPTIONS="--device-index 0 --gain -10 --ppm 0"
+DECODER_OPTIONS="--max-range 360 --fix"
+NET_OPTIONS="--net --net-heartbeat 60 --net-ro-size 1300 --net-ro-interval 0.2 --net-ri-port 0 --net-ro-port 30002 --net-sbs-port 30003 --net-bi-port 30004,30104 --net-bo-port 30005"
 JSON_OPTIONS="--json-location-accuracy 1"

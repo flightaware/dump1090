@@ -196,6 +196,7 @@ typedef enum {
 
 typedef enum {
     COMMB_UNKNOWN,
+    COMMB_AMBIGUOUS,
     COMMB_EMPTY_RESPONSE,
     COMMB_DATALINK_CAPS,
     COMMB_GICB_CAPS,
@@ -226,6 +227,10 @@ typedef enum {
     EMERGENCY_DOWNED = 6,
     EMERGENCY_RESERVED = 7
 } emergency_t;
+
+typedef enum {
+    NAV_ALT_INVALID, NAV_ALT_UNKNOWN, NAV_ALT_AIRCRAFT, NAV_ALT_MCP, NAV_ALT_FMS
+} nav_altitude_source_t;
 
 #define MODES_NON_ICAO_ADDRESS       (1<<24) // Set on addresses to indicate they are not ICAO addresses
 
@@ -304,7 +309,7 @@ struct {                             // Internal state
     double          sample_rate;                          // actual sample rate in use (in hz)
 
     uint16_t       *log10lut;        // Magnitude -> log10 lookup table
-    int             exit;            // Exit from the main loop when true
+    int             exit;            // Exit from the main loop when true (2 = unclean exit)
 
     // Sample conversion
     int            dc_filter;        // should we apply a DC filter?
@@ -319,10 +324,14 @@ struct {                             // Internal state
     struct net_service *services;    // Active services
     struct client *clients;          // Our clients
 
-    struct net_writer raw_out;       // Raw output
-    struct net_writer beast_out;     // Beast-format output
-    struct net_writer sbs_out;       // SBS-format output
-    struct net_writer fatsv_out;     // FATSV-format output
+    struct net_service *beast_verbatim_service;  // Beast-format output service, verbatim mode
+    struct net_service *beast_cooked_service;    // Beast-format output service, "cooked" mode
+
+    struct net_writer raw_out;                   // AVR-format output
+    struct net_writer beast_verbatim_out;        // Beast-format output, verbatim mode
+    struct net_writer beast_cooked_out;          // Beast-format output, "cooked" mode
+    struct net_writer sbs_out;                   // SBS-format output
+    struct net_writer fatsv_out;                 // FATSV-format output
 
 #ifdef _WIN32
     WSADATA        wsaData;          // Windows socket initialisation
@@ -348,7 +357,7 @@ struct {                             // Internal state
     char *net_output_beast_ports;    // List of Beast output TCP ports
     char *net_bind_address;          // Bind address
     int   net_sndbuf_size;           // TCP output buffer size (64Kb * 2^n)
-    int   net_verbatim;              // if true, send the original message, not the CRC-corrected one
+    int   net_verbatim;              // if true, Beast output connections default to verbatim mode
     int   forward_mlat;              // allow forwarding of mlat messages to output ports
     int   quiet;                     // Suppress stdout
     uint32_t show_only;              // Only show messages from this ICAO
@@ -405,6 +414,7 @@ struct modesMessage {
     int           remote;                         // If set this message is from a remote station
     double        signalLevel;                    // RSSI, in the range [0..1], as a fraction of full-scale power
     int           score;                          // Scoring from scoreModesMessage, if used
+    int           reliable;                       // is this a "reliable" message (uncorrected DF11/DF17/DF18)?
 
     datasource_t  source;                         // Characterizes the overall message source
 
@@ -581,7 +591,7 @@ struct modesMessage {
         unsigned mcp_altitude;  // MCP/FCU selected altitude
         float    qnh;           // altimeter setting (QFE or QNH/QNE), millibars
 
-        enum { NAV_ALT_INVALID, NAV_ALT_UNKNOWN, NAV_ALT_AIRCRAFT, NAV_ALT_MCP, NAV_ALT_FMS } altitude_source;
+        nav_altitude_source_t altitude_source;
 
         nav_modes_t modes;
     } nav;
@@ -613,6 +623,7 @@ unsigned modeCToModeA (int modeC);
 void  interactiveInit(void);
 void  interactiveShowData(void);
 void  interactiveCleanup(void);
+void  interactiveNoConnection(void);
 
 // Provided by dump1090.c / view1090.c / faup1090.c
 void receiverPositionChanged(float lat, float lon, float alt);

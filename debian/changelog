@@ -1,3 +1,76 @@
+dump1090-fa (3.8.0~dev) UNRELEASED; urgency=medium
+
+  * in development
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Thu, 07 Nov 2019 10:40:10 +0800
+
+dump1090-fa (3.7.2) stable; urgency=medium
+
+  * dump1090: Fix reversed sense of Track Angle/Heading bit in surface opstatus messages
+  * dump1090: Have filter-regs emit a special value "-COMPUTED-" for filtered data
+    values, rather than blanking them out entirely
+  * Fix registration side mappings with a non-zero offset
+  * dump1090: Update aircraft DB to 20190816
+  * dump1090: Reject outright libbladerf that's too old
+  * dump1090: Trigger build after bladeRF build; turn off build durability; turn
+    off concurrent builds
+  * SkyAware: SkyAware Renaming
+  * SkyAware: Fix some display errors for ground vehicles
+  * SkyAware: Fix aircraft trail handling
+
+ -- Eric Tran <eric.tran@flightaware.com>  Mon, 09 Sep 2019 09:25:00 -6000
+
+dump1090-fa (3.7.1) stable; urgency=medium
+
+  * dump1090: TSV buffer overflow fix/increase max TSV packet size
+  * dump1090: Fix incorrect mode_s bit number usage
+  * dump1090: Rework use of pkg-config to work around librtlsdr packaging bugs
+    in Ubuntu distro
+  * dump1090: Minimal polyfill to support building older bladeRF libs
+  * dump1090: Add COMMB_AMBIGUOUS enum type for Comm-B messages we're unsure of
+  * dump1090: Comm-b message decoding updates
+  * dump1090: Require more fields to be populated in BDS5,0/BDS6,0 before accepting
+  * dump1090: Update aircraft DB to 20190502
+  * dump1090: Doc/README updates
+
+ -- Eric Tran <eric.tran@flightaware.com>  Fri, 03 May 2019 12:35:00 -6000
+
+dump1090-fa (3.7.0.1) stable; urgency=medium
+
+  * dump1090: Fix piaware lat/lon variable
+
+ -- Eric Tran <eric.tran@flightaware.com>  Fri, 29 Mar 2019 7:04:00 -6000
+
+dump1090-fa (3.7.0) stable; urgency=medium
+
+  * dump1090: Fix Rc decoding errors
+  * dump1090: Compute ADS-B v0 NACp/SIL
+  * dump1090: When generating aircraft.json, leave space for the final line;
+    otherwise the generated json may have trailing garbage
+  * dump1090: Don't update the known-address-set from DF18 messages
+  * Skyview: use heading data for icon orientation if track data is unavailable
+  * Skyview: don't spin forever if there's no history to load / receiver.json
+    is missing
+  * dump1090: Bail out if rtlsdr_read_async() returns early; it probably means we lost
+    the USB device. There was a workaround for this (originally implemented
+    in dump1090-mutability) that got lost in the refactoring needed to support
+    different SDRs. librtlsdr can still be flaky under disconnect conditions, so
+    this won't catch everything.
+  * dump1090: add ENABLED to /etc/default/dump1090-fa
+  * dump1090: track FMS and MCP selected altitudes separately
+  * skyview: use whichever selected altitude is available
+  * faup1090: updates to support PiAware 3.7.0
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Fri, 22 Mar 2019 15:58:04 +0000
+
+dump1090-fa (3.6.3) stable; urgency=medium
+
+  * Fix port 30003 output (Basestation) timestamp formatting broken in 3.6.0
+  * Ignore altitudes in DF17 "airborne" positions with airGround = ground
+  * SkyView layout change and proper support for extended data fields
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Tue, 11 Sep 2018 14:52:20 +0100
+
 dump1090-fa (3.6.2) stable; urgency=medium
 
   * Update SkyView flags for Libya, Serbia, Montenegro

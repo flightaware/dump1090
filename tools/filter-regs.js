@@ -3,10 +3,16 @@
 // ICAO addresses (column 'icao24') and registrations
 // (column 'r')
 //
-// It removes all registration entries that exactly match
-// what dump1090 would have computed from the hexid anyway,
-// reducing the size of the CSV in the cases where the
-// two approaches match.
+// It replaces all registration entries that exactly match
+// what dump1090 would have computed from the hexid anyway
+// with the special value "-COMPUTED-"; these values are
+// removed from the final data when csv-to-json.py writes
+// the json database, reducing the size of the database
+// in the cases where the two approaches match.
+//
+// It does a similar transformation on 'desc' (aircraft type
+// description) and 'wtc' (wake turbulence categogy) based
+// on the aircraft type designator in 't', if provided.
 //
 // Any additional columns are passed through unchanged.
 //
@@ -28,7 +34,7 @@ var transformer = csv.transform(function (record, callback) {
                 if ('r' in record && record.r != '') {
                         var computed = reglookup(record.icao24);
                         if (computed === record.r) {
-                                record.r = '';
+                                record.r = '-COMPUTED-';
                         } else if (computed !== null) {
                                 console.warn(record.icao24 + " computed registration " + computed + " but CSV data had " + record.r);
                         }
@@ -38,7 +44,7 @@ var transformer = csv.transform(function (record, callback) {
                         if ('desc' in record && record.desc != '') {
                                 var computed_desc = actypes[record.t].desc;
                                 if (computed_desc === record.desc) {
-                                        record.desc = '';
+                                        record.desc = '-COMPUTED-';
                                 } else if (computed_desc !== undefined) {
                                         // too noisy, the icao descriptors are very coarse and reality often disagrees
                                         //console.warn(record.icao24 + " (" + record.t + "): computed type description " + computed_desc + " but CSV data had " + record.desc);
@@ -48,7 +54,7 @@ var transformer = csv.transform(function (record, callback) {
                         if ('wtc' in record && record.wtc != '') {
                                 var computed_wtc = actypes[record.t].wtc;
                                 if (computed_wtc === record.wtc) {
-                                        record.wtc = '';
+                                        record.wtc = '-COMPUTED-';
                                 } else if (computed_desc !== undefined) {
                                         //console.warn(record.icao24 + " (" + record.t + "): computed type WTC " + computed_wtc + " but CSV data had " + record.wtc);
                                 }
