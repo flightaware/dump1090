@@ -555,8 +555,8 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     if (mm->correctedbits >= 2)
         return;
 
-    // Don't ever forward mlat messages via SBS output.
-    if (mm->source == SOURCE_MLAT)
+    // Don't forward mlat messages, unless --forward-mlat is set
+    if (mm->source == SOURCE_MLAT && !Modes.forward_mlat)
         return;
 
     // Don't ever send unreliable messages via SBS output
