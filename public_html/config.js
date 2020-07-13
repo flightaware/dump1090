@@ -96,7 +96,6 @@ OutlineMlatColor = '#4040FF';
 
 SiteCircles = true; // true to show circles (only shown if the center marker is shown)
 // In miles, nautical miles, or km (depending settings value 'DisplayUnits')
-SiteCirclesDistances = new Array(100,150,200);
 DefaultSiteCirclesCount = 3;
 DefaultSiteCirclesBaseDistance = 100;
 DefaultSiteCirclesInterval = 50;

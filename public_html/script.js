@@ -883,7 +883,7 @@ function refreshPageTitle() {
                 subtitle += TrackedAircraftPositions + '/' + TrackedAircraft;
         }
 
-        if (MessageRateInTitle) {
+        if (MessageRateInTitle && MessageRate) {
                 if (subtitle) subtitle += ' | ';
                 subtitle += MessageRate.toFixed(1) + '/s';
         }
