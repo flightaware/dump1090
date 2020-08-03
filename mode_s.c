@@ -49,6 +49,7 @@
 
 
 #include "dump1090.h"
+#include "ais_charset.h"
 
 /* for PRIX64 */
 #include <inttypes.h>
@@ -258,12 +259,9 @@ static int correct_aa_field(uint32_t *addr, struct errorinfo *ei)
 //  350: DF17/18 with 2-bit error and an address not matching a known aircraft
 
 // 1600: DF11 with IID==0, good CRC and an address matching a known aircraft
-//  800: DF11 with IID==0, 1-bit error and an address matching a known aircraft
-//  750: DF11 with IID==0, good CRC and an address not matching a known aircraft
-//  375: DF11 with IID==0, 1-bit error and an address not matching a known aircraft
-
 // 1000: DF11 with IID!=0, good CRC and an address matching a known aircraft
-//  500: DF11 with IID!=0, 1-bit error and an address matching a known aircraft
+//  800: DF11 with 1-bit error and an address matching a known aircraft
+//  750: DF11 with IID==0, good CRC and an address not matching a known aircraft
 
 // 1000: DF20/21 with a CRC-derived address matching a known aircraft
 //  500: DF20/21 with a CRC-derived address matching a known aircraft (bottom 16 bits only - overlay control in use)
@@ -309,31 +307,40 @@ int scoreModesMessage(unsigned char *msg, int validbits)
 
     case 11: // All-call reply
         iid = crc & 0x7f;
-        crc = crc & 0xffff80;
         addr = getbits(msg, 9, 32);
 
-        ei = modesChecksumDiagnose(crc, msgbits);
-        if (!ei)
-            return -2; // can't correct errors
+        if (crc & 0xffff80) {
+            // Try to diagnose based on the _full_ CRC
+            // i.e. under the assumption that IID = 0
+            ei = modesChecksumDiagnose(crc, msgbits);
+            if (!ei)
+                return -2; // can't correct errors
 
-        // see crc.c comments: we do not attempt to fix
-        // more than single-bit errors, as two-bit
-        // errors are ambiguous in DF11.
-        if (ei->errors > 1)
-            return -2; // can't correct errors
+            // see crc.c comments: we do not attempt to fix
+            // more than single-bit errors, as two-bit
+            // errors are ambiguous in DF11.
+            if (ei->errors > 1)
+                return -2; // can't correct errors
 
-        // fix any errors in the address field
-        correct_aa_field(&addr, ei);
+            // fix any errors in the address field
+            correct_aa_field(&addr, ei);
 
-        // validate address
+            // here, IID = 0 implicitly
+            if (icaoFilterTest(addr))
+                return 800;
+            else
+                return -1;
+        }
+
+        // CRC was correct (ish)
         if (iid == 0) {
             if (icaoFilterTest(addr))
-                return 1600 / (ei->errors + 1);
+                return 1600;
             else
-                return 750 / (ei->errors + 1);
-        } else {
+                return 750;
+        } else { // iid != 0
             if (icaoFilterTest(addr))
-                return 1000 / (ei->errors + 1);
+                return 1000;
             else
                 return -1;
         }
@@ -382,20 +389,16 @@ int scoreModesMessage(unsigned char *msg, int validbits)
 
 static void decodeExtendedSquitter(struct modesMessage *mm);
 
-char ais_charset[64] = "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_ !\"#$%&'()*+,-./0123456789:;<=>?";
-
 // return 0 if all OK
 //   -1: message might be valid, but we couldn't validate the CRC against a known ICAO
 //   -2: bad message or unrepairable CRC error
 
 int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
 {
+    // Preserve the original uncorrected copy for later forwarding
+    memcpy(mm->verbatim, msg, MODES_LONG_MSG_BYTES);
     // Work on our local copy.
     memcpy(mm->msg, msg, MODES_LONG_MSG_BYTES);
-    if (Modes.net_verbatim) {
-        // Preserve the original uncorrected copy for later forwarding
-        memcpy(mm->verbatim, msg, MODES_LONG_MSG_BYTES);
-    }
     msg = mm->msg;
 
     // don't accept all-zeros messages
@@ -442,8 +445,11 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
 
         mm->IID = mm->crc & 0x7f;
         if (mm->crc & 0xffff80) {
+            // Try to diagnose based on the _full_ CRC
+            // i.e. under the assumption that IID = 0
+
             int addr;
-            struct errorinfo *ei = modesChecksumDiagnose(mm->crc & 0xffff80, mm->msgbits);
+            struct errorinfo *ei = modesChecksumDiagnose(mm->crc, mm->msgbits);
             if (!ei) {
                 return -2; // couldn't fix it
             }
@@ -455,6 +461,7 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
                 return -2; // can't correct errors
 
             mm->correctedbits = ei->errors;
+            mm->IID = 0;
             modesChecksumFix(msg, ei);
 
             // check whether the corrected message looks sensible
@@ -466,6 +473,7 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
             }
         }
         mm->source = SOURCE_MODE_S_CHECKED;
+        mm->reliable = (mm->IID == 0 && mm->correctedbits == 0);
         break;
 
     case 17:   // Extended squitter
@@ -494,6 +502,7 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
         }
 
         mm->source = SOURCE_ADSB; // TIS-B decoding will override this if needed
+        mm->reliable = (mm->correctedbits == 0);
         break;
     }
 
@@ -568,9 +577,9 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
         mm->CC = getbit(msg, 7);
     }
 
-    // CF (Control field)
+    // CF (Control field, see Figure 2-2 ADS-B Message BaselineFormat Structure)
     if (mm->msgtype == 18) {
-        mm->CF = getbits(msg, 5, 8);
+        mm->CF = getbits(msg, 6, 8);
     }
 
     // DR (Downlink Request)
@@ -681,12 +690,12 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
             mm->airground = AG_UNCERTAIN;
     }
 
-    if (!mm->correctedbits && (mm->msgtype == 17 || mm->msgtype == 18 || (mm->msgtype == 11 && mm->IID == 0))) {
-        // No CRC errors seen, and either it was an DF17/18 extended squitter
+    if (!mm->correctedbits && (mm->msgtype == 17 || (mm->msgtype == 11 && mm->IID == 0))) {
+        // No CRC errors seen, and either it was an DF17 extended squitter
         // or a DF11 acquisition squitter with II = 0. We probably have the right address.
 
-        // We wait until here to do this as we may have needed to decode an ES to note
-        // the type of address in DF18 messages.
+        // Don't do this for DF18, as a DF18 transmitter doesn't necessarily have a
+        // Mode S transponder.
 
         // NB this is the only place that adds addresses!
         icaoFilterAdd(mm->addr);
@@ -1053,7 +1062,7 @@ static void decodeESTargetStatus(struct modesMessage *mm, int check_imf)
             // nothing
             break;
         }
-        // 10: target altitude type (ignored)
+        // 10: target altitude type (MSL or Baro, ignored)
         // 11: backward compatibility bit, always 0
         // 12-13: target alt capabilities (ignored)
         // 14-15: vertical mode
@@ -1081,7 +1090,7 @@ static void decodeESTargetStatus(struct modesMessage *mm, int check_imf)
             break;
         }
 
-        // 16-25: altitude
+        // 16-25: target altitude
         int alt = -1000 + 100 * getbits(me, 16, 25);
         switch (mm->nav.altitude_source) {
         case NAV_ALT_MCP:
@@ -1109,7 +1118,7 @@ static void decodeESTargetStatus(struct modesMessage *mm, int check_imf)
                 mm->nav.heading_type = HEADING_MAGNETIC_OR_TRUE;
             }
         }
-        // 38-39: horiontal mode
+        // 38-39: horizontal mode
         switch (getbits(me, 38, 39)) {
         case 1: // acquiring
         case 2: // maintaining
@@ -1281,7 +1290,10 @@ static void decodeESOperationalStatus(struct modesMessage *mm, int check_imf)
                 mm->accuracy.nic_baro_valid = 1;
                 mm->accuracy.nic_baro = getbit(me, 53);
             } else {
-                mm->opstatus.tah = getbit(me, 53) ? HEADING_GROUND_TRACK : mm->opstatus.hrd;
+                // see DO=260B §2.2.3.2.7.2.12
+                // TAH=0 : surface movement reports ground track
+                // TAH=1 : surface movement reports aircraft heading
+                mm->opstatus.tah = getbit(me, 53) ? mm->opstatus.hrd : HEADING_GROUND_TRACK;
             }
             break;
 
@@ -1331,7 +1343,10 @@ static void decodeESOperationalStatus(struct modesMessage *mm, int check_imf)
                 mm->accuracy.nic_baro_valid = 1;
                 mm->accuracy.nic_baro = getbit(me, 53);
             } else {
-                mm->opstatus.tah = getbit(me, 53) ? HEADING_GROUND_TRACK : mm->opstatus.hrd;
+                // see DO=260B §2.2.3.2.7.2.12
+                // TAH=0 : surface movement reports ground track
+                // TAH=1 : surface movement reports aircraft heading
+                mm->opstatus.tah = getbit(me, 53) ? mm->opstatus.hrd : HEADING_GROUND_TRACK;
             }
             break;
         }
@@ -1385,6 +1400,7 @@ static void decodeExtendedSquitter(struct modesMessage *mm)
             // IMF=0: AA field holds 24-bit ICAO aircraft address
             // IMF=1: AA field holds anonymous address or ground vehicle address or fixed obstruction address
             mm->addrtype = ADDR_ADSR_ICAO;
+            mm->source = SOURCE_ADSR;
             check_imf = 1;
             break;
 
@@ -1437,6 +1453,8 @@ static void decodeExtendedSquitter(struct modesMessage *mm)
         break;
 
     default:
+        // Dubious.
+        mm->reliable = 0;
         break;
     }
 }
@@ -1570,6 +1588,8 @@ static const char *commb_format_to_string(commb_format_t format) {
     switch (format) {
     case COMMB_EMPTY_RESPONSE:
         return "empty response";
+    case COMMB_AMBIGUOUS:
+        return "ambiguous format";
     case COMMB_DATALINK_CAPS:
         return "BDS1,0 Datalink capabilities";
     case COMMB_GICB_CAPS:
@@ -1871,6 +1891,9 @@ void displayModesMessage(struct modesMessage *mm) {
                    mm->metype);
         }
     }
+    if (mm->reliable) {
+        printf(" (reliable)");
+    }
     printf("\n");
 
     if (mm->msgtype == 20 || mm->msgtype == 21) {
@@ -2128,23 +2151,9 @@ void useModesMessage(struct modesMessage *mm) {
         displayModesMessage(mm);
     }
 
-    // Feed output clients.
-    // If in --net-verbatim mode, do this for all messages.
-    // Otherwise, apply a sanity-check filter and only
-    // forward messages when we have seen two of them.
-
+    // Feed output clients; modesQueueOutput appropriately filters messages to the different outputs.
     if (Modes.net) {
-        if (Modes.net_verbatim || mm->msgtype == 32 || !a) {
-            // Unconditionally send
-            modesQueueOutput(mm, a);
-        } else if (a->messages > 1) {
-            // Suppress the first message. When we receive a second message,
-            // emit the first two messages.
-            if (a->messages == 2) {
-                modesQueueOutput(&a->first_message, a);
-            }
-            modesQueueOutput(mm, a);
-        }
+        modesQueueOutput(mm, a);
     }
 }
 

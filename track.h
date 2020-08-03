@@ -50,11 +50,11 @@
 #ifndef DUMP1090_TRACK_H
 #define DUMP1090_TRACK_H
 
-/* Maximum age of tracked aircraft in milliseconds */
+/* Maximum age of a reliable tracked aircraft in milliseconds */
 #define TRACK_AIRCRAFT_TTL 300000
 
-/* Maximum age of a tracked aircraft with only 1 message received, in milliseconds */
-#define TRACK_AIRCRAFT_ONEHIT_TTL 60000
+/* Maximum age of an unreliable tracked aircraft, in milliseconds */
+#define TRACK_AIRCRAFT_UNRELIABLE_TTL 60000
 
 /* Maximum validity of an aircraft position */
 #define TRACK_AIRCRAFT_POSITION_TTL 60000
@@ -63,6 +63,15 @@
  * 1 second period before accepting that code.
  */
 #define TRACK_MODEAC_MIN_MESSAGES 4
+
+/* Minimum number of DF17 messages required to mark a track as reliable */
+#define TRACK_RELIABLE_DF17_MESSAGES 2
+
+/* Minimum number of DF11 messages required to mark a track as reliable */
+#define TRACK_RELIABLE_DF11_MESSAGES 3
+
+/* Minimum number of any sort of messages required to mark a track as reliable */
+#define TRACK_RELIABLE_ANY_MESSAGES 5
 
 /* Special value for Rc unknown */
 #define RC_UNKNOWN 0
@@ -88,6 +97,11 @@ struct aircraft {
 
     uint64_t      seen;           // Time (millis) at which the last packet was received
     long          messages;       // Number of Mode S messages received
+
+    int           reliable;       // Do we think this is a real aircraft, not noise?
+    long          reliableDF11;   // Number of "reliable" DF11s (no CRC errors corrected, IID = 0) received
+    long          reliableDF17;   // Number of "reliable" DF17s (no CRC errors corrected) received
+    long          discarded;      // Number of messages discarded as possibly-noise
 
     double        signalLevel[8]; // Last 8 Signal Amplitudes
     int           signalNext;     // next index of signalLevel to use
@@ -151,8 +165,14 @@ struct aircraft {
     data_validity nav_qnh_valid;
     float         nav_qnh;        // Altimeter setting (QNH/QFE), millibars
 
-    data_validity nav_altitude_valid;
-    unsigned      nav_altitude;    // FMS or FCU selected altitude
+    data_validity nav_altitude_mcp_valid;
+    unsigned      nav_altitude_mcp;    // FCU/MCP selected altitude
+
+    data_validity nav_altitude_fms_valid;
+    unsigned      nav_altitude_fms;    // FMS selected altitude
+
+    data_validity nav_altitude_src_valid;
+    nav_altitude_source_t nav_altitude_src;  // source of altitude used by automation
 
     data_validity nav_heading_valid;
     float         nav_heading; // target heading, degrees (0-359)
@@ -175,12 +195,14 @@ struct aircraft {
     unsigned      cpr_even_rc;
 
     data_validity position_valid;
-    double        lat, lon;       // Coordinated obtained from CPR encoded data
+    double        lat, lon;       // Coordinates obtained from CPR encoded data
     unsigned      pos_nic;        // NIC of last computed position
     unsigned      pos_rc;         // Rc of last computed position
 
     // data extracted from opstatus etc
     int           adsb_version;   // ADS-B version (from ADS-B operational status); -1 means no ADS-B messages seen
+    int           adsr_version;   // As above, for ADS-R messages
+    int           tisb_version;   // As above, for TIS-B messages
     heading_type_t adsb_hrd;      // Heading Reference Direction setting (from ADS-B operational status)
     heading_type_t adsb_tah;      // Track Angle / Heading setting (from ADS-B operational status)
 
@@ -220,7 +242,9 @@ struct aircraft {
     unsigned      fatsv_emitted_tas;              //      -"-         TAS
     float         fatsv_emitted_mach;             //      -"-         Mach number
     airground_t   fatsv_emitted_airground;        //      -"-         air/ground state
-    unsigned      fatsv_emitted_nav_altitude;     //      -"-         target altitude
+    unsigned      fatsv_emitted_nav_altitude_mcp; //      -"-         MCP altitude
+    unsigned      fatsv_emitted_nav_altitude_fms; //      -"-         FMS altitude
+    unsigned      fatsv_emitted_nav_altitude_src; //      -"-         automation altitude source
     float         fatsv_emitted_nav_heading;      //      -"-         target heading
     nav_modes_t   fatsv_emitted_nav_modes;        //      -"-         enabled navigation modes
     float         fatsv_emitted_nav_qnh;          //      -"-         altimeter setting
@@ -244,8 +268,6 @@ struct aircraft {
     uint64_t      fatsv_last_force_emit;          // time (millis) we last emitted only-on-change data
 
     struct aircraft *next;        // Next aircraft in our linked list
-
-    struct modesMessage first_message;  // A copy of the first message we received for this aircraft.
 };
 
 /* Mode A/C tracking is done separately, not via the aircraft list,

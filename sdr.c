@@ -27,6 +27,12 @@
 #ifdef ENABLE_BLADERF
 #  include "sdr_bladerf.h"
 #endif
+#ifdef ENABLE_HACKRF
+#  include "sdr_hackrf.h"
+#endif
+#ifdef ENABLE_LIMESDR
+#  include "sdr_limesdr.h"
+#endif
 
 typedef struct {
     const char *name;
@@ -83,6 +89,13 @@ static sdr_handler sdr_handlers[] = {
 
 #ifdef ENABLE_BLADERF
     { "bladerf", SDR_BLADERF, bladeRFInitConfig, bladeRFShowHelp, bladeRFHandleOption, bladeRFOpen, bladeRFRun, bladeRFClose },
+#endif
+
+#ifdef ENABLE_HACKRF
+    { "hackrf", SDR_HACKRF, hackRFInitConfig, hackRFShowHelp, hackRFHandleOption, hackRFOpen, hackRFRun, hackRFClose },
+#endif
+#ifdef ENABLE_LIMESDR
+    { "limesdr", SDR_LIMESDR, limesdrInitConfig, limesdrShowHelp, limesdrHandleOption, limesdrOpen, limesdrRun, limesdrClose },
 #endif
 
     { "ifile", SDR_IFILE, ifileInitConfig, ifileShowHelp, ifileHandleOption, ifileOpen, ifileRun, ifileClose },

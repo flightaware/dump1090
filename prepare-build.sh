@@ -11,8 +11,8 @@ then
     exit 1
 fi
 
-export DEBFULLNAME=${DEBFULLNAME:-FlightAware build automation}
-export DEBEMAIL=${DEBEMAIL:-adsb-devs@flightaware.com}
+export DEBFULLNAME="${DEBFULLNAME:-FlightAware build automation}"
+export DEBEMAIL="${DEBEMAIL:-adsb-devs@flightaware.com}"
 
 TOP=`dirname $0`
 DIST=$1
@@ -52,6 +52,11 @@ case "$DIST" in
         ;;
 
     stretch)
+        echo "Updating changelog for stretch backport build" >&2
+        dch --changelog $OUT/debian/changelog --local ~bpo9+ --force-distribution --distribution stretch-backports "Automated backport build for jessie"
+        ;;
+
+    buster)
         ;;
 
     *)

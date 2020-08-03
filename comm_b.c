@@ -19,6 +19,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "dump1090.h"
+#include "ais_charset.h"
 
 typedef int (*CommBDecoderFn)(struct modesMessage *,bool);
 
@@ -56,18 +57,26 @@ void decodeCommB(struct modesMessage *mm)
     // This is a bit hairy as we don't know what the requested register was
     int bestScore = 0;
     CommBDecoderFn bestDecoder = NULL;
+    int ambiguous = 0;
 
     for (unsigned i = 0; i < (sizeof(comm_b_decoders) / sizeof(comm_b_decoders[0])); ++i) {
         int score = comm_b_decoders[i](mm, false);
         if (score > bestScore) {
             bestScore = score;
             bestDecoder = comm_b_decoders[i];
+            ambiguous = 0;
+        } else if (score == bestScore) {
+            ambiguous = 1;
         }
     }
 
     if (bestDecoder) {
-        // decode it
-        bestDecoder(mm, true);
+        if (ambiguous) {
+            mm->commb_format = COMMB_AMBIGUOUS;
+        } else {
+            // decode it
+            bestDecoder(mm, true);
+        }
     }
 }
 
@@ -212,13 +221,15 @@ static int decodeBDS20(struct modesMessage *mm, bool store)
     callsign[7] = ais_charset[getbits(msg, 51, 56)];
     callsign[8] = 0;
 
-    // score based on number of valid non-space characters
+    // score based on number of valid characters
     int score = 8;
+    int valid = 1;
     for (unsigned i = 0; i < 8; ++i) {
-        if ((callsign[i] >= 'A' && callsign[i] <= 'Z') || (callsign[i] >= '0' && callsign[i] <= '9')) {
+        if ((callsign[i] >= 'A' && callsign[i] <= 'Z') || (callsign[i] >= '0' && callsign[i] <= '9') || callsign[i] == ' ') {
             score += 6;
-        } else if (callsign[i] == ' ') {
-            // Valid, but not informative
+        } else if (callsign[i] == '@') {
+            // Padding (sometimes we get @@@@@@@@, i.e. BDS2,0 with all zeros - we do want to accept this as a BDS2,0 but not actually use the callsign)
+            valid = 0;
         } else {
             // Invalid
             return 0;
@@ -227,8 +238,10 @@ static int decodeBDS20(struct modesMessage *mm, bool store)
 
     if (store) {
         mm->commb_format = COMMB_AIRCRAFT_IDENT;
-        memcpy(mm->callsign, callsign, sizeof(mm->callsign));
-        mm->callsign_valid = 1;
+        if (valid) {
+            memcpy(mm->callsign, callsign, sizeof(mm->callsign));
+            mm->callsign_valid = 1;
+        }
     }
 
     return score;
@@ -283,12 +296,12 @@ static int decodeBDS40(struct modesMessage *mm, bool store)
             score += 13;
         } else {
             // unlikely altitude
-            score -= 2;
+            return 0;
         }
     } else if (!mcp_valid && mcp_raw == 0) {
         score += 1;
     } else {
-        score -= 130;
+        return 0;
     }
 
     unsigned fms_alt = 0;
@@ -298,12 +311,12 @@ static int decodeBDS40(struct modesMessage *mm, bool store)
             score += 13;
         } else {
             // unlikely altitude
-            score -= 2;
+            return 0;
         }
     } else if (!fms_valid && fms_raw == 0) {
         score += 1;
     } else {
-        score -= 130;
+        return 0;
     }
 
     float baro_setting = 0;
@@ -313,16 +326,16 @@ static int decodeBDS40(struct modesMessage *mm, bool store)
             score += 13;
         } else {
             // unlikely pressure setting
-            score -= 2;
+            return 0;
         }
     } else if (!baro_valid && baro_raw == 0) {
         score += 1;
     } else {
-        score -= 130;
+        return 0;
     }
 
     if (reserved_1 != 0) {
-        score -= 80;
+        return 0;
     }
 
     if (mode_valid) {
@@ -330,11 +343,11 @@ static int decodeBDS40(struct modesMessage *mm, bool store)
     } else if (!mode_valid && mode_raw == 0) {
         score += 1;
     } else {
-        score -= 40;
+        return 0;
     }
 
     if (reserved_2 != 0) {
-        score -= 20;
+        return 0;
     }
 
     if (source_valid) {
@@ -342,32 +355,27 @@ static int decodeBDS40(struct modesMessage *mm, bool store)
     } else if (!source_valid && source_raw == 0) {
         score += 1;
     } else {
-        score -= 30;
+        return 0;
     }
 
-    // small bonuses for consistent data
-    if (mcp_valid && fms_valid && mcp_alt == fms_alt) {
-        score += 2;
-    }
-
-    if (baro_valid && baro_raw == 2132) {
-        // 1013.2mb, standard pressure
-        score += 2;
+    // small penalty for inconsistent data
+    if (mcp_valid && fms_valid && mcp_alt != fms_alt) {
+        score -= 4;
     }
 
     if (mcp_valid) {
         unsigned remainder = mcp_alt % 500;
-        if (remainder < 16 || remainder > 484) {
-            // mcp altitude is a multiple of 500
-            score += 2;
+        if (!(remainder < 16 || remainder > 484)) {
+            // mcp altitude is not a multiple of 500
+            score -= 4;
         }
     }
 
     if (fms_valid) {
         unsigned remainder = fms_alt % 500;
-        if (remainder < 16 || remainder > 484) {
-            // fms altitude is a multiple of 500
-            score += 2;
+        if (!(remainder < 16 || remainder > 484)) {
+            // fms altitude is not a multiple of 500
+            score -= 4;
         }
     }
 
@@ -446,7 +454,7 @@ static int decodeBDS50(struct modesMessage *mm, bool store)
     unsigned tas_valid = getbit(msg, 46);
     unsigned tas_raw = getbits(msg, 47, 56);
 
-    if (!roll_valid && !track_valid && !gs_valid && !track_rate_valid && !tas_valid) {
+    if (!roll_valid || !track_valid || !gs_valid || !tas_valid) {
         return 0;
     }
 
@@ -462,12 +470,12 @@ static int decodeBDS50(struct modesMessage *mm, bool store)
         if (roll >= -40 && roll < 40) {
             score += 11;
         } else {
-            score -= 5;
+            return 0;
         }
     } else if (!roll_valid && roll_raw == 0 && !roll_sign) {
         score += 1;
     } else {
-        score -= 110;
+        return 0;
     }
 
     float track = 0;
@@ -480,7 +488,7 @@ static int decodeBDS50(struct modesMessage *mm, bool store)
     } else if (!track_valid && track_raw == 0 && !track_sign) {
         score += 1;
     } else {
-        score -= 120;
+        return 0;
     }
 
     unsigned gs = 0;
@@ -490,12 +498,12 @@ static int decodeBDS50(struct modesMessage *mm, bool store)
         if (gs >= 50 && gs <= 700) {
             score += 11;
         } else {
-            score -= 5;
+            return 0;
         }
     } else if (!gs_valid && gs_raw == 0) {
         score += 1;
     } else {
-        score -= 110;
+        return 0;
     }
 
     float track_rate = 0;
@@ -508,12 +516,12 @@ static int decodeBDS50(struct modesMessage *mm, bool store)
         if (track_rate >= -10.0 && track_rate <= 10.0) {
             score += 11;
         } else {
-            score -= 5;
+            return 0;
         }
     } else if (!track_rate_valid && track_rate_raw == 0 && !track_rate_sign) {
         score += 1;
     } else {
-        score -= 110;
+        return 0;
     }
 
     unsigned tas = 0;
@@ -523,21 +531,19 @@ static int decodeBDS50(struct modesMessage *mm, bool store)
         if (tas >= 50 && tas <= 700) {
             score += 11;
         } else {
-            score -= 5;
+            return 0;
         }
     } else if (!tas_valid && tas_raw == 0) {
         score += 1;
     } else {
-        score -= 110;
+        return 0;
     }
 
-    // small bonuses for consistent data
+    // small penalty for inconsistent data
     if (gs_valid && tas_valid) {
         int delta = abs((int)gs_valid - (int)tas_valid);
-        if (delta < 50) {
-            score += 5;
-        } else if (delta > 150) {
-            score -= 5;
+        if (delta > 150) {
+            score -= 6;
         }
     }
 
@@ -545,10 +551,8 @@ static int decodeBDS50(struct modesMessage *mm, bool store)
     if (roll_valid && tas_valid && tas > 0 && track_rate_valid) {
         double turn_rate = 68625 * tan(roll * M_PI / 180.0) / (tas * 20 * M_PI);
         double delta = fabs(turn_rate - track_rate);
-        if (delta < 0.5) {
-            score += 5;
-        } else if (delta > 2.0) {
-            score -= 5;
+        if (delta > 2.0) {
+            score -= 6;
         }
     }
 
@@ -568,7 +572,7 @@ static int decodeBDS50(struct modesMessage *mm, bool store)
 
         if (gs_valid) {
             mm->gs_valid = 1;
-            mm->gs.v0 = mm->gs.v2 = gs;
+            mm->gs.v0 = mm->gs.v2 = mm->gs.selected = gs;
         }
 
         if (track_rate_valid) {
@@ -608,7 +612,7 @@ static int decodeBDS60(struct modesMessage *mm, bool store)
     unsigned inertial_rate_sign = getbit(msg, 47);
     unsigned inertial_rate_raw = getbits(msg, 48, 56);
 
-    if (!heading_valid && !ias_valid && !mach_valid && !baro_rate_valid && !inertial_rate_valid) {
+    if (!heading_valid || !ias_valid || !mach_valid || (!baro_rate_valid && !inertial_rate_valid)) {
         return 0;
     }
 
@@ -624,7 +628,7 @@ static int decodeBDS60(struct modesMessage *mm, bool store)
     } else if (!heading_valid && heading_raw == 0 && !heading_sign) {
         score += 1;
     } else {
-        score -= 120;
+        return 0;
     }
 
     unsigned ias = 0;
@@ -633,12 +637,12 @@ static int decodeBDS60(struct modesMessage *mm, bool store)
         if (ias >= 50 && ias <= 700) {
             score += 11;
         } else {
-            score -= 5;
+            return 0;
         }
     } else if (!ias_valid && ias_raw == 0) {
         score += 1;
     } else {
-        score -= 110;
+        return 0;
     }
 
     float mach = 0;
@@ -647,12 +651,12 @@ static int decodeBDS60(struct modesMessage *mm, bool store)
         if (mach >= 0.1 && mach <= 0.9) {
             score += 11;
         } else {
-            score -= 5;
+            return 0;
         }
     } else if (!mach_valid && mach_raw == 0) {
         score += 1;
     } else {
-        score -= 110;
+        return 0;
     }
 
     int baro_rate = 0;
@@ -665,12 +669,12 @@ static int decodeBDS60(struct modesMessage *mm, bool store)
         if (baro_rate >= -6000 && baro_rate <= 6000) {
             score += 11;
         } else {
-            score -= 5;
+            return 0;
         }
     } else if (!baro_rate_valid && baro_rate_raw == 0) {
         score += 1;
     } else {
-        score -= 110;
+        return 0;
     }
 
     int inertial_rate = 0;
@@ -683,24 +687,22 @@ static int decodeBDS60(struct modesMessage *mm, bool store)
         if (inertial_rate >= -6000 && inertial_rate <= 6000) {
             score += 11;
         } else {
-            score -= 5;
+            return 0;
         }
     } else if (!inertial_rate_valid && inertial_rate_raw == 0) {
         score += 1;
     } else {
-        score -= 110;
+        return 0;
     }
 
-    // small bonuses for consistent data
+    // small penalty for inconsistent data
 
     // Should check IAS vs Mach at given altitude, but the maths is a little involved
 
     if (baro_rate_valid && inertial_rate_valid) {
         int delta = abs(baro_rate - inertial_rate);
-        if (delta < 500) {
-            score += 5;
-        } else if (delta > 2000) {
-            score -= 5;
+        if (delta > 2000) {
+            score -= 12;
         }
     }
 

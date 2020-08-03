@@ -84,15 +84,20 @@ void interactiveInit() {
     initscr();
     clear();
     refresh();
-
-    mvprintw(0, 0, " Hex    Mode  Sqwk  Flight   Alt    Spd  Hdg    Lat      Long   RSSI  Msgs  Ti");
-    mvhline(1, 0, ACS_HLINE, 80);
 }
 
 void interactiveCleanup(void) {
     if (Modes.interactive) {
         endwin();
     }
+}
+
+void interactiveNoConnection(void) {
+    if (!Modes.interactive)
+        return;
+
+    mvprintw(0, 0, "  /!\\ input connection lost /!\\ ");
+    refresh();
 }
 
 void interactiveShowData(void) {
@@ -102,11 +107,17 @@ void interactiveShowData(void) {
     char progress;
     char spinner[4] = "|/-\\";
 
+    if (!Modes.interactive)
+        return;
+
     // Refresh screen every (MODES_INTERACTIVE_REFRESH_TIME) miliseconde
     if (now < next_update)
         return;
 
     next_update = now + MODES_INTERACTIVE_REFRESH_TIME;
+
+    mvprintw(0, 0, " Hex    Mode  Sqwk  Flight   Alt    Spd  Hdg    Lat      Long   RSSI  Msgs  Ti");
+    mvhline(1, 0, ACS_HLINE, 80);
 
     progress = spinner[(now/1000)%4];
     mvaddch(0, 79, progress);
@@ -115,63 +126,65 @@ void interactiveShowData(void) {
     int row = 2;
 
     while (a && row < rows) {
-
-        if ((now - a->seen) < Modes.interactive_display_ttl)
-            {
+        if (a->reliable && (now - a->seen) < Modes.interactive_display_ttl) {
+            char strSquawk[5] = " ";
+            char strFl[7]     = " ";
+            char strTt[5]     = " ";
+            char strGs[5]     = " ";
             int msgs  = a->messages;
 
-            if (msgs > 1) {
-                char strSquawk[5] = " ";
-                char strFl[7]     = " ";
-                char strTt[5]     = " ";
-                char strGs[5]     = " ";
-
-                if (trackDataValid(&a->squawk_valid)) {
-                    snprintf(strSquawk,5,"%04x", a->squawk);
-                }
-
-                if (trackDataValid(&a->gs_valid)) {
-                    snprintf (strGs, 5,"%3d", convert_speed(a->gs));
-                }
-
-                if (trackDataValid(&a->track_valid)) {
-                    snprintf (strTt, 5,"%03.0f", a->track);
-                }
-
-                if (msgs > 99999) {
-                    msgs = 99999;
-                }
-
-                char strMode[5]               = "    ";
-                char strLat[8]                = " ";
-                char strLon[9]                = " ";
-                double * pSig                 = a->signalLevel;
-                double signalAverage = (pSig[0] + pSig[1] + pSig[2] + pSig[3] +
-                                        pSig[4] + pSig[5] + pSig[6] + pSig[7]) / 8.0;
-
-                strMode[0] = 'S';
-                if (a->modeA_hit) {strMode[2] = 'a';}
-                if (a->modeC_hit) {strMode[3] = 'c';}
-
-                if (trackDataValid(&a->position_valid)) {
-                    snprintf(strLat, 8,"%7.03f", a->lat);
-                    snprintf(strLon, 9,"%8.03f", a->lon);
-                }
-
-                if (trackDataValid(&a->airground_valid) && a->airground == AG_GROUND) {
-                    snprintf(strFl, 7," grnd");
-                } else if (Modes.use_gnss && trackDataValid(&a->altitude_geom_valid)) {
-                    snprintf(strFl, 7, "%5dH", convert_altitude(a->altitude_geom));
-                } else if (trackDataValid(&a->altitude_baro_valid)) {
-                    snprintf(strFl, 7, "%5d ", convert_altitude(a->altitude_baro));
-                }
-
-                mvprintw(row, 0, "%s%06X %-4s  %-4s  %-8s %6s %3s  %3s  %7s %8s %5.1f %5d %2.0f",
-                         (a->addr & MODES_NON_ICAO_ADDRESS) ? "~" : " ", (a->addr & 0xffffff),
-                         strMode, strSquawk, a->callsign, strFl, strGs, strTt,
-                         strLat, strLon, 10 * log10(signalAverage), msgs, (now - a->seen)/1000.0);
-                ++row;
+            if (trackDataValid(&a->squawk_valid)) {
+                snprintf(strSquawk,5,"%04x", a->squawk);
             }
+
+            if (trackDataValid(&a->gs_valid)) {
+                snprintf (strGs, 5,"%3d", convert_speed(a->gs));
+            }
+
+            if (trackDataValid(&a->track_valid)) {
+                snprintf (strTt, 5,"%03.0f", a->track);
+            }
+
+            if (msgs > 99999) {
+                msgs = 99999;
+            }
+
+            char strMode[5]               = "    ";
+            char strLat[8]                = " ";
+            char strLon[9]                = " ";
+            double * pSig                 = a->signalLevel;
+            double signalAverage = (pSig[0] + pSig[1] + pSig[2] + pSig[3] +
+                                    pSig[4] + pSig[5] + pSig[6] + pSig[7]) / 8.0;
+
+            strMode[0] = 'S';
+            if (a->adsb_version >= 0) {
+                strMode[1] = '0' + a->adsb_version;
+            }
+            if (a->modeA_hit) {
+                strMode[2] = 'a';
+            }
+            if (a->modeC_hit) {
+                strMode[3] = 'c';
+            }
+
+            if (trackDataValid(&a->position_valid)) {
+                snprintf(strLat, 8,"%7.03f", a->lat);
+                snprintf(strLon, 9,"%8.03f", a->lon);
+            }
+
+            if (trackDataValid(&a->airground_valid) && a->airground == AG_GROUND) {
+                snprintf(strFl, 7," grnd");
+            } else if (Modes.use_gnss && trackDataValid(&a->altitude_geom_valid)) {
+                snprintf(strFl, 7, "%5dH", convert_altitude(a->altitude_geom));
+            } else if (trackDataValid(&a->altitude_baro_valid)) {
+                snprintf(strFl, 7, "%5d ", convert_altitude(a->altitude_baro));
+            }
+
+            mvprintw(row, 0, "%s%06X %-4s  %-4s  %-8s %6s %3s  %3s  %7s %8s %5.1f %5d %2.0f",
+                     (a->addr & MODES_NON_ICAO_ADDRESS) ? "~" : " ", (a->addr & 0xffffff),
+                     strMode, strSquawk, a->callsign, strFl, strGs, strTt,
+                     strLat, strLon, 10 * log10(signalAverage), msgs, (now - a->seen)/1000.0);
+            ++row;
         }
         a = a->next;
     }

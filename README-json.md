@@ -38,19 +38,57 @@ This file contains dump1090's list of recently seen aircraft. The keys are:
  * messages: the total number of Mode S messages processed since dump1090 started.
  * aircraft: an array of JSON objects, one per known aircraft. Each aircraft has the following keys. Keys will be omitted if data is not available.
    * hex: the 24-bit ICAO identifier of the aircraft, as 6 hex digits. The identifier may start with '~', this means that the address is a non-ICAO address (e.g. from TIS-B).
-   * squawk: the 4-digit squawk (octal representation)
-   * flight: the flight name / callsign
-   * lat, lon: the aircraft position in decimal degrees
-   * nucp: the NUCp (navigational uncertainty category) reported for the position
-   * seen_pos: how long ago (in seconds before "now") the position was last updated
-   * altitude: the aircraft altitude in feet, or "ground" if it is reporting it is on the ground
-   * vert_rate: vertical rate in feet/minute
+   * type: type of underlying message, one of:
+     * adsb_icao: messages from a Mode S or ADS-B transponder, using a 24-bit ICAO address
+     * adsb_icao_nt: messages from an ADS-B equipped "non-transponder" emitter e.g. a ground vehicle, using a 24-bit ICAO address
+     * adsr_icao: rebroadcast of ADS-B messages originally sent via another data link e.g. UAT, using a 24-bit ICAO address
+     * tisb_icao: traffic information about a non-ADS-B target identified by a 24-bit ICAO address, e.g. a Mode S target tracked by secondary radar
+     * adsb_other: messages from an ADS-B transponder using a non-ICAO address, e.g. anonymized address
+     * adsr_other: rebroadcast of ADS-B messages originally sent via another data link e.g. UAT, using a non-ICAO address
+     * tisb_other: traffic information about a non-ADS-B target using a non-ICAO address
+     * tisb_trackfile: traffic information about a non-ADS-B target using a track/file identifier, typically from primary or Mode A/C radar
+   * flight: callsign, the flight name or aircraft registration as 8 chars (2.2.8.2.6)
+   * alt_baro: the aircraft barometric altitude in feet
+   * alt_geom: geometric (GNSS / INS) altitude in feet referenced to the WGS84 ellipsoid
+   * gs: ground speed in knots
+   * ias: indicated air speed in knots
+   * tas: true air speed in knots
+   * mach: Mach number
    * track: true track over ground in degrees (0-359)
-   * speed: reported speed in kt. This is usually speed over ground, but might be IAS - you can't tell the difference here, sorry!
+   * track_rate: Rate of change of track, degrees/second
+   * roll: Roll, degrees, negative is left roll
+   * mag_heading: Heading, degrees clockwise from magnetic north
+   * true_heading: Heading, degrees clockwise from true north
+   * baro_rate: Rate of change of barometric altitude, feet/minute
+   * geom_rate: Rate of change of geometric (GNSS / INS) altitude, feet/minute
+   * squawk: Mode A code (Squawk), encoded as 4 octal digits
+   * emergency: ADS-B emergency/priority status, a superset of the 7x00 squawks (2.2.3.2.7.8.1.1)
+   * category: emitter category to identify particular aircraft or vehicle classes (values A0 - D7) (2.2.3.2.5.2)
+   * nav_qnh: altimeter setting (QFE or QNH/QNE), hPa
+   * nav_altitude_mcp: selected altitude from the Mode Control Panel / Flight Control Unit (MCP/FCU) or equivalent equipment
+   * nav_altitude_fms: selected altitude from the Flight Manaagement System (FMS) (2.2.3.2.7.1.3.3)
+   * nav_heading: selected heading (True or Magnetic is not defined in DO-260B, mostly Magnetic as that is the de facto standard) (2.2.3.2.7.1.3.7)
+   * nav_modes: set of engaged automation modes: 'autopilot', 'vnav', 'althold', 'approach', 'lnav', 'tcas'
+   * lat, lon: the aircraft position in decimal degrees
+   * nic: Navigation Integrity Category (2.2.3.2.7.2.6)
+   * rc: Radius of Containment, meters; a measure of position integrity derived from NIC & supplementary bits. (2.2.3.2.7.2.6, Table 2-69)
+   * seen_pos: how long ago (in seconds before "now") the position was last updated
+   * version: ADS-B Version Number 0, 1, 2 (3-7 are reserved) (2.2.3.2.7.5)
+   * nic_baro: Navigation Integrity Category for Barometric Altitude (2.2.5.1.35)
+   * nac_p: Navigation Accuracy for Position (2.2.5.1.35)
+   * nac_v: Navigation Accuracy for Velocity (2.2.5.1.19)
+   * sil: Source Integity Level (2.2.5.1.40)
+   * sil_type: interpretation of SIL: unknown, perhour, persample
+   * gva: Geometric Vertical Accuracy  (2.2.3.2.7.2.8)
+   * sda: System Design Assurance (2.2.3.2.7.2.4.6)
+   * mlat: list of fields derived from MLAT data
+   * tisb: list of fields derived from TIS-B data
    * messages: total number of Mode S messages received from this aircraft
    * seen: how long ago (in seconds before "now") a message was last received from this aircraft
    * rssi: recent average RSSI (signal power), in dbFS; this will always be negative.
-   
+
+Section references (2.2.xyz) refer to DO-260B.
+
 ## history_0.json, history_1.json, ..., history_119.json
 
 These files are historical copies of aircraft.json at (by default) 30 second intervals. They follow exactly the

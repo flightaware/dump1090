@@ -24,7 +24,7 @@ var SpecialSquawks = {
 };
 
 // Get current map settings
-var CenterLat, CenterLon, ZoomLvl, MapType;
+var CenterLat, CenterLon, ZoomLvl, MapType, SiteCirclesCount, SiteCirclesBaseDistance, SiteCirclesInterval;
 
 var Dump1090Version = "unknown version";
 var RefreshInterval = 1000;
@@ -49,9 +49,34 @@ var MessageRate = 0;
 var NBSP='\u00a0';
 
 var layers;
+var layerGroup;
 
 // piaware vs flightfeeder
 var isFlightFeeder = false;
+
+var checkbox_div_map = new Map ([
+        ['#icao_col_checkbox', '#icao'],
+        ['#flag_col_checkbox', '#flag'],
+        ['#ident_col_checkbox', '#flight'],
+        ['#reg_col_checkbox', '#registration'],
+        ['#ac_col_checkbox', '#aircraft_type'],
+        ['#squawk_col_checkbox', '#squawk'],
+        ['#alt_col_checkbox', '#altitude'],
+        ['#speed_col_checkbox', '#speed'],
+        ['#vrate_col_checkbox', '#vert_rate'],
+        ['#distance_col_checkbox', '#distance'],
+        ['#heading_col_checkbox', '#track'],
+        ['#messages_col_checkbox', '#msgs'],
+        ['#msg_age_col_checkbox', '#seen'],
+        ['#rssi_col_checkbox', '#rssi'],
+        ['#lat_col_checkbox', '#lat'],
+        ['#lon_col_checkbox', '#lon'],
+        ['#datasource_col_checkbox', '#data_source'],
+        ['#airframes_col_checkbox', '#airframes_mode_s_link'],
+        ['#fa_modes_link_checkbox', '#flightaware_mode_s_link'],
+        ['#fa_photo_link_checkbox', '#flightaware_photo_link'],
+
+]);
 
 function processReceiverUpdate(data) {
 	// Loop through all the planes in the data packet
@@ -263,6 +288,7 @@ function initialize() {
 
         // Set initial element visibility
         $("#show_map_button").hide();
+        $("#range_ring_column").hide();
         setColumnVisibility();
 
         // Initialize other controls
@@ -301,6 +327,14 @@ function initialize() {
         	$('#settings_infoblock').toggle();
         });
 
+        $('#column_select').on('click', function() {
+                $('#column_select_window').toggle();
+        });
+
+        $('#column_select_close_box').on('click', function() {
+                $('#column_select_window').hide();
+        });
+
         $('#settings_close').on('click', function() {
             $('#settings_infoblock').hide();
         });
@@ -320,25 +354,27 @@ function initialize() {
         });
 
         $('#grouptype_checkbox').on('click', function() {
-        	if ($('#grouptype_checkbox').hasClass('settingsCheckboxChecked')) {
-        		sortByDistance();
-        	} else {
-        		sortByDataSource();
-        	}
-        	
-        });
+		toggleGroupByDataType(true);
+	});
 
         $('#altitude_checkbox').on('click', function() {
         	toggleAltitudeChart(true);
         });
 
         $('#selectall_checkbox').on('click', function() {
-        	if ($('#selectall_checkbox').hasClass('settingsCheckboxChecked')) {
-        		deselectAllPlanes();
-        	} else {
-        		selectAllPlanes();
-        	}
+		toggleAllPlanes(true);
         })
+
+        $('#select_all_column_checkbox').on('click', function() {
+                toggleAllColumns(true);
+        })
+
+        // Event handlers for to column checkboxes
+        checkbox_div_map.forEach(function (checkbox, div) {
+                $(div).on('click', function() {
+                        toggleColumn(checkbox, div, true);
+                });
+        });
 
         // Force map to redraw if sidebar container is resized - use a timer to debounce
         var mapResizeTimeout;
@@ -350,6 +386,9 @@ function initialize() {
         filterGroundVehicles(false);
         filterBlockedMLAT(false);
         toggleAltitudeChart(false);
+        toggleAllPlanes(false);
+        toggleGroupByDataType(false);
+        toggleAllColumns(false);
 
         // Get receiver metadata, reconfigure using it, then continue
         // with initialization
@@ -389,6 +428,9 @@ function start_load_history() {
 		for (var i = 0; i < PositionHistorySize; i++) {
 			load_history_item(i);
 		}
+	} else {
+		// Nothing to load
+		end_load_history();
 	}
 }
 
@@ -441,7 +483,7 @@ function end_load_history() {
                         console.log("Updating tracks at: " + now);
                         for (var i = 0; i < PlanesOrdered.length; ++i) {
                                 var plane = PlanesOrdered[i];
-                                plane.updateTrack((now - last) + 1);
+                                plane.updateTrack(now, last);
                         }
 
                         last = now;
@@ -483,18 +525,22 @@ function make_geodesic_circle(center, radius, points) {
         var angularDistance = radius / 6378137.0;
         var lon1 = center[0] * Math.PI / 180.0;
         var lat1 = center[1] * Math.PI / 180.0;
-        var geom = new ol.geom.LineString();
+        var geom;
         for (var i = 0; i <= points; ++i) {
-                var bearing = i * 2 * Math.PI / points;
+            var bearing = i * 2 * Math.PI / points;
 
-                var lat2 = Math.asin( Math.sin(lat1)*Math.cos(angularDistance) +
-                                      Math.cos(lat1)*Math.sin(angularDistance)*Math.cos(bearing) );
-                var lon2 = lon1 + Math.atan2(Math.sin(bearing)*Math.sin(angularDistance)*Math.cos(lat1),
-                                             Math.cos(angularDistance)-Math.sin(lat1)*Math.sin(lat2));
+            var lat2 = Math.asin( Math.sin(lat1)*Math.cos(angularDistance) +
+                Math.cos(lat1)*Math.sin(angularDistance)*Math.cos(bearing) );
+            var lon2 = lon1 + Math.atan2(Math.sin(bearing)*Math.sin(angularDistance)*Math.cos(lat1),
+                Math.cos(angularDistance)-Math.sin(lat1)*Math.sin(lat2));
 
-                lat2 = lat2 * 180.0 / Math.PI;
-                lon2 = lon2 * 180.0 / Math.PI;
+            lat2 = lat2 * 180.0 / Math.PI;
+            lon2 = lon2 * 180.0 / Math.PI;
+            if (!geom) {
+                geom = new ol.geom.LineString([[lon2, lat2]]);
+            } else {
                 geom.appendCoordinate([lon2, lat2]);
+            }
         }
         return geom;
 }
@@ -506,16 +552,21 @@ function initialize_map() {
         CenterLon = Number(localStorage['CenterLon']) || DefaultCenterLon;
         ZoomLvl = Number(localStorage['ZoomLvl']) || DefaultZoomLvl;
         MapType = localStorage['MapType'];
+        var groupByDataTypeBox = localStorage.getItem('groupByDataType');
 
         // Set SitePosition, initialize sorting
         if (SiteShow && (typeof SiteLat !==  'undefined') && (typeof SiteLon !==  'undefined')) {
 	        SitePosition = [SiteLon, SiteLat];
-                sortByDistance();
+		if (groupByDataTypeBox === 'deselected') {
+			sortByDistance();
+		}
         } else {
 	        SitePosition = null;
                 PlaneRowTemplate.cells[9].style.display = 'none'; // hide distance column
                 document.getElementById("distance").style.display = 'none'; // hide distance header
-                sortByAltitude();
+                if (groupByDataTypeBox === 'deselected') {
+			sortByAltitude();
+		}
         }
 
         // Maybe hide flag info
@@ -566,7 +617,11 @@ function initialize_map() {
         var foundType = false;
         var baseCount = 0;
 
-        ol.control.LayerSwitcher.forEachRecursive(layers, function(lyr) {
+        layerGroup = new ol.layer.Group({
+                layers: layers
+        })
+
+        ol.control.LayerSwitcher.forEachRecursive(layerGroup, function(lyr) {
                 if (!lyr.get('name'))
                         return;
 
@@ -598,7 +653,7 @@ function initialize_map() {
         })
 
         if (!foundType) {
-                ol.control.LayerSwitcher.forEachRecursive(layers, function(lyr) {
+                ol.control.LayerSwitcher.forEachRecursive(layerGroup, function(lyr) {
                         if (foundType)
                                 return;
                         if (lyr.get('type') === 'base') {
@@ -658,11 +713,12 @@ function initialize_map() {
                                                         function(feature, layer) {
                                                                 return feature.hex;
                                                         },
-                                                        null,
-                                                        function(layer) {
-                                                                return (layer === iconsLayer);
-                                                        },
-                                                        null);
+                                                        {
+                                                                layerFilter: function(layer) {
+                                                                        return (layer === iconsLayer);
+                                                                },
+                                                                hitTolerance: 5,
+                                                        });
                 if (hex) {
                         selectPlaneByHex(hex, (evt.type === 'dblclick'));
                         adjustSelectedInfoBlockPosition();
@@ -680,11 +736,12 @@ function initialize_map() {
             function(feature, layer) {
                     return feature.hex;
             },
-            null,
-            function(layer) {
-                    return (layer === iconsLayer);
-            },
-            null
+            {
+                layerFilter: function(layer) {
+                        return (layer === iconsLayer);
+                },
+                hitTolerance: 5,
+            }
         );
 
         if (hex) {
@@ -719,7 +776,32 @@ function initialize_map() {
                 var feature = new ol.Feature(new ol.geom.Point(ol.proj.fromLonLat(SitePosition)));
                 feature.setStyle(markerStyle);
                 StaticFeatures.push(feature);
-        
+
+		$('#range_ring_column').show();
+
+                setRangeRings();
+
+                $('#range_rings_button').click(onSetRangeRings);
+                $("#range_ring_form").validate({
+                    errorPlacement: function(error, element) {
+                        return true;
+                    },
+                    rules: {
+                        ringCount: {
+                            number: true,
+		            min: 0
+                        },
+                        baseRing: {
+                            number: true,
+                            min: 0
+                        },
+                        ringInterval: {
+                            number: true,
+                            min: 0
+                        }
+                    }
+                });
+
                 if (SiteCircles) {
                     createSiteCircleFeatures();
                 }
@@ -806,8 +888,8 @@ function createSiteCircleFeatures() {
         conversionFactor = 1609.0;
     }
 
-    for (var i=0; i < SiteCirclesDistances.length; ++i) {
-            var distance = SiteCirclesDistances[i] * conversionFactor;
+    for (var i=0; i < SiteCirclesCount; ++i) {
+	    var distance = (SiteCirclesBaseDistance + (SiteCirclesInterval * i)) * conversionFactor;
             var circle = make_geodesic_circle(SitePosition, distance, 360);
             circle.transform('EPSG:4326', 'EPSG:3857');
             var feature = new ol.Feature(circle);
@@ -953,6 +1035,12 @@ function refreshSelected() {
                 $('#selected_seen').text(selected.seen.toFixed(1) + 's');
         }
 
+        if (selected.seen_pos <= 1) {
+               $('#selected_seen_pos').text('now');
+        } else {
+               $('#selected_seen_pos').text(selected.seen_pos.toFixed(1) + 's');
+        }
+
         $('#selected_country').text(selected.icaorange.country);
         if (ShowFlags && selected.icaorange.flag_image !== null) {
                 $('#selected_flag').removeClass('hidden');
@@ -966,13 +1054,8 @@ function refreshSelected() {
                 $('#selected_position').text('n/a');
                 $('#selected_follow').addClass('hidden');
         } else {
-                
-                if (selected.seen_pos > 1) {
-                        $('#selected_position').text(format_latlng(selected.position));
-                } else {
-                        $('#selected_position').text(format_latlng(selected.position));
-				}
-				
+                $('#selected_position').text(format_latlng(selected.position));
+                $('#position_age').text(selected.seen_pos.toFixed(1) + 's');
                 $('#selected_follow').removeClass('hidden');
                 if (FollowSelected) {
                         $('#selected_follow').css('font-weight', 'bold');
@@ -1103,55 +1186,39 @@ function refreshHighlighted() {
 		highlighted = Planes[HighlightedPlane];
 	}
 
-	// no highlighted plane
-	if (!highlighted) {
-		$('#highlighted_infoblock').hide();
+	var infoBox = $('#highlighted_infoblock');
+
+	// no highlighted plane or in process of removing plane
+	if (!highlighted || !highlighted.marker) {
+		infoBox.fadeOut();
 		return;
 	}
 
-	$('#highlighted_infoblock').show();
-
-	// Get info box position and size
-	var infoBox = $('#highlighted_infoblock');
-	var infoBoxPosition = infoBox.position();
-	if (typeof infoBoxOriginalPosition.top === 'undefined') {
-		infoBoxOriginalPosition.top = infoBoxPosition.top;
-		infoBoxOriginalPosition.left = infoBoxPosition.left;
-	} else {
-		infoBox.css("left", infoBoxOriginalPosition.left);
-		infoBox.css("top", infoBoxOriginalPosition.top);
-		infoBoxPosition = infoBox.position();
-	}
-	var infoBoxExtent = getExtent(infoBoxPosition.left, infoBoxPosition.top, infoBox.outerWidth(), infoBox.outerHeight());
-
-	// Get map size
 	var mapCanvas = $('#map_canvas');
-	var mapExtent = getExtent(0, 0, mapCanvas.width(), mapCanvas.height());
-
-	var marker = highlighted.marker;
 	var markerCoordinates = highlighted.marker.getGeometry().getCoordinates();
-    var markerPosition = OLMap.getPixelFromCoordinate(markerCoordinates);
-
-	// Check for overlap
-	//FIXME TODO: figure out this/remove this check
-	if (isPointInsideExtent(markerPosition[0], markerPosition[1], infoBoxExtent) || true) {
-		// Array of possible new positions for info box
-		var candidatePositions = [];
-		candidatePositions.push( { x: 40, y: 80 } );
-		candidatePositions.push( { x: markerPosition[0] + 20, y: markerPosition[1] + 60 } );
-
-		// Find new position
-		for (var i = 0; i < candidatePositions.length; i++) {
-			var candidatePosition = candidatePositions[i];
-			var candidateExtent = getExtent(candidatePosition.x, candidatePosition.y, infoBox.outerWidth(), infoBox.outerHeight());
-
-			if (!isPointInsideExtent(markerPosition[0],  markerPosition[1], candidateExtent) && isPointInsideExtent(candidatePosition.x, candidatePosition.y, mapExtent)) {
-				// Found a new position that doesn't overlap marker - move box to that position
-				infoBox.css("left", candidatePosition.x);
-				infoBox.css("top", candidatePosition.y);
-			}
-		}
+	var markerPosition = OLMap.getPixelFromCoordinate(markerCoordinates);
+	var x = markerPosition[0];
+	var y = markerPosition[1];
+	if (x < 0 || y < 0 || x > mapCanvas.width() || y > mapCanvas.height()) {
+		infoBox.fadeOut();
+		return;
 	}
+	x = x + 20;
+	y = y + 60;
+	var w = infoBox.outerWidth() + 20;
+	var h = infoBox.outerHeight();
+	if (x > mapCanvas.width() - w) {
+		x -= w + 20;
+	}
+	if (y > mapCanvas.height() - h) {
+		y -= h;
+	}
+	if (infoBox.css('visibility', 'visible')) {
+		infoBox.animate({ left: x, top: y }, 500);
+	} else {
+		infoBox.css({ left: x, top: y });
+	}
+	infoBox.fadeIn(100);
 
 	if (highlighted.flight !== null && highlighted.flight !== "") {
 		$('#highlighted_callsign').text(highlighted.flight);
@@ -1247,7 +1314,8 @@ function refreshTableInfo() {
         if (tableplane.flight) {
                 tableplane.tr.cells[2].innerHTML = getFlightAwareModeSLink(tableplane.icao, tableplane.flight, tableplane.flight);
         } else {
-                tableplane.tr.cells[2].innerHTML = "";
+		// Show _registration if ident is not present
+		tableplane.tr.cells[2].innerHTML = (tableplane.registration !== null ? getFlightAwareIdentLink(tableplane.registration, '_' + tableplane.registration) : "");
         }
         tableplane.tr.cells[3].textContent = (tableplane.registration !== null ? tableplane.registration : "");
         tableplane.tr.cells[4].textContent = (tableplane.icaotype !== null ? tableplane.icaotype : "");
@@ -1299,7 +1367,7 @@ function compareNumeric(xf,yf) {
 }
 
 function sortByICAO()     { sortBy('icao',    compareAlpha,   function(x) { return x.icao; }); }
-function sortByFlight()   { sortBy('flight',  compareAlpha,   function(x) { return x.flight; }); }
+function sortByFlight()   { sortBy('flight',  compareAlpha,   function(x) { return x.flight ? x.flight : x.registration; }); }
 function sortByRegistration()   { sortBy('registration',    compareAlpha,   function(x) { return x.registration; }); }
 function sortByAircraftType()   { sortBy('icaotype',        compareAlpha,   function(x) { return x.icaotype; }); }
 function sortBySquawk()   { sortBy('squawk',  compareAlpha,   function(x) { return x.squawk; }); }
@@ -1355,11 +1423,11 @@ function resortTable() {
 }
 
 function sortBy(id,sc,se) {
-		if (id !== 'data_source') {
-			$('#grouptype_checkbox').removeClass('settingsCheckboxChecked');
-		} else {
-			$('#grouptype_checkbox').addClass('settingsCheckboxChecked');
-		}
+        if (id !== 'data_source') {
+                $('#grouptype_checkbox').removeClass('settingsCheckboxChecked');
+		localStorage.setItem('groupByDataType', 'deselected');
+        }
+
         if (id === sortId) {
                 sortAscending = !sortAscending;
                 PlanesOrdered.reverse(); // this correctly flips the order of rows that compare equal
@@ -1478,6 +1546,45 @@ function selectNewPlanes() {
 	}
 }
 
+function toggleGroupByDataType(switchToggle) {
+	if (typeof localStorage['groupByDataType'] === 'undefined') {
+		localStorage.setItem('groupByDataType', 'deselected');
+	}
+
+	var groupByDataType = localStorage.getItem('groupByDataType');
+	if (switchToggle === true) {
+		groupByDataType = (groupByDataType === 'deselected') ? 'selected' : 'deselected';
+	}
+
+	if (groupByDataType === 'deselected') {
+		$('#grouptype_checkbox').removeClass('settingsCheckboxChecked');
+	} else {
+		sortByDataSource();
+		$('#grouptype_checkbox').addClass('settingsCheckboxChecked');
+	}
+
+	localStorage.setItem('groupByDataType', groupByDataType);
+}
+
+function toggleAllPlanes(switchToggle) {
+	if (typeof localStorage['allPlanesSelection'] === 'undefined') {
+		localStorage.setItem('allPlanesSelection','deselected');
+	}
+
+	var allPlanesSelection = localStorage.getItem('allPlanesSelection');
+	if (switchToggle === true) {
+		allPlanesSelection = (allPlanesSelection === 'deselected') ? 'selected' : 'deselected';
+	}
+
+	if (allPlanesSelection === 'deselected') {
+		deselectAllPlanes();
+	} else {
+		selectAllPlanes();
+	}
+
+	localStorage.setItem('allPlanesSelection', allPlanesSelection);
+}
+
 // deselect all the planes
 function deselectAllPlanes() {
 	for(var key in Planes) {
@@ -1505,6 +1612,13 @@ function resetMap() {
         localStorage['CenterLat'] = CenterLat = DefaultCenterLat;
         localStorage['CenterLon'] = CenterLon = DefaultCenterLon;
         localStorage['ZoomLvl']   = ZoomLvl = DefaultZoomLvl;
+
+        // Reset to default range rings
+        localStorage['SiteCirclesCount'] = SiteCirclesCount = DefaultSiteCirclesCount;
+        localStorage['SiteCirclesBaseDistance'] = SiteCirclesBaseDistance = DefaultSiteCirclesBaseDistance;
+        localStorage['SiteCirclesInterval'] = SiteCirclesInterval = DefaultSiteCirclesInterval;
+        setRangeRings();
+        createSiteCircleFeatures();
 
         // Set and refresh
         OLMap.getView().setZoom(ZoomLvl);
@@ -1567,16 +1681,42 @@ function setColumnVisibility() {
     var mapIsVisible = $("#map_container").is(":visible");
     var infoTable = $("#tableinfo");
 
-    showColumn(infoTable, "#registration", !mapIsVisible);
-    showColumn(infoTable, "#aircraft_type", !mapIsVisible);   
-    showColumn(infoTable, "#vert_rate", !mapIsVisible);
-    showColumn(infoTable, "#rssi", !mapIsVisible);
-    showColumn(infoTable, "#lat", !mapIsVisible);
-    showColumn(infoTable, "#lon", !mapIsVisible);
-    showColumn(infoTable, "#data_source", !mapIsVisible);
-    showColumn(infoTable, "#airframes_mode_s_link", !mapIsVisible);
-    showColumn(infoTable, "#flightaware_mode_s_link", !mapIsVisible);
-    showColumn(infoTable, "#flightaware_photo_link", !mapIsVisible);
+    var defaultCheckBoxes = [
+        '#icao_col_checkbox',
+        '#flag_col_checkbox',
+        '#ident_col_checkbox',
+        '#squawk_col_checkbox',
+        '#alt_col_checkbox',
+        '#speed_col_checkbox',
+        '#distance_col_checkbox',
+        '#heading_col_checkbox',
+        '#messages_col_checkbox',
+        '#msg_age_col_checkbox'
+    ]
+
+    // Show default columns if checkboxes have not been set
+    for (var i=0; i < defaultCheckBoxes.length; i++) {
+        var checkBoxdiv = defaultCheckBoxes[i];
+        var columnDiv = checkbox_div_map.get(checkBoxdiv)
+
+        if (typeof localStorage[checkBoxdiv] === 'undefined') {
+                $(checkBoxdiv).addClass('settingsCheckboxChecked');
+                localStorage.setItem(checkBoxdiv, 'selected');
+                showColumn(infoTable, columnDiv, true);
+        }
+    }
+
+    // Now check local storage checkbox status
+    checkbox_div_map.forEach(function (div, checkbox) {
+        var status = localStorage.getItem(checkbox);
+        if (status === 'selected') {
+                $(checkbox).addClass('settingsCheckboxChecked');
+                showColumn(infoTable, div, true);
+        } else {
+                $(checkbox).removeClass('settingsCheckboxChecked');
+                showColumn(infoTable, div, false);
+        }
+    });
 }
 
 function setSelectedInfoBlockVisibility() {
@@ -1723,9 +1863,10 @@ function onFilterByAltitude(e) {
 
 function filterGroundVehicles(switchFilter) {
 	if (typeof localStorage['groundVehicleFilter'] === 'undefined') {
-		localStorage['groundVehicleFilter'] = 'not_filtered';
+		localStorage.setItem('groundVehicleFilter' , 'not_filtered');
 	}
-	var groundFilter = localStorage['groundVehicleFilter'];
+
+	var groundFilter = localStorage.getItem('groundVehicleFilter');
 	if (switchFilter === true) {
 		groundFilter = (groundFilter === 'not_filtered') ? 'filtered' : 'not_filtered';
 	}
@@ -1734,15 +1875,17 @@ function filterGroundVehicles(switchFilter) {
 	} else {
 		$('#groundvehicle_filter').removeClass('settingsCheckboxChecked');
 	}
-	localStorage['groundVehicleFilter'] = groundFilter;
+
+	localStorage.setItem('groundVehicleFilter',groundFilter);
 	PlaneFilter.groundVehicles = groundFilter;
 }
 
 function filterBlockedMLAT(switchFilter) {
 	if (typeof localStorage['blockedMLATFilter'] === 'undefined') {
-		localStorage['blockedMLATFilter'] = 'not_filtered';
+		localStorage.setItem('blockedMLATFilter','not_filtered');
 	}
-	var blockedMLATFilter = localStorage['blockedMLATFilter'];
+
+	var blockedMLATFilter = localStorage.getItem('blockedMLATFilter');
 	if (switchFilter === true) {
 		blockedMLATFilter = (blockedMLATFilter === 'not_filtered') ? 'filtered' : 'not_filtered';
 	}
@@ -1751,24 +1894,27 @@ function filterBlockedMLAT(switchFilter) {
 	} else {
 		$('#blockedmlat_filter').removeClass('settingsCheckboxChecked');
 	}
-	localStorage['blockedMLATFilter'] = blockedMLATFilter;
+	localStorage.setItem('blockedMLATFilter', blockedMLATFilter);
 	PlaneFilter.blockedMLAT = blockedMLATFilter;
 }
 
 function toggleAltitudeChart(switchToggle) {
 	if (typeof localStorage['altitudeChart'] === 'undefined') {
-		localStorage['altitudeChart'] = 'show';
+		localStorage.setItem('altitudeChart','show');
 	}
-	var altitudeChartDisplay = localStorage['altitudeChart'];
+
+	var altitudeChartDisplay = localStorage.getItem('altitudeChart');
 	if (switchToggle === true) {
 		altitudeChartDisplay = (altitudeChartDisplay === 'show') ? 'hidden' : 'show';
 	}
-    // if you're using custom colors always hide the chart
-    if (customAltitudeColors === true) {
-        altitudeChartDisplay = 'hidden';
-        // also hide the control option
-        $('#altitude_chart_container').hide();
-    }
+
+	// if you're using custom colors always hide the chart
+	if (customAltitudeColors === true) {
+        	altitudeChartDisplay = 'hidden';
+		// also hide the control option
+        	$('#altitude_chart_container').hide();
+    	}
+
 	if (altitudeChartDisplay === 'show') {
 		$('#altitude_checkbox').addClass('settingsCheckboxChecked');
 		$('#altitude_chart').show();
@@ -1776,7 +1922,8 @@ function toggleAltitudeChart(switchToggle) {
 		$('#altitude_checkbox').removeClass('settingsCheckboxChecked');
 		$('#altitude_chart').hide();
 	}
-	localStorage['altitudeChart'] = altitudeChartDisplay;
+
+	localStorage.setItem('altitudeChart', altitudeChartDisplay);
 }
 
 function onResetAltitudeFilter(e) {
@@ -1851,8 +1998,8 @@ function getAirframesModeSLink(code) {
 
 // takes in an elemnt jQuery path and the OL3 layer name and toggles the visibility based on clicking it
 function toggleLayer(element, layer) {
-	// set initial checked status
-	ol.control.LayerSwitcher.forEachRecursive(layers, function(lyr) { 
+        // set initial checked status
+        ol.control.LayerSwitcher.forEachRecursive(layerGroup, function(lyr) {
 		if (lyr.get('name') === layer && lyr.getVisible()) {
 			$(element).addClass('settingsCheckboxChecked');
 		}
@@ -1862,7 +2009,7 @@ function toggleLayer(element, layer) {
 		if ($(element).hasClass('settingsCheckboxChecked')) {
 			visible = true;
 		}
-		ol.control.LayerSwitcher.forEachRecursive(layers, function(lyr) { 
+		ol.control.LayerSwitcher.forEachRecursive(layerGroup, function(lyr) {
 			if (lyr.get('name') === layer) {
 				if (visible) {
 					lyr.setVisible(false);
@@ -1893,11 +2040,96 @@ function updatePiAwareOrFlightFeeder() {
 	if (isFlightFeeder) {
 		$('.piAwareLogo').hide();
 		$('.flightfeederLogo').show();
-		PageName = 'FlightFeeder Skyview';
+		PageName = 'FlightFeeder SkyAware';
 	} else {
 		$('.flightfeederLogo').hide();
 		$('.piAwareLogo').show();
-		PageName = 'PiAware Skyview';
+		PageName = 'PiAware SkyAware';
 	}
 	refreshPageTitle();
+}
+
+// Set range ring globals and populate form values
+function setRangeRings() {
+        SiteCirclesCount = Number(localStorage['SiteCirclesCount']) || DefaultSiteCirclesCount;
+        SiteCirclesBaseDistance = Number(localStorage['SiteCirclesBaseDistance']) || DefaultSiteCirclesBaseDistance;
+        SiteCirclesInterval = Number(localStorage['SiteCirclesInterval']) || DefaultSiteCirclesInterval;
+
+	// Populate text fields with current values
+        $('#range_ring_count').val(SiteCirclesCount);
+        $('#range_ring_base').val(SiteCirclesBaseDistance);
+        $('#range_ring_interval').val(SiteCirclesInterval);
+}
+
+// redraw range rings with form values
+function onSetRangeRings() {
+	// Save state to localStorage
+	localStorage.setItem('SiteCirclesCount', parseFloat($("#range_ring_count").val().trim()));
+	localStorage.setItem('SiteCirclesBaseDistance', parseFloat($("#range_ring_base").val().trim()));
+	localStorage.setItem('SiteCirclesInterval', parseFloat($("#range_ring_interval").val().trim()));
+
+	setRangeRings();
+
+	createSiteCircleFeatures();
+}
+
+function toggleColumn(div, checkbox, toggled) {
+	if (typeof localStorage[checkbox] === 'undefined') {
+		localStorage.setItem(checkbox, 'deselected');
+	}
+
+	var status = localStorage.getItem(checkbox);
+	var infoTable = $("#tableinfo");
+
+	if (toggled === true) {
+		status = (status === 'deselected') ? 'selected' : 'deselected';
+	}
+
+	// Toggle checkbox and column visibility
+	if (status === 'selected') {
+		$(checkbox).addClass('settingsCheckboxChecked');
+		showColumn(infoTable, div, true);
+	} else {
+		$(checkbox).removeClass('settingsCheckboxChecked');
+		showColumn(infoTable, div, false);
+		$('#select_all_column_checkbox').removeClass('settingsCheckboxChecked');
+		localStorage.setItem('selectAllColumnsCheckbox', 'deselected');
+	}
+
+	localStorage.setItem(checkbox, status);
+}
+
+function toggleAllColumns(switchToggle) {
+        if (typeof localStorage['selectAllColumnsCheckbox'] === 'undefined') {
+                ocalStorage.setItem('selectAllColumnsCheckbox','deselected');
+        }
+
+        var infoTable = $("#tableinfo");
+
+        var selectAllColumnsCheckbox = localStorage.getItem('selectAllColumnsCheckbox');
+
+        if (switchToggle === true) {
+                selectAllColumnsCheckbox = (selectAllColumnsCheckbox === 'deselected') ? 'selected' : 'deselected';
+
+                checkbox_div_map.forEach(function (div, checkbox) {
+                        if (selectAllColumnsCheckbox === 'deselected') {
+                                $('#select_all_column_checkbox').removeClass('settingsCheckboxChecked');
+                                $(checkbox).removeClass('settingsCheckboxChecked');
+                                showColumn(infoTable, div, false);
+                        } else {
+                                $('#select_all_column_checkbox').addClass('settingsCheckboxChecked');
+                                $(checkbox).addClass('settingsCheckboxChecked');
+                                showColumn(infoTable, div, true);
+                        }
+                        localStorage.setItem(checkbox, selectAllColumnsCheckbox);
+                });
+        };
+
+        if (selectAllColumnsCheckbox === 'deselected') {
+                $('#select_all_column_checkbox').removeClass('settingsCheckboxChecked');
+        } else {
+                $('#select_all_column_checkbox').addClass('settingsCheckboxChecked');
+        }
+
+        localStorage.setItem('selectAllColumnsCheckbox', selectAllColumnsCheckbox);
 }

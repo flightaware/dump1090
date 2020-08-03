@@ -1,3 +1,121 @@
+dump1090-fa (3.8.2~dev) UNRELEASED; urgency=medium
+
+  * in development
+  * --fix --fix was a bad choice for 2-bit correction since some existing configs
+    accidentally specified it twice anyway. Change 2-bit correction to a separate
+    option, --fix-2bit
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Sat, 02 May 2020 14:50:25 +0800
+
+dump1090-fa (3.8.1) stable; urgency=medium
+
+  * SkyAware: Fixed SkyAware banner aspect ratio
+  * SkyAware: Fixed issue with "Group By Data Type" and "All Aircraft Trails" checkboxes
+    not saving across browser refreshes
+  * SkyAware: Fixed bug with ShowFlags=False config.js setting
+  * SkyAware: Added position age to aircraft detail pane
+  * SkyAware: Added ability to customize range ring distances in SkyAware
+
+ -- Eric Tran <eric.tran@flightaware.com>  Thu, 19 Mar 2020 09:20:00 -6000
+
+dump1090-fa (3.8.0) stable; urgency=medium
+
+  * general: Added support for building on Buster.
+  * general: Replace use of usleep with nanosleep (PR #53)
+
+  * dump1090: When applying CRC correction to a DF11 message, assume that the interrogator
+    overlay value was 0 (e.g. as in an acquisiton squitter) and use the full 24-bit syndrome
+    to correct errors; do not zero out the low 7 bits of the syndrome.
+  * dump1090: Changes in aircraft tracking to try to reduce the number of bogus aircraft seen
+    due to noise; this replaces the crude "require 2 messages" metric used previously.
+  * dump1090: Added a new statistic for "unreliable tracks", aircraft that were tracked but
+    which never passed the threshold for being considered a real aircraft.
+  * dump1090: Added support for per-connection verbatim mode. "--net-verbatim" now controls the
+    default connection setting, and the per-connection mode can be changed by a Beast settings
+    command.
+  * dump1090: Replaced "--aggressive" with "--fix --fix" for 2-bit CRC correction; include
+    support for this in the standard build. 2-bit corrected messages are only emitted on
+    verbatim connections.
+  * dump1090: Update package default options: include "--fix", increase "--net-ro-size",
+    decrease "--net-ro-interval", remove a duplicated "--net-bo-port" option.
+  * dump1090: Fixes to CPR decoding when multiple position sources (e.g. ADS-B and MLAT) are
+    being simultaneously received (PR #55)
+  * dump1090: Track ADS-B, ADS-R, and TIS-B versions independently; use the appropriate version
+    when decoding version-dependent messages.
+
+  * view1090: Include ADS-B version in interactive display
+  * view1090: Display a warning in the header in interactive mode if the dump1090 connection
+    has been lost
+  * view1090: Request verbatim mode when connecting to dump1090
+  * view1090: Exit on connection loss in --no-interactive mode
+
+  * SkyAware: Corrected icon selection for some aircraft types
+  * SkyAware: Fixed display of settings checkboxes on high-DPI displays (PR #54)
+  * SkyAware: Fixes to info box display (PR #51)
+  * SkyAware: Hide scroll bar when not needed (PR #22)
+  * SkyAware: Update aircraft registry to 20191216
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 30 Dec 2019 22:11:52 +0800
+
+dump1090-fa (3.7.2) stable; urgency=medium
+
+  * dump1090: Fix reversed sense of Track Angle/Heading bit in surface opstatus messages
+  * dump1090: Have filter-regs emit a special value "-COMPUTED-" for filtered data
+    values, rather than blanking them out entirely
+  * Fix registration side mappings with a non-zero offset
+  * dump1090: Update aircraft DB to 20190816
+  * dump1090: Reject outright libbladerf that's too old
+  * dump1090: Trigger build after bladeRF build; turn off build durability; turn
+    off concurrent builds
+  * SkyAware: SkyAware Renaming
+  * SkyAware: Fix some display errors for ground vehicles
+  * SkyAware: Fix aircraft trail handling
+
+ -- Eric Tran <eric.tran@flightaware.com>  Mon, 09 Sep 2019 09:25:00 -6000
+
+dump1090-fa (3.7.1) stable; urgency=medium
+
+  * dump1090: TSV buffer overflow fix/increase max TSV packet size
+  * dump1090: Fix incorrect mode_s bit number usage
+  * dump1090: Rework use of pkg-config to work around librtlsdr packaging bugs
+    in Ubuntu distro
+  * dump1090: Minimal polyfill to support building older bladeRF libs
+  * dump1090: Add COMMB_AMBIGUOUS enum type for Comm-B messages we're unsure of
+  * dump1090: Comm-b message decoding updates
+  * dump1090: Require more fields to be populated in BDS5,0/BDS6,0 before accepting
+  * dump1090: Update aircraft DB to 20190502
+  * dump1090: Doc/README updates
+
+ -- Eric Tran <eric.tran@flightaware.com>  Fri, 03 May 2019 12:35:00 -6000
+
+dump1090-fa (3.7.0.1) stable; urgency=medium
+
+  * dump1090: Fix piaware lat/lon variable
+
+ -- Eric Tran <eric.tran@flightaware.com>  Fri, 29 Mar 2019 7:04:00 -6000
+
+dump1090-fa (3.7.0) stable; urgency=medium
+
+  * dump1090: Fix Rc decoding errors
+  * dump1090: Compute ADS-B v0 NACp/SIL
+  * dump1090: When generating aircraft.json, leave space for the final line;
+    otherwise the generated json may have trailing garbage
+  * dump1090: Don't update the known-address-set from DF18 messages
+  * Skyview: use heading data for icon orientation if track data is unavailable
+  * Skyview: don't spin forever if there's no history to load / receiver.json
+    is missing
+  * dump1090: Bail out if rtlsdr_read_async() returns early; it probably means we lost
+    the USB device. There was a workaround for this (originally implemented
+    in dump1090-mutability) that got lost in the refactoring needed to support
+    different SDRs. librtlsdr can still be flaky under disconnect conditions, so
+    this won't catch everything.
+  * dump1090: add ENABLED to /etc/default/dump1090-fa
+  * dump1090: track FMS and MCP selected altitudes separately
+  * skyview: use whichever selected altitude is available
+  * faup1090: updates to support PiAware 3.7.0
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Fri, 22 Mar 2019 15:58:04 +0000
+
 dump1090-fa (3.6.3) stable; urgency=medium
 
   * Fix port 30003 output (Basestation) timestamp formatting broken in 3.6.0

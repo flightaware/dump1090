@@ -6,7 +6,7 @@ html, body {
 
 #layout_container { 
     display: flex;
-    height: calc(100% - 60px);;
+    height: calc(100% - 60px);
 }
 
 #selected_infoblock {
@@ -22,8 +22,8 @@ html, body {
 	height: 100%;
 }
 #sidebar_canvas { 
-    padding: 10px;
-	overflow: scroll;
+    	padding: 10px;
+	overflow: auto;
 }
 #sidebar_container {
 	display: flex;
@@ -43,6 +43,79 @@ html, body {
     position: absolute;
     width: 100%;
     height: 100%;
+}
+
+#planes_table_container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#planes_table {
+    overflow-x: scroll;
+}
+
+#column_select {
+    position: relative;
+    float: right;
+    background-color: #002F5D;
+    color: #FFFFFF;
+}
+
+#column_select_window {
+    position: absolute;
+    right: 1px;
+    top: 80px;
+    width: 150px;
+    min-height: 180px;
+    background: #ffffff;
+    box-shadow: 4px 4px 10px #444444;
+    padding: 20px;
+    z-index: 9999;
+    display: none;
+}
+
+#column_select_header {
+    display: table;
+    background-color: #002F5D;
+    color: #ffffff;
+    font-size: smaller;
+    padding: 5px;
+    text-align: center;
+    width: 120px;
+}
+
+#column_select_close_box {
+    position: absolute;
+    right: 15px;
+    top: 21px;
+    background-image: url('images/close-settings.png');
+    background-size: cover;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.columnOptionContainer {
+    position: relative;
+    display: table;
+    padding-top: 5px;
+    left: 20px;
+}
+
+.columnOptionSelectAllContainer {
+    position: relative;
+    display: table;
+    padding-top: 5px;
+}
+
+.columnOptionText {
+    position: relative;
+    line-height: 10px;
+    display: table-cell;
+    width: 100%;
+    left: 5px;
+
 }
 
 #toggle_sidebar_control {
@@ -260,6 +333,21 @@ div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right:
     width: 50px;
 }
 
+.rangeRingsInput {
+    width: 30px;
+    float: right;
+}
+
+.rangeOptions {
+	width: 170px;
+	padding-top: 8px;
+	text-indent: 10px;
+}
+
+.set_range_rings_button {
+	padding-top: 8px;
+}
+
 select.error, textarea.error, input.error {
     color: #FF0000;
 }
@@ -396,7 +484,7 @@ select.error, textarea.error, input.error {
 }
 
 .piAwareLogo {
-    width: 186px;
+    width: 235px;
     height: 24px;
 }
 .flightfeederLogo {
@@ -621,12 +709,13 @@ select.error, textarea.error, input.error {
     padding-bottom: 10px;
 }
 
-.settingsCheckbox {
+.settingsCheckbox, .columnSelectCheckbox, .columnSelectAllCheckbox {
     width: 20px;
     height: 11px;
     background-image: url('images/box-empty.png');
     background-repeat: no-repeat;
     background-position: center;
+    background-size: contain;
     cursor: pointer;
 }
 

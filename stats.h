@@ -120,6 +120,8 @@ struct stats {
     unsigned int unique_aircraft;
     // we saw only a single message
     unsigned int single_message_aircraft;
+    // we never considered the track reliable
+    unsigned int unreliable_aircraft;
 
     // range histogram
 #define RANGE_BUCKET_COUNT 76
