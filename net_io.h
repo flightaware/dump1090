@@ -93,5 +93,6 @@ char *generateStatsJson(const char *url_path, int *len);
 char *generateReceiverJson(const char *url_path, int *len);
 char *generateHistoryJson(const char *url_path, int *len);
 void writeJsonToFile(const char *file, char * (*generator) (const char *,int*));
+void writeJsonToStdout(char * (*generator) (const char *,int*));
 
 #endif

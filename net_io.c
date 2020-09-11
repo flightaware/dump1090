@@ -1739,6 +1739,23 @@ void writeJsonToFile(const char *file, char * (*generator) (const char *,int*))
 #endif
 }
 
+// Write JSON to stdout
+void writeJsonToStdout(char * (*generator) (const char *,int*))
+{
+#ifndef _WIN32
+    char pathbuf[PATH_MAX];
+    int len = 0;
+    char *content;
+
+    content = generator(pathbuf, &len);
+
+    /* Also print to stdout */
+    printf("%s", content);
+    fflush(stdout);
+    free(content);
+    return;
+#endif
+}
 
 //
 //=========================================================================
