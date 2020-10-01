@@ -944,7 +944,7 @@ function initialize_map() {
                 });
 
                 for (var i = 0; i < data.rings.length; ++i) {
-                        var geom = new ol.geom.LineString();
+                        var geom = new ol.geom.LineString([]);
                         var points = data.rings[i].points;
                         if (points.length > 0) {
                                 for (var j = 0; j < points.length; ++j) {
