@@ -57,6 +57,17 @@ void add_timespecs(const struct timespec *x, const struct timespec *y, struct ti
     z->tv_nsec = z->tv_nsec % 1000000000L;
 }
 
+void sub_timespecs(const struct timespec *x, const struct timespec *y, struct timespec *z)
+{
+    if ((y->tv_nsec - x->tv_nsec) < 0) {
+            z->tv_sec = y->tv_sec - x->tv_sec - 1;
+            z->tv_nsec = y->tv_nsec - x->tv_nsec + 1000000000L;
+        } else {
+            z->tv_sec = y->tv_sec - x->tv_sec;
+            z->tv_nsec = y->tv_nsec - x->tv_nsec;
+        }
+}
+
 static void display_range_histogram(struct stats *st);
 
 void display_stats(struct stats *st) {
@@ -78,64 +89,70 @@ void display_stats(struct stats *st) {
 
     if (!Modes.net_only) {
         printf("Local receiver:\n");
-        printf("  %llu samples processed\n",                        (unsigned long long)st->samples_processed);
-        printf("  %llu samples dropped\n",                          (unsigned long long)st->samples_dropped);
+        printf("  %12llu samples processed\n",                        (unsigned long long)st->samples_processed);
+        printf("  %12llu samples dropped\n",                          (unsigned long long)st->samples_dropped);
 
-        printf("  %u Mode A/C messages received\n",                 st->demod_modeac);
-        printf("  %u Mode-S message preambles received\n",          st->demod_preambles);
-        printf("    %u with bad message format or invalid CRC\n",   st->demod_rejected_bad);
-        printf("    %u with unrecognized ICAO address\n",           st->demod_rejected_unknown_icao);
-        printf("    %u accepted with correct CRC\n",                st->demod_accepted[0]);
+        printf("  %12u Mode A/C messages received\n",                 st->demod_modeac);
+        printf("  %12u Mode-S message preambles received\n",          st->demod_preambles);
+        printf("    %12u with bad message format or invalid CRC\n",   st->demod_rejected_bad);
+        printf("    %12u with unrecognized ICAO address\n",           st->demod_rejected_unknown_icao);
+        printf("    %12u accepted with correct CRC\n",                st->demod_accepted[0]);
         for (j = 1; j <= Modes.nfix_crc; ++j)
-            printf("    %u accepted with %d-bit error repaired\n", st->demod_accepted[j], j);
+            printf("    %12u accepted with %d-bit error repaired\n", st->demod_accepted[j], j);
 
         if (st->noise_power_sum > 0 && st->noise_power_count > 0) {
-            printf("  %.1f dBFS noise power\n",
+            printf("  %5.1f dBFS noise power\n",
                    10 * log10(st->noise_power_sum / st->noise_power_count));
+        } else {
+            printf("  ----- dBFS noise power\n");
         }
 
         if (st->signal_power_sum > 0 && st->signal_power_count > 0) {
-            printf("  %.1f dBFS mean signal power\n",
+            printf("  %5.1f dBFS mean signal power\n",
                    10 * log10(st->signal_power_sum / st->signal_power_count));
+        } else {
+            printf("  ----- dBFS mean signal power\n");
         }
 
         if (st->peak_signal_power > 0) {
-            printf("  %.1f dBFS peak signal power\n",
+            printf("  %5.1f dBFS peak signal power\n",
                    10 * log10(st->peak_signal_power));
+        } else {
+            printf("  ----- dBFS peak signal power\n");
         }
 
-        printf("  %u messages with signal power above -3dBFS\n",
+        printf("  %5u messages with signal power above -3dBFS\n",
                st->strong_signal_count);
     }
 
     if (Modes.net) {
         printf("Messages from network clients:\n");
-        printf("  %u Mode A/C messages received\n",               st->remote_received_modeac);
-        printf("  %u Mode S messages received\n",                 st->remote_received_modes);
-        printf("    %u with bad message format or invalid CRC\n", st->remote_rejected_bad);
-        printf("    %u with unrecognized ICAO address\n",         st->remote_rejected_unknown_icao);
-        printf("    %u accepted with correct CRC\n",              st->remote_accepted[0]);
+        printf("  %8u Mode A/C messages received\n",               st->remote_received_modeac);
+        printf("  %8u Mode S messages received\n",                 st->remote_received_modes);
+        printf("    %8u with bad message format or invalid CRC\n", st->remote_rejected_bad);
+        printf("    %8u with unrecognized ICAO address\n",         st->remote_rejected_unknown_icao);
+        printf("    %8u accepted with correct CRC\n",              st->remote_accepted[0]);
         for (j = 1; j <= Modes.nfix_crc; ++j)
-            printf("    %u accepted with %d-bit error repaired\n", st->remote_accepted[j], j);
+            printf("    %8u accepted with %d-bit error repaired\n", st->remote_accepted[j], j);
     }
 
     printf("%u total usable messages\n",
            st->messages_total);
 
-    printf("%u surface position messages received\n"
-           "%u airborne position messages received\n"
-           "%u global CPR attempts with valid positions\n"
-           "%u global CPR attempts with bad data\n"
-           "  %u global CPR attempts that failed the range check\n"
-           "  %u global CPR attempts that failed the speed check\n"
-           "%u global CPR attempts with insufficient data\n"
-           "%u local CPR attempts with valid positions\n"
-           "  %u aircraft-relative positions\n"
-           "  %u receiver-relative positions\n"
-           "%u local CPR attempts that did not produce useful positions\n"
-           "  %u local CPR attempts that failed the range check\n"
-           "  %u local CPR attempts that failed the speed check\n"
-           "%u CPR messages that look like transponder failures filtered\n",
+    printf("%8u surface position messages received\n"
+           "%8u airborne position messages received\n"
+           "%8u global CPR attempts with valid positions\n"
+           "%8u global CPR attempts with bad data\n"
+           "  %8u global CPR attempts that failed the range check\n"
+           "  %8u global CPR attempts that failed the speed check\n"
+           "%8u global CPR attempts with insufficient data\n"
+           "%8u local CPR attempts with valid positions\n"
+           "  %8u aircraft-relative positions\n"
+           "  %8u receiver-relative positions\n"
+           "%8u local CPR attempts that did not produce useful positions\n"
+           "  %8u local CPR attempts that failed the range check\n"
+           "  %8u local CPR attempts that failed the speed check\n"
+           "%8u CPR messages that look like transponder failures filtered\n",
            st->cpr_surface,
            st->cpr_airborne,
            st->cpr_global_ok,
@@ -151,20 +168,20 @@ void display_stats(struct stats *st) {
            st->cpr_local_speed_checks,
            st->cpr_filtered);
 
-    printf("%u non-ES altitude messages from ES-equipped aircraft ignored\n", st->suppressed_altitude_messages);
-    printf("%u unique aircraft tracks\n", st->unique_aircraft);
-    printf("%u aircraft tracks where only one message was seen\n", st->single_message_aircraft);
-    printf("%u aircraft tracks which were not marked reliable\n", st->unreliable_aircraft);
+    printf("%8u non-ES altitude messages from ES-equipped aircraft ignored\n", st->suppressed_altitude_messages);
+    printf("%8u unique aircraft tracks\n", st->unique_aircraft);
+    printf("%8u aircraft tracks where only one message was seen\n", st->single_message_aircraft);
+    printf("%8u aircraft tracks which were not marked reliable\n", st->unreliable_aircraft);
 
     {
         uint64_t demod_cpu_millis = (uint64_t)st->demod_cpu.tv_sec*1000UL + st->demod_cpu.tv_nsec/1000000UL;
         uint64_t reader_cpu_millis = (uint64_t)st->reader_cpu.tv_sec*1000UL + st->reader_cpu.tv_nsec/1000000UL;
         uint64_t background_cpu_millis = (uint64_t)st->background_cpu.tv_sec*1000UL + st->background_cpu.tv_nsec/1000000UL;
 
-        printf("CPU load: %.1f%%\n"
-               "  %llu ms for demodulation\n"
-               "  %llu ms for reading from USB\n"
-               "  %llu ms for network input and background tasks\n",
+        printf("CPU load: %5.1f%%\n"
+               "  %5llu ms for demodulation\n"
+               "  %5llu ms for reading from USB\n"
+               "  %5llu ms for network input and background tasks\n",
                100.0 * (demod_cpu_millis + reader_cpu_millis + background_cpu_millis) / (st->end - st->start + 1),
                (unsigned long long) demod_cpu_millis,
                (unsigned long long) reader_cpu_millis,
@@ -331,4 +348,88 @@ void add_stats(const struct stats *st1, const struct stats *st2, struct stats *t
     // range histogram
     for (i = 0; i < RANGE_BUCKET_COUNT; ++i)
         target->range_histogram[i] = st1->range_histogram[i] + st2->range_histogram[i];
+}
+
+void sub_stats(const struct stats *st1, const struct stats *st2, struct stats *target) {
+    int i;
+
+    if (st1->start == 0)
+        target->start = st2->start;
+    else if (st2->start == 0)
+        target->start = st1->start;
+    else if (st1->start < st2->start)
+        target->start = st1->start;
+    else
+        target->start = st2->start;
+
+    target->end = st1->end > st2->end ? st1->end : st2->end;
+
+    target->demod_preambles = st1->demod_preambles - st2->demod_preambles;
+    target->demod_rejected_bad = st1->demod_rejected_bad - st2->demod_rejected_bad;
+    target->demod_rejected_unknown_icao = st1->demod_rejected_unknown_icao - st2->demod_rejected_unknown_icao;
+    for (i = 0; i < MODES_MAX_BITERRORS+1; ++i)
+        target->demod_accepted[i]  = st1->demod_accepted[i] - st2->demod_accepted[i];
+    target->demod_modeac = st1->demod_modeac - st2->demod_modeac;
+
+    target->samples_processed = st1->samples_processed - st2->samples_processed;
+    target->samples_dropped = st1->samples_dropped - st2->samples_dropped;
+
+    sub_timespecs(&st2->demod_cpu, &st1->demod_cpu, &target->demod_cpu);
+    sub_timespecs(&st2->reader_cpu, &st1->reader_cpu, &target->reader_cpu);
+    sub_timespecs(&st2->background_cpu, &st1->background_cpu, &target->background_cpu);
+
+    // noise power:
+    target->noise_power_sum = st1->noise_power_sum - st2->noise_power_sum;
+    target->noise_power_count = st1->noise_power_count - st2->noise_power_count;
+
+    // mean signal power:
+    target->signal_power_sum = st1->signal_power_sum - st2->signal_power_sum;
+    target->signal_power_count = st1->signal_power_count - st2->signal_power_count;
+
+    // peak signal power seen
+    if (st1->peak_signal_power > st2->peak_signal_power)
+        target->peak_signal_power = st1->peak_signal_power;
+    else
+        target->peak_signal_power = st2->peak_signal_power;
+
+    // strong signals
+    target->strong_signal_count = st1->strong_signal_count - st2->strong_signal_count;
+
+    // remote messages:
+    target->remote_received_modeac = st1->remote_received_modeac - st2->remote_received_modeac;
+    target->remote_received_modes = st1->remote_received_modes - st2->remote_received_modes;
+    target->remote_rejected_bad = st1->remote_rejected_bad - st2->remote_rejected_bad;
+    target->remote_rejected_unknown_icao = st1->remote_rejected_unknown_icao - st2->remote_rejected_unknown_icao;
+    for (i = 0; i < MODES_MAX_BITERRORS+1; ++i)
+        target->remote_accepted[i]  = st1->remote_accepted[i] - st2->remote_accepted[i];
+
+    // total messages:
+    target->messages_total = st1->messages_total - st2->messages_total;
+
+    // CPR decoding:
+    target->cpr_surface = st1->cpr_surface - st2->cpr_surface;
+    target->cpr_airborne = st1->cpr_airborne - st2->cpr_airborne;
+    target->cpr_global_ok = st1->cpr_global_ok - st2->cpr_global_ok;
+    target->cpr_global_bad = st1->cpr_global_bad - st2->cpr_global_bad;
+    target->cpr_global_skipped = st1->cpr_global_skipped - st2->cpr_global_skipped;
+    target->cpr_global_range_checks = st1->cpr_global_range_checks - st2->cpr_global_range_checks;
+    target->cpr_global_speed_checks = st1->cpr_global_speed_checks - st2->cpr_global_speed_checks;
+    target->cpr_local_ok = st1->cpr_local_ok - st2->cpr_local_ok;
+    target->cpr_local_aircraft_relative = st1->cpr_local_aircraft_relative - st2->cpr_local_aircraft_relative;
+    target->cpr_local_receiver_relative = st1->cpr_local_receiver_relative - st2->cpr_local_receiver_relative;
+    target->cpr_local_skipped = st1->cpr_local_skipped - st2->cpr_local_skipped;
+    target->cpr_local_range_checks = st1->cpr_local_range_checks - st2->cpr_local_range_checks;
+    target->cpr_local_speed_checks = st1->cpr_local_speed_checks - st2->cpr_local_speed_checks;
+    target->cpr_filtered = st1->cpr_filtered - st2->cpr_filtered;
+
+    target->suppressed_altitude_messages = st1->suppressed_altitude_messages - st2->suppressed_altitude_messages;
+
+    // aircraft
+    target->unique_aircraft = st1->unique_aircraft - st2->unique_aircraft;
+    target->single_message_aircraft = st1->single_message_aircraft - st2->single_message_aircraft;
+    target->unreliable_aircraft = st1->unreliable_aircraft - st2->unreliable_aircraft;
+
+    // range histogram
+    for (i = 0; i < RANGE_BUCKET_COUNT; ++i)
+        target->range_histogram[i] = st1->range_histogram[i] - st2->range_histogram[i];
 }
