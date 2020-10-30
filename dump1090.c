@@ -49,6 +49,7 @@
 
 #include "dump1090.h"
 
+#include <inttypes.h>
 #include <stdarg.h>
 
 struct _Modes Modes;
@@ -347,12 +348,19 @@ static void display_total_stats(void)
 // perform tasks we need to do continuously, like accepting new clients
 // from the net, refreshing the screen in interactive mode, and so forth
 //
+#define STATS_RESET_INTERVAL_MS 60000
+
 static void backgroundTasks(void) {
     static uint64_t next_stats_display;
     static uint64_t next_stats_update;
     static uint64_t next_json, next_history;
+    struct stats stats_display;
 
     uint64_t now = mstime();
+
+    if (next_stats_display == 0) {
+        next_stats_display = now + Modes.stats;
+    }
 
     icaoFilterExpire();
     trackPeriodicUpdate();
@@ -360,7 +368,6 @@ static void backgroundTasks(void) {
     if (Modes.net) {
         modesNetPeriodicWork();
     }
-
 
     // Refresh screen when in interactive mode
     if (Modes.interactive) {
@@ -373,17 +380,46 @@ static void backgroundTasks(void) {
     // always update end time so it is current when requests arrive
     Modes.stats_current.end = mstime();
 
+    // If the display interval is less than the reset interval,
+    // We need to _subtract_ periodic from current and display
+    // the stats _before_ current is reset.
+    if (Modes.stats && now >= next_stats_display && Modes.stats < STATS_RESET_INTERVAL_MS) {
+        // We want to display the difference between each display.
+        sub_stats(&Modes.stats_current, &Modes.stats_periodic, &stats_display);
+        stats_display.start = Modes.stats_periodic.start;
+        stats_display.end = now;
+        display_stats(&stats_display);
+        reset_stats(&Modes.stats_periodic);
+        add_stats(&Modes.stats_current, &Modes.stats_periodic, &Modes.stats_periodic);
+        Modes.stats_periodic.start = now;
+
+        next_stats_display += Modes.stats;
+        if (next_stats_display <= now) {
+            /* something has gone wrong, perhaps the system clock jumped */
+            next_stats_display = now + Modes.stats;
+        }
+    }
+
     if (now >= next_stats_update) {
         int i;
 
         if (next_stats_update == 0) {
-            next_stats_update = now + 60000;
+            next_stats_update = now + STATS_RESET_INTERVAL_MS;
         } else {
+
             Modes.stats_latest_1min = (Modes.stats_latest_1min + 1) % 15;
             Modes.stats_1min[Modes.stats_latest_1min] = Modes.stats_current;
 
             add_stats(&Modes.stats_current, &Modes.stats_alltime, &Modes.stats_alltime);
-            add_stats(&Modes.stats_current, &Modes.stats_periodic, &Modes.stats_periodic);
+            if (Modes.stats > STATS_RESET_INTERVAL_MS) {
+                add_stats(&Modes.stats_current, &Modes.stats_periodic, &Modes.stats_periodic);
+            } else {
+                // If we're going to reset current, we also need to reset periodic and set its
+                // start time to now.  This way, when display runs again, the difference between
+                // current and periodic will be correct.
+                reset_stats(&Modes.stats_periodic);
+                Modes.stats_periodic.start = now;
+            }
 
             reset_stats(&Modes.stats_5min);
             for (i = 0; i < 5; ++i)
@@ -399,25 +435,25 @@ static void backgroundTasks(void) {
             if (Modes.json_dir)
                 writeJsonToFile("stats.json", generateStatsJson);
 
-            next_stats_update += 60000;
+            next_stats_update += STATS_RESET_INTERVAL_MS;
         }
     }
 
-    if (Modes.stats && now >= next_stats_display) {
-        if (next_stats_display == 0) {
+    // If the display interval is greater than or equal to the reset interval,
+    // We need to _increment_ periodic by current current and display
+    // the stats _after_ current is reset.
+    if (Modes.stats && now >= next_stats_display && Modes.stats >= STATS_RESET_INTERVAL_MS) {
+        add_stats(&Modes.stats_periodic, &Modes.stats_current, &Modes.stats_periodic);
+        display_stats(&Modes.stats_periodic);
+        reset_stats(&Modes.stats_periodic);
+
+        next_stats_display += Modes.stats;
+        if (next_stats_display <= now) {
+            /* something has gone wrong, perhaps the system clock jumped */
             next_stats_display = now + Modes.stats;
-        } else {
-            add_stats(&Modes.stats_periodic, &Modes.stats_current, &Modes.stats_periodic);
-            display_stats(&Modes.stats_periodic);
-            reset_stats(&Modes.stats_periodic);
-
-            next_stats_display += Modes.stats;
-            if (next_stats_display <= now) {
-                /* something has gone wrong, perhaps the system clock jumped */
-                next_stats_display = now + Modes.stats;
-            }
         }
     }
+
 
     if (Modes.json_dir && now >= next_json) {
         writeJsonToFile("aircraft.json", generateAircraftJson);
