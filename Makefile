@@ -3,9 +3,9 @@ PROGNAME=dump1090
 DUMP1090_VERSION ?= unknown
 
 CPPFLAGS += -I. -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
-
+APPEND_CFLAGS := $(CFLAGS)
 DIALECT = -std=c11
-CFLAGS += $(DIALECT) -O3 -g -Wall -Wmissing-declarations -Werror -W -D_DEFAULT_SOURCE -fno-common
+override CFLAGS := $(DIALECT) -O3 -g -Wall -Wmissing-declarations -Werror -W -D_DEFAULT_SOURCE -fno-common
 LIBS = -lpthread -lm
 SDR_OBJ = cpu.o sdr.o fifo.o sdr_ifile.o dsp/helpers/tables.o
 
@@ -170,7 +170,7 @@ showconfig:
 	@echo "  LimeSDR support: $(LIMESDR)" >&2
 
 %.o: %.c *.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(APPEND_CFLAGS) -c $< -o $@
 
 dump1090: dump1090.o anet.o interactive.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o demod_2400.o stats.o cpr.o icao_filter.o track.o util.o convert.o ais_charset.o $(SDR_OBJ) $(COMPAT) $(CPUFEATURES_OBJS) $(STARCH_OBJS)
 	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS) $(LIBS_SDR) -lncurses
@@ -191,25 +191,25 @@ test: cprtests
 	./cprtests
 
 cprtests: cpr.o cprtests.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(APPEND_CFLAGS) -g -o $@ $^ -lm
 
 crctests: crc.c crc.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -DCRCDEBUG -o $@ $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(APPEND_CFLAGS) -g -DCRCDEBUG -o $@ $<
 
 benchmarks: oneoff/convert_benchmark
 	oneoff/convert_benchmark
 
 oneoff/convert_benchmark: oneoff/convert_benchmark.o convert.o util.o dsp/helpers/tables.o cpu.o $(CPUFEATURES_OBJS) $(STARCH_OBJS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm -lpthread
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(APPEND_CFLAGS) -g -o $@ $^ -lm -lpthread
 
 oneoff/decode_comm_b: oneoff/decode_comm_b.o comm_b.o ais_charset.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(APPEND_CFLAGS) -g -o $@ $^ -lm
 
 oneoff/dsp_error_measurement: oneoff/dsp_error_measurement.o dsp/helpers/tables.o cpu.o $(CPUFEATURES_OBJS) $(STARCH_OBJS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(APPEND_CFLAGS) -g -o $@ $^ -lm
 
 oneoff/uc8_capture_stats: oneoff/uc8_capture_stats.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(APPEND_CFLAGS) -g -o $@ $^ -lm
 
 starchgen:
 	dsp/starchgen.py .
