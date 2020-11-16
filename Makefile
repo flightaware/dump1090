@@ -5,7 +5,7 @@ DUMP1090_VERSION ?= unknown
 CPPFLAGS += -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
 
 DIALECT = -std=c11
-CFLAGS += $(DIALECT) -O3 -g -Wall -Wmissing-declarations -Werror -W -D_DEFAULT_SOURCE -fno-common
+DUMP1090_CFLAGS = $(DIALECT) -O3 -g -Wall -Wmissing-declarations -Werror -W -D_DEFAULT_SOURCE -fno-common $(CFLAGS)
 LIBS = -lpthread -lm
 SDR_OBJ = sdr.o fifo.o sdr_ifile.o
 
@@ -42,29 +42,29 @@ endif
 UNAME := $(shell uname)
 
 ifeq ($(UNAME), Linux)
-  CFLAGS += -D_DEFAULT_SOURCE
+  DUMP1090_CFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb-1.0
 endif
 
 ifeq ($(UNAME), Darwin)
   ifneq ($(shell sw_vers -productVersion | egrep '^10\.([0-9]|1[01])\.'),) # Mac OS X ver <= 10.11
-    CFLAGS += -DMISSING_GETTIME
+    DUMP1090_DUMP1090_CFLAGS += -DMISSING_GETTIME
     COMPAT += compat/clock_gettime/clock_gettime.o
   endif
-  CFLAGS += -DMISSING_NANOSLEEP
+  DUMP1090_CFLAGS += -DMISSING_NANOSLEEP
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
   LIBS_USB += -lusb-1.0
 endif
 
 ifeq ($(UNAME), OpenBSD)
-  CFLAGS += -DMISSING_NANOSLEEP
+  DUMP1090_CFLAGS += -DMISSING_NANOSLEEP
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
   LIBS_USB += -lusb-1.0
 endif
 
 ifeq ($(UNAME), FreeBSD)
-  CFLAGS += -D_DEFAULT_SOURCE
+  DUMP1090_CFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb
 endif
@@ -87,8 +87,8 @@ ifeq ($(RTLSDR), yes)
     # some packaged .pc files are massively broken, try to handle it
 
     # FreeBSD's librtlsdr.pc includes -std=gnu89 in cflags
-    RTLSDR_CFLAGS := $(shell pkg-config --cflags librtlsdr)
-    CFLAGS += $(filter-out -std=%,$(RTLSDR_CFLAGS))
+    RTLSDR_DUMP1090_CFLAGS := $(shell pkg-config --cflags librtlsdr)
+    DUMP1090_CFLAGS += $(filter-out -std=%,$(RTLSDR_DUMP1090_CFLAGS))
 
     # some linux librtlsdr packages return a bare -L with no path in --libs
     # which horribly confuses things because it eats the next option on the command line
@@ -104,21 +104,21 @@ endif
 ifeq ($(BLADERF), yes)
   SDR_OBJ += sdr_bladerf.o
   CPPFLAGS += -DENABLE_BLADERF
-  CFLAGS += $(shell pkg-config --cflags libbladeRF)
+  DUMP1090_CFLAGS += $(shell pkg-config --cflags libbladeRF)
   LIBS_SDR += $(shell pkg-config --libs libbladeRF)
 endif
 
 ifeq ($(HACKRF), yes)
   SDR_OBJ += sdr_hackrf.o
   CPPFLAGS += -DENABLE_HACKRF
-  CFLAGS += $(shell pkg-config --cflags libhackrf)
+  DUMP1090_CFLAGS += $(shell pkg-config --cflags libhackrf)
   LIBS_SDR += $(shell pkg-config --libs libhackrf)
 endif
 
 ifeq ($(LIMESDR), yes)
   SDR_OBJ += sdr_limesdr.o
   CPPFLAGS += -DENABLE_LIMESDR
-  CFLAGS += $(shell pkg-config --cflags LimeSuite)
+  DUMP1090_CFLAGS += $(shell pkg-config --cflags LimeSuite)
   LIBS_SDR += $(shell pkg-config --libs LimeSuite)
 endif
 
@@ -135,7 +135,7 @@ showconfig:
 all: dump1090 view1090
 
 %.o: %.c *.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(DUMP1090_CFLAGS) -c $< -o $@
 
 dump1090: dump1090.o anet.o interactive.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o demod_2400.o stats.o cpr.o icao_filter.o track.o util.o convert.o ais_charset.o $(SDR_OBJ) $(COMPAT)
 	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS) $(LIBS_SDR) -lncurses
@@ -153,16 +153,16 @@ test: cprtests
 	./cprtests
 
 cprtests: cpr.o cprtests.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) $(CPPFLAGS) $(DUMP1090_CFLAGS) -g -o $@ $^ -lm
 
 crctests: crc.c crc.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -DCRCDEBUG -o $@ $<
+	$(CC) $(CPPFLAGS) $(DUMP1090_CFLAGS) -g -DCRCDEBUG -o $@ $<
 
 benchmarks: oneoff/convert_benchmark
 	oneoff/convert_benchmark
 
 oneoff/convert_benchmark: oneoff/convert_benchmark.o convert.o util.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm -lpthread
+	$(CC) $(CPPFLAGS) $(DUMP1090_CFLAGS) -g -o $@ $^ -lm -lpthread
 
 oneoff/decode_comm_b: oneoff/decode_comm_b.o comm_b.o ais_charset.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) $(CPPFLAGS) $(DUMP1090_CFLAGS) -g -o $@ $^ -lm
