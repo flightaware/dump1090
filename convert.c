@@ -253,6 +253,122 @@ static void convert_sc16_nodc(void *iq_data,
     }
 }
 
+/*
+ * Used by convert_uint16_offset12 to both shift the
+ * sample value down by 2048 and get its absolute value.
+ */
+static __attribute__((aligned)) uint16_t shifts4096[4096];
+/*
+ * Contains the 0.0 -> 1.0 float magnitudes corresponding
+ * to the 0 -> 2047 sample values.
+ */
+static __attribute__((aligned)) float magnitudes2048[2048];
+/*
+ * Contains the squares of the float magnitudes for
+ * determining signal power.
+ */
+static __attribute__((aligned)) float powers2048[2048];
+/*
+ * Converts 0 -> 2047 scaled magnitudes to 0 -> 65535
+ * scaled magnitudes for use by the demodulators.
+ */
+static __attribute__((aligned)) uint16_t scaled65k2048[2048];
+
+static bool init_uint16()
+{
+    int i;
+
+    for(i = 0; i < (int)ARRAY_SIZE(shifts4096); i++) {
+        shifts4096[i] = ABS((i - 2048));
+    }
+    for(i = 0; i < (int)ARRAY_SIZE(magnitudes2048); i++) {
+        magnitudes2048[i] = i / 2047.0f;
+        powers2048[i] = magnitudes2048[i] * magnitudes2048[i];
+        scaled65k2048[i] = magnitudes2048[i] * 65535.0f + 0.5f;
+    }
+
+    return 1;
+}
+
+/*
+ * This format expects full scale -32767 -> +32767 signed values
+ * and converts them to full scale 0 -> 65535 unsigned values.
+ * Being "full-scale" does NOT imply full-scale precision.
+ * We're still limited by the precision of the ADC.  In most
+ * cases, the ADC 8 or 12 bit output was simply scaled up to
+ * fit in 16 bits.
+ */
+static void convert_int16(void *int_data,
+                              uint16_t *mag_data,
+                              unsigned nsamples,
+                              struct converter_state *state,
+                              double *out_mean_level,
+                              double *out_mean_power)
+{
+    MODES_NOTUSED(state);
+    int16_t *in = int_data;
+    size_t i;
+    float sum_level = 0;
+    float sum_power = 0;
+
+    for (i = 0; i < nsamples; i++) {
+        /*
+         * Get the absolute value and rescale it to 0-2047
+         * so we can use the LUTs.
+         */
+        in[i] = ABS(in[i]) >> 4;
+
+        sum_level += magnitudes2048[in[i]];
+        sum_power += powers2048[in[i]];
+        mag_data[i] = scaled65k2048[in[i]];
+    }
+
+    if (out_mean_level) {
+        *out_mean_level = sum_level / nsamples;
+    }
+
+    if (out_mean_power) {
+        *out_mean_power = sum_power / nsamples;
+    }
+}
+
+/*
+ * This format expects 12 bit values where the virtual
+ * -2047 -> +2047 values have been shifted upwards by 2048.
+ * This makes the the negative samples occupy 1-2047 and the
+ * positive values occupy 2048 -> 4095.  We use the shifts4096
+ * table to shift the values back again and take their
+ * absolute values.
+ */
+static void convert_uint16_offset12(void *int_data,
+                              uint16_t *mag_data,
+                              unsigned nsamples,
+                              struct converter_state *state,
+                              double *out_mean_level,
+                              double *out_mean_power)
+{
+    MODES_NOTUSED(state);
+    uint16_t *in = int_data;
+    size_t i;
+    float sum_level = 0;
+    float sum_power = 0;
+
+    for (i = 0; i < nsamples; i++) {
+        in[i] = shifts4096[in[i]];
+        sum_level += magnitudes2048[in[i]];
+        sum_power += powers2048[in[i]];
+        mag_data[i] = scaled65k2048[in[i]];
+    }
+
+    if (out_mean_level) {
+        *out_mean_level = sum_level / nsamples;
+    }
+
+    if (out_mean_power) {
+        *out_mean_power = sum_power / nsamples;
+    }
+}
+
 // SC16Q11_TABLE_BITS controls the size of the lookup table
 // for SC16Q11 data. The size of the table is 2 * (1 << (2*BITS))
 // bytes. Reducing the number of bits reduces precision but
@@ -432,20 +548,43 @@ static struct {
     iq_convert_fn fn;
     const char *description;
     bool (*init)();
+    const char *name;
 } converters_table[] = {
     // In order of preference
-    { INPUT_UC8,          0, convert_uc8_nodc,         "UC8, integer/table path", init_uc8_lookup },
-    { INPUT_UC8,          1, convert_uc8_generic,      "UC8, float path", NULL },
-    { INPUT_SC16,         0, convert_sc16_nodc,        "SC16, float path, no DC", NULL },
-    { INPUT_SC16,         1, convert_sc16_generic,     "SC16, float path", NULL },
+    { INPUT_UC8,          0, convert_uc8_nodc,         "UC8, integer/table path", init_uc8_lookup, "uc8" },
+    { INPUT_UC8,          1, convert_uc8_generic,      "UC8, float path", NULL, "uc8" },
+    { INPUT_SC16,         0, convert_sc16_nodc,        "SC16, float path, no DC", NULL, "sc16" },
+    { INPUT_SC16,         1, convert_sc16_generic,     "SC16, float path", NULL, "sc16" },
 #if defined(SC16Q11_TABLE_BITS)
-    { INPUT_SC16Q11,      0, convert_sc16q11_table,    "SC16Q11, integer/table path", init_sc16q11_lookup },
+    { INPUT_SC16Q11,      0, convert_sc16q11_table,    "SC16Q11, integer/table path", init_sc16q11_lookup, "sc16q11" },
 #else
-    { INPUT_SC16Q11,      0, convert_sc16q11_nodc,     "SC16Q11, float path, no DC", NULL },
+    { INPUT_SC16Q11,      0, convert_sc16q11_nodc,     "SC16Q11, float path, no DC", NULL, "sc16q11" },
 #endif
-    { INPUT_SC16Q11,      1, convert_sc16q11_generic,  "SC16Q11, float path", NULL },
-    { 0, 0, NULL, NULL, NULL }
+    { INPUT_SC16Q11,      1, convert_sc16q11_generic,  "SC16Q11, float path", NULL, "sc16q11" },
+    { INPUT_INT16,        0, convert_int16,       "INT16, table path, no DC", init_uint16, "s16" },
+    { INPUT_UINT16_OFFSET12,  0, convert_uint16_offset12,   "UINT16 offset 12, table path, no dc", init_uint16, "u16o12" },
+    { 0, 0, NULL, NULL, NULL, NULL }
 };
+
+const char *formatGetName(input_format_t format_type)
+{
+    for (int i = 0; converters_table[i].name; i++) {
+        if (format_type == converters_table[i].format) {
+            return converters_table[i].name;
+        }
+    }
+    return NULL;
+}
+
+input_format_t formatGetByName(const char *name)
+{
+    for (int i = 0; converters_table[i].name; i++) {
+        if (strcasecmp(name, converters_table[i].name) == 0) {
+            return converters_table[i].format;
+        }
+    }
+    return INPUT_NONE;
+}
 
 iq_convert_fn init_converter(input_format_t format,
                              double sample_rate,

@@ -22,6 +22,12 @@
 
 #include <stdint.h>
 
+/* Absolute value */
+#define ABS(__i) (__i < 0 ? -__i : __i)
+
+/* Get the size of an array */
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 /* Returns system time in milliseconds */
 uint64_t mstime(void);
 
