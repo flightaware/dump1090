@@ -19,7 +19,7 @@ many other Linux or Unix-like systems.
 ## Building under buster
 
 ```bash
-$ sudo apt-get install build-essential debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev
+$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev
 $ dpkg-buildpackage -b --no-sign
 ```
 
