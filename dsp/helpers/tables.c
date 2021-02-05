@@ -103,3 +103,26 @@ const uint16_t * get_sc16q11_mag_12bit_table()
     return table;
 }
 
+#define CONVERT_AND_SCALE(__in) ceil(abs(le16toh(__in) - 2048) * (32767.0 / 2047.0))
+
+const uint16_t * get_u16o12_mag_table()
+{
+    static uint16_t *table = NULL;
+
+    if (table) {
+        return table;
+    }
+
+    table = malloc(sizeof(uint16_t) * 4096 * 4096);
+    if (!table) {
+        fprintf(stderr, "can't allocate u16to12 conversion lookup table\n");
+        abort();
+    }
+
+    table[0] = 65535;
+    for (int i = 1; i < 4096 ; i++) {
+        table[i] = CONVERT_AND_SCALE(i);
+    }
+
+    return table;
+}
