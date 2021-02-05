@@ -103,3 +103,33 @@ const uint16_t * get_sc16q11_mag_12bit_table()
     return table;
 }
 
+// The magic scaler is (32767.0 / 2047.0)
+#define MAGIC_SCALER 32.01514f
+#define CONVERT_AND_SCALE(__in) \
+({ \
+    uint16_t __out = abs(le16toh(__in) - 2048); \
+    ceil(__out * 32.01514f); \
+})
+
+
+const uint16_t * get_u16o12_mag_table()
+{
+    static uint16_t *table = NULL;
+
+    if (table) {
+        return table;
+    }
+
+    table = malloc(sizeof(uint16_t) * 4096 * 4096);
+    if (!table) {
+        fprintf(stderr, "can't allocate SC16Q11 conversion lookup table\n");
+        abort();
+    }
+
+    for (int i = 1; i < 4096 ; i++) {
+        table[i] = CONVERT_AND_SCALE(i);
+    }
+
+    return table;
+}
+

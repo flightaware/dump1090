@@ -18,4 +18,6 @@
 #include "../impl/magnitude_sc16q11.c"
 #include "../impl/magnitude_uc8.c"
 #include "../impl/mean_power_u16.c"
+#include "../impl/magnitude_s16.c"
+#include "../impl/magnitude_u16o12.c"
 

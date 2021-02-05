@@ -21,16 +21,16 @@
 STARCH_CFLAGS := -DSTARCH_MIX_GENERIC
 
 
-dsp/generated/flavor.generic.o: dsp/generated/flavor.generic.c dsp/impl/magnitude_power_uc8.c dsp/impl/magnitude_sc16.c dsp/impl/magnitude_sc16q11.c dsp/impl/magnitude_uc8.c dsp/impl/mean_power_u16.c
+dsp/generated/flavor.generic.o: dsp/generated/flavor.generic.c dsp/impl/magnitude_power_uc8.c dsp/impl/magnitude_sc16.c dsp/impl/magnitude_sc16q11.c dsp/impl/magnitude_uc8.c dsp/impl/mean_power_u16.c dsp/impl/magnitude_s16.c dsp/impl/magnitude_u16o12.c
 	$(STARCH_COMPILE) $(STARCH_CFLAGS)  dsp/generated/flavor.generic.c -o dsp/generated/flavor.generic.o
 
-dsp/generated/dispatcher.o: dsp/generated/dispatcher.c dsp/impl/magnitude_power_uc8.c dsp/impl/magnitude_sc16.c dsp/impl/magnitude_sc16q11.c dsp/impl/magnitude_uc8.c dsp/impl/mean_power_u16.c
+dsp/generated/dispatcher.o: dsp/generated/dispatcher.c dsp/impl/magnitude_power_uc8.c dsp/impl/magnitude_sc16.c dsp/impl/magnitude_sc16q11.c dsp/impl/magnitude_uc8.c dsp/impl/mean_power_u16.c dsp/impl/magnitude_s16.c dsp/impl/magnitude_u16o12.c
 	$(STARCH_COMPILE) $(STARCH_CFLAGS) dsp/generated/dispatcher.c -o dsp/generated/dispatcher.o
 
 STARCH_OBJS := dsp/generated/flavor.generic.o dsp/generated/dispatcher.o
 
 
-dsp/generated/benchmark.o: dsp/generated/benchmark.c dsp/benchmark/magnitude_power_uc8_benchmark.c dsp/benchmark/magnitude_sc16_benchmark.c dsp/benchmark/magnitude_sc16q11_benchmark.c dsp/benchmark/magnitude_uc8_benchmark.c dsp/benchmark/mean_power_u16_benchmark.c
+dsp/generated/benchmark.o: dsp/generated/benchmark.c dsp/benchmark/magnitude_power_uc8_benchmark.c dsp/benchmark/magnitude_sc16_benchmark.c dsp/benchmark/magnitude_sc16q11_benchmark.c dsp/benchmark/magnitude_uc8_benchmark.c dsp/benchmark/mean_power_u16_benchmark.c dsp/benchmark/magnitude_s16_benchmark.c dsp/benchmark/magnitude_u16o12_benchmark.c
 	$(STARCH_COMPILE) $(STARCH_CFLAGS) dsp/generated/benchmark.c -o dsp/generated/benchmark.o
 
 STARCH_BENCHMARK_OBJ := dsp/generated/benchmark.o

@@ -17,7 +17,9 @@ gen.add_include('"cpu.h"')
 
 gen.add_function(name = 'magnitude_uc8', argtypes = ['const uc8_t *', 'uint16_t *', 'unsigned'], aligned = True)
 gen.add_function(name = 'magnitude_power_uc8', argtypes = ['const uc8_t *', 'uint16_t *', 'unsigned', 'double *', 'double *'], aligned = True)
+gen.add_function(name = 'magnitude_s16', argtypes = ['const int16_t *', 'uint16_t *', 'unsigned'], aligned = True)
 gen.add_function(name = 'magnitude_sc16', argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned'], aligned = True)
+gen.add_function(name = 'magnitude_u16o12', argtypes = ['const uint16_t *', 'uint16_t *', 'unsigned'], aligned = True)
 gen.add_function(name = 'magnitude_sc16q11', argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned'], aligned = True)
 gen.add_function(name = 'mean_power_u16', argtypes = ['const uint16_t *', 'unsigned', 'double *', 'double *'], aligned = True)
 

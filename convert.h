@@ -21,7 +21,7 @@
 #define DUMP1090_CONVERT_H
 
 struct converter_state;
-typedef enum { INPUT_UC8=0, INPUT_SC16, INPUT_SC16Q11 } input_format_t;
+typedef enum { INPUT_UC8=0, INPUT_SC16, INPUT_SC16Q11, INPUT_S16, INPUT_U16O12 } input_format_t;
 
 typedef void (*iq_convert_fn)(void *iq_data,
                               uint16_t *mag_data,
@@ -36,5 +36,8 @@ iq_convert_fn init_converter(input_format_t format,
                              struct converter_state **out_state);
 
 void cleanup_converter(struct converter_state *state);
+const char *formatGetName(input_format_t format_type);
+input_format_t formatGetByName(const char *name);
+int formatGetBytesPerSample(input_format_t format_type);
 
 #endif

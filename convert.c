@@ -91,6 +91,54 @@ static void convert_sc16q11(void *iq_data,
     }
 }
 
+static void convert_s16(void *iq_data,
+                            uint16_t *mag_data,
+                            unsigned nsamples,
+                            struct converter_state *state,
+                            double *out_mean_level,
+                            double *out_mean_power)
+{
+    MODES_NOTUSED(state);
+
+    const int16_t *in = (const int16_t *) iq_data;
+
+    if (STARCH_IS_ALIGNED(in) && STARCH_IS_ALIGNED(mag_data))
+        starch_magnitude_s16_aligned(in, mag_data, nsamples);
+    else
+        starch_magnitude_s16(in, mag_data, nsamples);
+
+    if (out_mean_level && out_mean_power) {
+        if (STARCH_IS_ALIGNED(mag_data))
+            starch_mean_power_u16_aligned(mag_data, nsamples, out_mean_level, out_mean_power);
+        else
+            starch_mean_power_u16(mag_data, nsamples, out_mean_level, out_mean_power);
+    }
+}
+
+static void convert_u16o12(void *iq_data,
+                            uint16_t *mag_data,
+                            unsigned nsamples,
+                            struct converter_state *state,
+                            double *out_mean_level,
+                            double *out_mean_power)
+{
+    MODES_NOTUSED(state);
+
+    const uint16_t *in = (const uint16_t *) iq_data;
+
+    if (STARCH_IS_ALIGNED(in) && STARCH_IS_ALIGNED(mag_data))
+        starch_magnitude_u16o12_aligned(in, mag_data, nsamples);
+    else
+        starch_magnitude_u16o12(in, mag_data, nsamples);
+
+    if (out_mean_level && out_mean_power) {
+        if (STARCH_IS_ALIGNED(mag_data))
+            starch_mean_power_u16_aligned(mag_data, nsamples, out_mean_level, out_mean_power);
+        else
+            starch_mean_power_u16(mag_data, nsamples, out_mean_level, out_mean_power);
+    }
+}
+
 iq_convert_fn init_converter(input_format_t format,
                              double sample_rate,
                              int filter_dc,
@@ -111,6 +159,10 @@ iq_convert_fn init_converter(input_format_t format,
         return convert_sc16;
     case INPUT_SC16Q11:
         return convert_sc16q11;
+    case INPUT_S16:
+        return convert_s16;
+    case INPUT_U16O12:
+        return convert_u16o12;
     default:
         fprintf(stderr, "no suitable converter for format=%d\n", format);
         return NULL;
