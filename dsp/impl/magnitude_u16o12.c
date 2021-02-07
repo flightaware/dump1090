@@ -1,5 +1,7 @@
+#include <stdlib.h>
 #include <math.h>
 #include <endian.h>
+#include "dsp/helpers/tables.h"
 
 /*
  * Convert (little-endian) unsigned 16 offset 12 ( Excess 2048 format)
@@ -81,7 +83,7 @@ void STARCH_IMPL(magnitude_u16o12, exact_unroll_8) (const uint16_t *in, uint16_t
     const uint16_t * restrict in_align = STARCH_ALIGNED(in);
     uint16_t * restrict out_align = STARCH_ALIGNED(out);
 
-    unsigned len8 = len >> 4;
+    unsigned len8 = len >> 3;
     unsigned len1 = len & 4;
 
     while (len8--) {
