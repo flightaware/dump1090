@@ -14,11 +14,6 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/default.mk
 
-ifeq ($(DEB_HOST_ARCH),armhf)
-  # Assume a Pi-like target, where using an 8-bit table is a fairly big win over the float path
-  CPPFLAGS += -DSC16Q11_TABLE_BITS=8
-endif
-
 override_dh_auto_build:
 	dh_auto_build -- RTLSDR=yes BLADERF=yes HACKRF=no LIMESDR=no DUMP1090_VERSION=$(DEB_VERSION)
 

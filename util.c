@@ -80,7 +80,7 @@ int64_t receiveclock_ms_elapsed(uint64_t t1, uint64_t t2)
 
 void normalize_timespec(struct timespec *ts)
 {
-    if (ts->tv_nsec > 1000000000) {
+    if (ts->tv_nsec >= 1000000000) {
         ts->tv_sec += ts->tv_nsec / 1000000000;
         ts->tv_nsec = ts->tv_nsec % 1000000000;
     } else if (ts->tv_nsec < 0) {

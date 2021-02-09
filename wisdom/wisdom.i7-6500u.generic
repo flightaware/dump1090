@@ -1,0 +1,43 @@
+# model name	: Intel(R) Core(TM) i7-6500U CPU @ 2.50GHz
+#
+# "performance" cpufreq governor @ 2.50 GHz
+
+magnitude_power_uc8                      twopass_generic                           # 72679 ns/call
+magnitude_power_uc8                      lookup_unroll_4_generic                   # 84247 ns/call
+magnitude_power_uc8                      lookup_generic                            # 87929 ns/call
+
+magnitude_power_uc8_aligned              twopass_generic                           # 68415 ns/call
+magnitude_power_uc8_aligned              lookup_unroll_4_generic                   # 71632 ns/call
+magnitude_power_uc8_aligned              lookup_generic                            # 79056 ns/call
+
+magnitude_sc16                           exact_float_generic                       # 1350012 ns/call
+magnitude_sc16                           exact_u32_generic                         # 2036183 ns/call
+
+magnitude_sc16_aligned                   exact_float_generic                       # 1340202 ns/call
+magnitude_sc16_aligned                   exact_u32_generic                         # 2035257 ns/call
+
+magnitude_sc16q11                        exact_float_generic                       # 523422 ns/call
+magnitude_sc16q11                        12bit_table_generic                       # 539142 ns/call
+magnitude_sc16q11                        11bit_table_generic                       # 613256 ns/call
+magnitude_sc16q11                        exact_u32_generic                         # 651178 ns/call
+
+magnitude_sc16q11_aligned                exact_float_generic                       # 520001 ns/call
+magnitude_sc16q11_aligned                12bit_table_generic                       # 539652 ns/call
+magnitude_sc16q11_aligned                11bit_table_generic                       # 616597 ns/call
+magnitude_sc16q11_aligned                exact_u32_generic                         # 649809 ns/call
+
+magnitude_uc8                            lookup_unroll_4_generic                   # 56626 ns/call
+magnitude_uc8                            lookup_generic                            # 57064 ns/call
+magnitude_uc8                            exact_generic                             # 809893 ns/call
+
+magnitude_uc8_aligned                    lookup_unroll_4_generic                   # 58632 ns/call
+magnitude_uc8_aligned                    lookup_generic                            # 62214 ns/call
+magnitude_uc8_aligned                    exact_generic                             # 808622 ns/call
+
+mean_power_u16                           u32_generic                               # 18135 ns/call
+mean_power_u16                           u64_generic                               # 39496 ns/call
+mean_power_u16                           float_generic                             # 105266 ns/call
+
+mean_power_u16_aligned                   u32_generic                               # 18155 ns/call
+mean_power_u16_aligned                   u64_generic                               # 39493 ns/call
+mean_power_u16_aligned                   float_generic                             # 105261 ns/call

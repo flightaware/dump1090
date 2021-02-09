@@ -105,7 +105,7 @@ void limesdrInitConfig()
     LimeSDR.is_stop = false;
     LimeSDR.verbosity = LMS_LOG_INFO;
     LimeSDR.oversample = 0; // default oversample
-    LimeSDR.gain = 0.75;
+    LimeSDR.gain = -1;
     LimeSDR.lpfbw = 2400000.0;
     LimeSDR.bw = 2.5e6; // the minimal supported value
     LimeSDR.serial[0] = '\0';
@@ -122,7 +122,7 @@ void limesdrShowHelp()
     printf("--limesdr-serial         serial number of desired device\n");
     printf("--limesdr-channel        set number of an RX channel\n");
     printf("--limesdr-oversample     set RF oversampling ratio\n");
-    printf("--limesdr-gain           set normalized gain\n");
+    printf("--limesdr-gain           set normalized gain (range: 0.0 to 1.0)\n");
     printf("--limesdr-lpfbw          set LPF bandwidth\n");
     printf("--limesdr-bw             set bandwidth\n");
     printf("\n");
@@ -273,9 +273,23 @@ bool limesdrOpen(void)
         goto error;
     }
 
-    if (LMS_SetNormalizedGain(LimeSDR.dev, LMS_CH_RX, LimeSDR.stream.channel, LimeSDR.gain)) {
-        limesdrLogHandler(LMS_LOG_ERROR, "unable to set gain");
-        goto error;
+    if (LimeSDR.gain >= 0) {
+        if (LMS_SetNormalizedGain(LimeSDR.dev, LMS_CH_RX, LimeSDR.stream.channel, LimeSDR.gain)) {
+            limesdrLogHandler(LMS_LOG_ERROR, "unable to set gain");
+            goto error;
+        }
+    } else {
+        if (Modes.gain == MODES_MAX_GAIN) {
+            if (LMS_SetNormalizedGain(LimeSDR.dev, LMS_CH_RX, LimeSDR.stream.channel, 1.0)) {
+                limesdrLogHandler(LMS_LOG_ERROR, "unable to set gain");
+                goto error;
+            }
+        } else {
+            if (LMS_SetGaindB(LimeSDR.dev, LMS_CH_RX, LimeSDR.stream.channel, Modes.gain / 10)) {
+                limesdrLogHandler(LMS_LOG_ERROR, "unable to set gain");
+                goto error;
+            }
+        }
     }
 
     if (LMS_SetLPFBW(LimeSDR.dev, LMS_CH_RX, LimeSDR.stream.channel, LimeSDR.lpfbw)) {

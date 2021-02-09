@@ -12,4 +12,8 @@ view1090
 faup1090
 package-wheezy
 oneoff/convert_benchmark
+oneoff/uc8_capture_stats
+oneoff/dsp_error_measurement
 oneoff/decode_comm_b
+starch-benchmark
+wisdom.local

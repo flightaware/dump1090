@@ -48,6 +48,7 @@
 //   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "dump1090.h"
+#include "cpu.h"
 
 #include <stdarg.h>
 
@@ -115,6 +116,7 @@ static void modesInitConfig(void) {
     Modes.net_heartbeat_interval  = MODES_NET_HEARTBEAT_INTERVAL;
     Modes.interactive_display_ttl = MODES_INTERACTIVE_DISPLAY_TTL;
     Modes.json_interval           = 1000;
+    Modes.json_stats_interval     = 60000;
     Modes.json_location_accuracy  = 1;
     Modes.maxRange                = 1852 * 300; // 300NM default max range
     Modes.mode_ac_auto            = 1;
@@ -258,16 +260,35 @@ static void showVersion()
 #ifdef ENABLE_LIMESDR
            "ENABLE_LIMESDR "
 #endif
-#ifdef SC16Q11_TABLE_BITS
-    // This is a little silly, but that's how the preprocessor works..
-#define _stringize(x) #x
-#define stringize(x) _stringize(x)
-           "SC16Q11_TABLE_BITS=" stringize(SC16Q11_TABLE_BITS)
-#undef stringize
-#undef _stringize
-#endif
            );
     printf("-----------------------------------------------------------------------------\n");
+}
+
+static void showDSP()
+{
+    printf("  detected runtime CPU features: ");
+    if (cpu_supports_avx())
+        printf("AVX ");
+    if (cpu_supports_avx2())
+        printf("AVX2 ");
+    if (cpu_supports_armv7_neon_vfpv4())
+        printf("ARMv7+NEON+VFPv4 ");
+    printf("\n");
+
+    printf("  selected DSP implementations: \n");
+#define SHOW(x) do {                                                    \
+        printf("    %-40s %s\n", #x , starch_ ## x ## _select()->name);  \
+        printf("    %-40s %s\n", #x "_aligned", starch_ ## x ## _aligned_select()->name); \
+    } while(0)
+
+    SHOW(magnitude_uc8);
+    SHOW(magnitude_power_uc8);
+    SHOW(magnitude_sc16);
+    SHOW(magnitude_sc16q11);
+    SHOW(mean_power_u16);
+
+#undef SHOW
+
     printf("\n");
 }
 
@@ -284,6 +305,10 @@ static void showHelp(void)
 "--freq <hz>              Set frequency (default: 1090 Mhz)\n"
 "--interactive            Interactive mode refreshing data on screen. Implies --throttle\n"
 "--interactive-ttl <sec>  Remove from list if idle for <sec> (default: 60)\n"
+"--interactive-show-distance   Show aircraft distance and bearing instead of lat/lon\n"
+"                              (requires --lat and --lon)\n"
+"--interactive-distance-units  Distance units ('km', 'sm', 'nm') (default: 'nm')\n"
+"--interactive-callsign-filter Only callsigns that match the prefix or regex will be displayed\n"
 "--raw                    Show only messages hex values\n"
 "--net                    Enable networking with default ports unless overridden\n"
 "--modeac                 Enable decoding of SSR Modes 3/A & 3/C\n"
@@ -321,19 +346,28 @@ static void showHelp(void)
 "--quiet                  Disable output to stdout. Use for daemon applications\n"
 "--show-only <addr>       Show only messages from the given ICAO on stdout\n"
 "--write-json <dir>       Periodically write json output to <dir> (for serving by a separate webserver)\n"
-"--write-json-every <t>   Write json output every t seconds (default 1)\n"
+"--write-json-every <t>   Write json aircraft output every t seconds (default 1)\n"
+"--json-stats-every <t>   Write json stats output every t seconds (default 60)\n"
 "--json-location-accuracy <n>  Accuracy of receiver location in json metadata: 0=no location, 1=approximate, 2=exact\n"
+#if 0
 "--dcfilter               Apply a 1Hz DC filter to input data (requires more CPU)\n"
-"--version                Show version and build options\n"
+#endif
+"--wisdom <path>          Read DSP wisdom from given path\n"
+"--version                Show version, build and DSP options\n"
 "--help                   Show this help\n"
     );
 }
 
-static void display_total_stats(void)
+// Accumulate stats data from stats_current to stats_periodic, stats_alltime and stats_latest;
+// reset stats_current
+static void flush_stats(uint64_t now)
 {
-    struct stats added;
-    add_stats(&Modes.stats_alltime, &Modes.stats_current, &added);
-    display_stats(&added);
+    add_stats(&Modes.stats_current, &Modes.stats_periodic, &Modes.stats_periodic);
+    add_stats(&Modes.stats_current, &Modes.stats_alltime, &Modes.stats_alltime);
+    add_stats(&Modes.stats_current, &Modes.stats_latest, &Modes.stats_latest);
+
+    reset_stats(&Modes.stats_current);
+    Modes.stats_current.start = Modes.stats_current.end = now;
 }
 
 //
@@ -346,6 +380,7 @@ static void display_total_stats(void)
 static void backgroundTasks(void) {
     static uint64_t next_stats_display;
     static uint64_t next_stats_update;
+    static uint64_t next_json_stats_update;
     static uint64_t next_json, next_history;
 
     uint64_t now = mstime();
@@ -369,41 +404,41 @@ static void backgroundTasks(void) {
     // always update end time so it is current when requests arrive
     Modes.stats_current.end = mstime();
 
+    // 1-minute stats update
     if (now >= next_stats_update) {
         int i;
 
         if (next_stats_update == 0) {
             next_stats_update = now + 60000;
         } else {
-            Modes.stats_latest_1min = (Modes.stats_latest_1min + 1) % 15;
-            Modes.stats_1min[Modes.stats_latest_1min] = Modes.stats_current;
+            flush_stats(now); // Ensure stats_latest is up to date
 
-            add_stats(&Modes.stats_current, &Modes.stats_alltime, &Modes.stats_alltime);
-            add_stats(&Modes.stats_current, &Modes.stats_periodic, &Modes.stats_periodic);
+            // move stats_latest into 1-min ring buffer
+            Modes.stats_newest_1min = (Modes.stats_newest_1min + 1) % 15;
+            Modes.stats_1min[Modes.stats_newest_1min] = Modes.stats_latest;
+            reset_stats(&Modes.stats_latest);
 
+            // recalculate 5-min window
             reset_stats(&Modes.stats_5min);
             for (i = 0; i < 5; ++i)
-                add_stats(&Modes.stats_1min[(Modes.stats_latest_1min - i + 15) % 15], &Modes.stats_5min, &Modes.stats_5min);
+                add_stats(&Modes.stats_1min[(Modes.stats_newest_1min - i + 15) % 15], &Modes.stats_5min, &Modes.stats_5min);
 
+            // recalculate 15-min window
             reset_stats(&Modes.stats_15min);
             for (i = 0; i < 15; ++i)
                 add_stats(&Modes.stats_1min[i], &Modes.stats_15min, &Modes.stats_15min);
-
-            reset_stats(&Modes.stats_current);
-            Modes.stats_current.start = Modes.stats_current.end = now;
-
-            if (Modes.json_dir)
-                writeJsonToFile("stats.json", generateStatsJson);
 
             next_stats_update += 60000;
         }
     }
 
+    // --stats-every display
     if (Modes.stats && now >= next_stats_display) {
         if (next_stats_display == 0) {
             next_stats_display = now + Modes.stats;
         } else {
-            add_stats(&Modes.stats_periodic, &Modes.stats_current, &Modes.stats_periodic);
+            flush_stats(now); // Ensure stats_periodic is up to date
+
             display_stats(&Modes.stats_periodic);
             reset_stats(&Modes.stats_periodic);
 
@@ -412,6 +447,17 @@ static void backgroundTasks(void) {
                 /* something has gone wrong, perhaps the system clock jumped */
                 next_stats_display = now + Modes.stats;
             }
+        }
+    }
+
+    // json stats update
+    if (Modes.json_dir && now >= next_json_stats_update) {
+        if (next_json_stats_update == 0) {
+            next_json_stats_update = now + Modes.json_stats_interval;
+        } else {
+            flush_stats(now); // Ensure everything we'll write is up to date
+            writeJsonToFile("stats.json", generateStatsJson);
+            next_json_stats_update += Modes.json_stats_interval;
         }
     }
 
@@ -484,7 +530,11 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[j],"--gain") && more) {
             Modes.gain = (int) (atof(argv[++j])*10); // Gain is in tens of DBs
         } else if (!strcmp(argv[j],"--dcfilter")) {
+#if 0
             Modes.dc_filter = 1;
+#else
+            fprintf(stderr, "--dcfilter option ignored (please raise an issue on github if you have a usecase that needs this)\n");
+#endif
         } else if (!strcmp(argv[j],"--measure-noise")) {
             // Ignored
         } else if (!strcmp(argv[j],"--fix")) {
@@ -571,7 +621,20 @@ int main(int argc, char **argv) {
             Modes.interactive = 1;
         } else if (!strcmp(argv[j],"--interactive-ttl") && more) {
             Modes.interactive_display_ttl = (uint64_t)(1000 * atof(argv[++j]));
-        } else if (!strcmp(argv[j],"--lat") && more) {
+        } else if (!strcmp(argv[j],"--interactive-show-distance")) {
+            Modes.interactive_show_distance = 1;
+        } else if (!strcmp(argv[j], "--interactive-distance-units") && more) {
+            char *units = argv[++j];
+            if (!strcmp(units, "km")) {
+                Modes.interactive_distance_units = UNIT_KILOMETERS;
+            } else if (!strcmp(units, "sm")) {
+                Modes.interactive_distance_units = UNIT_STATUTE_MILES;
+            } else {
+                Modes.interactive_distance_units = UNIT_NAUTICAL_MILES;
+            }
+        } else if (!strcmp(argv[j], "--interactive-callsign-filter") && more) {
+            Modes.interactive_callsign_filter = strdup(argv[++j]);
+        } else if (!strcmp(argv[j], "--lat") && more) {
             Modes.fUserLat = atof(argv[++j]);
         } else if (!strcmp(argv[j],"--lon") && more) {
             Modes.fUserLon = atof(argv[++j]);
@@ -587,6 +650,8 @@ int main(int argc, char **argv) {
             Modes.stats_range_histo = 1;
         } else if (!strcmp(argv[j],"--stats-every") && more) {
             Modes.stats = (uint64_t) (1000 * atof(argv[++j]));
+        } else if (!strcmp(argv[j],"--json-stats-every") && more) {
+            Modes.json_stats_interval = (uint64_t) (1000 * atof(argv[++j]));
         } else if (!strcmp(argv[j],"--snip") && more) {
             snipMode(atoi(argv[++j]));
             exit(0);
@@ -595,6 +660,7 @@ int main(int argc, char **argv) {
             exit(0);
         } else if (!strcmp(argv[j],"--version")) {
             showVersion();
+            showDSP();
             exit(0);
         } else if (!strcmp(argv[j],"--quiet")) {
             Modes.quiet = 1;
@@ -612,6 +678,12 @@ int main(int argc, char **argv) {
                 Modes.json_interval = 100;
         } else if (!strcmp(argv[j], "--json-location-accuracy") && more) {
             Modes.json_location_accuracy = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--wisdom") && more) {
+            if (starch_read_wisdom (argv[++j]) < 0) {
+                fprintf(stderr,
+                        "Failed to read wisdom file %s: %s\n", argv[j], strerror(errno));
+                exit(1);
+            }
         } else if (sdrHandleOption(argc, argv, &j)) {
             /* handled */
         } else {
@@ -651,6 +723,7 @@ int main(int argc, char **argv) {
     Modes.stats_current.start = Modes.stats_current.end =
         Modes.stats_alltime.start = Modes.stats_alltime.end =
         Modes.stats_periodic.start = Modes.stats_periodic.end =
+        Modes.stats_latest.start = Modes.stats_latest.end =
         Modes.stats_5min.start = Modes.stats_5min.end =
         Modes.stats_15min.start = Modes.stats_15min.end = mstime();
 
@@ -698,7 +771,7 @@ int main(int argc, char **argv) {
                     demodulate2400AC(buf);
                 }
 
-                Modes.stats_current.samples_processed += buf->validLength;
+                Modes.stats_current.samples_processed += buf->validLength - buf->overlap;
                 Modes.stats_current.samples_dropped += buf->dropped;
                 end_cpu_timing(&start_time, &Modes.stats_current.demod_cpu);
 
@@ -727,9 +800,10 @@ int main(int argc, char **argv) {
 
     interactiveCleanup();
 
-    // If --stats were given, print statistics
+    // If --stats was given, print final statistics
     if (Modes.stats) {
-        display_total_stats();
+        flush_stats(0);
+        display_stats(&Modes.stats_alltime);
     }
 
     sdrClose();

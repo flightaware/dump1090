@@ -31,7 +31,7 @@ Examples:
 | rangeRings | show/hide | 
 | ringCount | integer |
 | ringBaseDistance | integer |
-| ringInteval | integer | 
+| ringInterval | integer |
 
 
 

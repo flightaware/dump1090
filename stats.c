@@ -78,64 +78,70 @@ void display_stats(struct stats *st) {
 
     if (!Modes.net_only) {
         printf("Local receiver:\n");
-        printf("  %llu samples processed\n",                        (unsigned long long)st->samples_processed);
-        printf("  %llu samples dropped\n",                          (unsigned long long)st->samples_dropped);
+        printf("  %12llu samples processed\n",                        (unsigned long long)st->samples_processed);
+        printf("  %12llu samples dropped\n",                          (unsigned long long)st->samples_dropped);
 
-        printf("  %u Mode A/C messages received\n",                 st->demod_modeac);
-        printf("  %u Mode-S message preambles received\n",          st->demod_preambles);
-        printf("    %u with bad message format or invalid CRC\n",   st->demod_rejected_bad);
-        printf("    %u with unrecognized ICAO address\n",           st->demod_rejected_unknown_icao);
-        printf("    %u accepted with correct CRC\n",                st->demod_accepted[0]);
+        printf("  %12u Mode A/C messages received\n",                 st->demod_modeac);
+        printf("  %12u Mode-S message preambles received\n",          st->demod_preambles);
+        printf("    %12u with bad message format or invalid CRC\n",   st->demod_rejected_bad);
+        printf("    %12u with unrecognized ICAO address\n",           st->demod_rejected_unknown_icao);
+        printf("    %12u accepted with correct CRC\n",                st->demod_accepted[0]);
         for (j = 1; j <= Modes.nfix_crc; ++j)
-            printf("    %u accepted with %d-bit error repaired\n", st->demod_accepted[j], j);
+            printf("    %12u accepted with %d-bit error repaired\n", st->demod_accepted[j], j);
 
         if (st->noise_power_sum > 0 && st->noise_power_count > 0) {
-            printf("  %.1f dBFS noise power\n",
+            printf("  %5.1f dBFS noise power\n",
                    10 * log10(st->noise_power_sum / st->noise_power_count));
+        } else {
+            printf("  ----- dBFS noise power\n");
         }
 
         if (st->signal_power_sum > 0 && st->signal_power_count > 0) {
-            printf("  %.1f dBFS mean signal power\n",
+            printf("  %5.1f dBFS mean signal power\n",
                    10 * log10(st->signal_power_sum / st->signal_power_count));
+        } else {
+            printf("  ----- dBFS mean signal power\n");
         }
 
         if (st->peak_signal_power > 0) {
-            printf("  %.1f dBFS peak signal power\n",
+            printf("  %5.1f dBFS peak signal power\n",
                    10 * log10(st->peak_signal_power));
+        } else {
+            printf("  ----- dBFS peak signal power\n");
         }
 
-        printf("  %u messages with signal power above -3dBFS\n",
+        printf("  %5u messages with signal power above -3dBFS\n",
                st->strong_signal_count);
     }
 
     if (Modes.net) {
         printf("Messages from network clients:\n");
-        printf("  %u Mode A/C messages received\n",               st->remote_received_modeac);
-        printf("  %u Mode S messages received\n",                 st->remote_received_modes);
-        printf("    %u with bad message format or invalid CRC\n", st->remote_rejected_bad);
-        printf("    %u with unrecognized ICAO address\n",         st->remote_rejected_unknown_icao);
-        printf("    %u accepted with correct CRC\n",              st->remote_accepted[0]);
+        printf("  %8u Mode A/C messages received\n",               st->remote_received_modeac);
+        printf("  %8u Mode S messages received\n",                 st->remote_received_modes);
+        printf("    %8u with bad message format or invalid CRC\n", st->remote_rejected_bad);
+        printf("    %8u with unrecognized ICAO address\n",         st->remote_rejected_unknown_icao);
+        printf("    %8u accepted with correct CRC\n",              st->remote_accepted[0]);
         for (j = 1; j <= Modes.nfix_crc; ++j)
-            printf("    %u accepted with %d-bit error repaired\n", st->remote_accepted[j], j);
+            printf("    %8u accepted with %d-bit error repaired\n", st->remote_accepted[j], j);
     }
 
     printf("%u total usable messages\n",
            st->messages_total);
 
-    printf("%u surface position messages received\n"
-           "%u airborne position messages received\n"
-           "%u global CPR attempts with valid positions\n"
-           "%u global CPR attempts with bad data\n"
-           "  %u global CPR attempts that failed the range check\n"
-           "  %u global CPR attempts that failed the speed check\n"
-           "%u global CPR attempts with insufficient data\n"
-           "%u local CPR attempts with valid positions\n"
-           "  %u aircraft-relative positions\n"
-           "  %u receiver-relative positions\n"
-           "%u local CPR attempts that did not produce useful positions\n"
-           "  %u local CPR attempts that failed the range check\n"
-           "  %u local CPR attempts that failed the speed check\n"
-           "%u CPR messages that look like transponder failures filtered\n",
+    printf("%8u surface position messages received\n"
+           "%8u airborne position messages received\n"
+           "%8u global CPR attempts with valid positions\n"
+           "%8u global CPR attempts with bad data\n"
+           "  %8u global CPR attempts that failed the range check\n"
+           "  %8u global CPR attempts that failed the speed check\n"
+           "%8u global CPR attempts with insufficient data\n"
+           "%8u local CPR attempts with valid positions\n"
+           "  %8u aircraft-relative positions\n"
+           "  %8u receiver-relative positions\n"
+           "%8u local CPR attempts that did not produce useful positions\n"
+           "  %8u local CPR attempts that failed the range check\n"
+           "  %8u local CPR attempts that failed the speed check\n"
+           "%8u CPR messages that look like transponder failures filtered\n",
            st->cpr_surface,
            st->cpr_airborne,
            st->cpr_global_ok,
@@ -151,20 +157,20 @@ void display_stats(struct stats *st) {
            st->cpr_local_speed_checks,
            st->cpr_filtered);
 
-    printf("%u non-ES altitude messages from ES-equipped aircraft ignored\n", st->suppressed_altitude_messages);
-    printf("%u unique aircraft tracks\n", st->unique_aircraft);
-    printf("%u aircraft tracks where only one message was seen\n", st->single_message_aircraft);
-    printf("%u aircraft tracks which were not marked reliable\n", st->unreliable_aircraft);
+    printf("%8u non-ES altitude messages from ES-equipped aircraft ignored\n", st->suppressed_altitude_messages);
+    printf("%8u unique aircraft tracks\n", st->unique_aircraft);
+    printf("%8u aircraft tracks where only one message was seen\n", st->single_message_aircraft);
+    printf("%8u aircraft tracks which were not marked reliable\n", st->unreliable_aircraft);
 
     {
         uint64_t demod_cpu_millis = (uint64_t)st->demod_cpu.tv_sec*1000UL + st->demod_cpu.tv_nsec/1000000UL;
         uint64_t reader_cpu_millis = (uint64_t)st->reader_cpu.tv_sec*1000UL + st->reader_cpu.tv_nsec/1000000UL;
         uint64_t background_cpu_millis = (uint64_t)st->background_cpu.tv_sec*1000UL + st->background_cpu.tv_nsec/1000000UL;
 
-        printf("CPU load: %.1f%%\n"
-               "  %llu ms for demodulation\n"
-               "  %llu ms for reading from USB\n"
-               "  %llu ms for network input and background tasks\n",
+        printf("CPU load: %5.1f%%\n"
+               "  %5llu ms for demodulation\n"
+               "  %5llu ms for reading from USB\n"
+               "  %5llu ms for network input and background tasks\n",
                100.0 * (demod_cpu_millis + reader_cpu_millis + background_cpu_millis) / (st->end - st->start + 1),
                (unsigned long long) demod_cpu_millis,
                (unsigned long long) reader_cpu_millis,

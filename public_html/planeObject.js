@@ -103,31 +103,71 @@ function PlaneObject(icao) {
                 }
 
                 if (this.selected) {
-		        refreshSelected();
+                        refreshSelected();
                 }
         }.bind(this));
 }
 
 PlaneObject.prototype.isFiltered = function() {
+    // aircraft type filter
+    if (this.filter.aircraftTypeCode) {
+        if (this.icaotype === null || (typeof this.icaotype === 'string' && !this.icaotype.toUpperCase().trim().match(this.filter.aircraftTypeCode))) {
+                return true;
+        }
+    }
+
+    // aircraft ident filter
+    if (this.filter.aircraftIdent) {
+        if (this.flight === null || (typeof this.flight === 'string' && !this.flight.toUpperCase().trim().match(this.filter.aircraftIdent))) {
+                return true;
+        }
+    }
+
+    var dataSource = this.getDataSource();
+    if (dataSource === 'adsb_icao') {
+        if (!this.filter.ADSB) return true;
+    } else if (dataSource === 'mlat') {
+        if (!this.filter.MLAT) return true;
+    } else if (dataSource === 'tisb_trackfile' || dataSource === 'tisb_icao' || dataSource === 'tisb_other') {
+        if (!this.filter.TISB) return true;
+    } else {
+        if (!this.filter.Other) return true;
+    }
+
     if (this.filter.minAltitude !== undefined && this.filter.maxAltitude !== undefined) {
         if (this.altitude === null || this.altitude === undefined) {
-            return true;
+                return true;
         }
+
         var planeAltitude = this.altitude === "ground" ? 0 : convert_altitude(this.altitude, this.filter.altitudeUnits);
-        return planeAltitude < this.filter.minAltitude || planeAltitude > this.filter.maxAltitude;
+        var isFilteredByAltitude = planeAltitude < this.filter.minAltitude || planeAltitude > this.filter.maxAltitude;
+        if (isFilteredByAltitude) {
+                return true;
+        }
+    }
+    if (this.filter.minSpeedFilter !== undefined && this.filter.maxSpeedFilter !== undefined) {
+        if (this.speed === null || this.speed === undefined) {
+                return true;
+        }
+
+        var convertedSpeed = convert_speed(this.speed, this.filter.speedUnits)
+        var isFilteredBySpeed = convertedSpeed < this.filter.minSpeedFilter || convertedSpeed > this.filter.maxSpeedFilter;
+        if (isFilteredBySpeed) {
+                return true;
+        }
     }
 
     // filter out ground vehicles
     if (typeof this.filter.groundVehicles !== 'undefined' && this.filter.groundVehicles === 'filtered') {
         if (typeof this.category === 'string' && this.category.startsWith('C')) {
-            return true;
+                return true;
         }
     }
 
     // filter out blocked MLAT flights
     if (typeof this.filter.blockedMLAT !== 'undefined' && this.filter.blockedMLAT === 'filtered') {
         if (typeof this.icao === 'string' && this.icao.startsWith('~')) {
-            return true;
+                return true;
         }
     }
 
@@ -458,17 +498,16 @@ PlaneObject.prototype.updateIcon = function() {
 
 // Update our data
 PlaneObject.prototype.updateData = function(receiver_timestamp, data) {
-	// Update all of our data
-	this.messages	= data.messages;
-        this.rssi       = data.rssi;
-	this.last_message_time = receiver_timestamp - data.seen;
+        // Update all of our data
+        this.messages = data.messages;
+        this.rssi = data.rssi;
+        this.last_message_time = receiver_timestamp - data.seen;
 
         // simple fields
-
         var fields = ["alt_baro", "alt_geom", "gs", "ias", "tas", "track",
                       "track_rate", "mag_heading", "true_heading", "mach",
-					  "roll", "nav_heading", "nav_modes",
-					  "nac_p", "nac_v", "nic_baro", "sil_type", "sil",
+                      "roll", "nav_heading", "nav_modes",
+                      "nac_p", "nac_v", "nic_baro", "sil_type", "sil",
                       "nav_qnh", "baro_rate", "geom_rate", "rc",
                       "squawk", "category", "version"];
 
@@ -555,38 +594,38 @@ PlaneObject.prototype.updateTick = function(receiver_timestamp, last_timestamp) 
         this.seen = receiver_timestamp - this.last_message_time;
         this.seen_pos = (this.last_position_time === null ? null : receiver_timestamp - this.last_position_time);
         
-	// If no packet in over 58 seconds, clear the plane.
-	if (this.seen > 58) {
+        // If no packet in over 58 seconds, clear the plane.
+        if (this.seen > 58) {
                 if (this.visible) {
                         //console.log("hiding " + this.icao);
                         this.clearMarker();
                         this.visible = false;
-			if (SelectedPlane == this.icao)
+                        if (SelectedPlane == this.icao)
                                 selectPlaneByHex(null,false);
                 }
-	} else {
+        } else {
                 if (this.position !== null && (this.selected || this.seen_pos < 60)) {
-			this.visible = true;
-			if (this.updateTrack(receiver_timestamp, last_timestamp)) {
+                        this.visible = true;
+                        if (this.updateTrack(receiver_timestamp, last_timestamp)) {
                                 this.updateLines();
                                 this.updateMarker(true);
                         } else { 
                                 this.updateMarker(false); // didn't move
                         }
                 } else {
-			this.clearMarker();
-			this.visible = false;
-		}
-	}
+                        this.clearMarker();
+                        this.visible = false;
+                }
+        }
 };
 
 PlaneObject.prototype.clearMarker = function() {
-	if (this.marker) {
+        if (this.marker) {
                 PlaneIconFeatures.remove(this.marker);
                 PlaneIconFeatures.remove(this.markerStatic);
                 /* FIXME google.maps.event.clearListeners(this.marker, 'click'); */
                 this.marker = this.markerStatic = null;
-	}
+        }
 };
 
 // Update our marker on the map

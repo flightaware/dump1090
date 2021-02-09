@@ -81,6 +81,7 @@
 #include <limits.h>
 
 #include "compat/compat.h"
+#include "dsp/generated/starch.h"
 
 // ============================= #defines ===============================
 
@@ -162,6 +163,12 @@ typedef enum {
     UNIT_FEET,
     UNIT_METERS
 } altitude_unit_t;
+
+typedef enum {
+    UNIT_NAUTICAL_MILES,
+    UNIT_STATUTE_MILES,
+    UNIT_KILOMETERS,
+} interactive_distance_unit_t;
 
 typedef enum {
     ALTITUDE_BARO,
@@ -336,6 +343,10 @@ struct _Modes {                             // Internal state
     uint32_t show_only;              // Only show messages from this ICAO
     int   interactive;               // Interactive mode
     uint64_t interactive_display_ttl;// Interactive mode: TTL display
+    int interactive_display_size;    // Size of TTL display
+    int   interactive_show_distance; // Show aircraft distance and bearing instead of lat/lon
+    interactive_distance_unit_t interactive_distance_units; // Units for interactive distance display
+    char *interactive_callsign_filter; // Filter for interactive display callsigns
     uint64_t stats;                  // Interval (millis) between stats dumps,
     int   stats_range_histo;         // Collect/show a range histogram?
     int   onlyaddr;                  // Print only ICAO addresses
@@ -344,6 +355,7 @@ struct _Modes {                             // Internal state
     int   mlat;                      // Use Beast ascii format for raw data output, i.e. @...; iso *...;
     char *json_dir;                  // Path to json base directory, or NULL not to write json.
     uint64_t json_interval;          // Interval between rewriting the json aircraft file, in milliseconds; also the advertised map refresh interval
+    uint64_t json_stats_interval;    // Interval between rewriting the json stats file, in milliseconds
     int   json_location_accuracy;    // Accuracy of location metadata: 0=none, 1=approx, 2=exact
 
     int   json_aircraft_history_next;
@@ -362,13 +374,14 @@ struct _Modes {                             // Internal state
     struct aircraft *aircrafts;
 
     // Statistics
-    struct stats stats_current;
-    struct stats stats_alltime;
-    struct stats stats_periodic;
-    struct stats stats_1min[15];
-    int stats_latest_1min;
-    struct stats stats_5min;
-    struct stats stats_15min;
+    struct stats stats_current;     // Currently accumulating stats, this is where all stats are initially collected
+    struct stats stats_alltime;     // Accumulated stats since the start of the process
+    struct stats stats_periodic;    // Accumulated stats since the last periodic stats display (--stats-every)
+    struct stats stats_latest;      // Accumulated stats since the end of the last 1-minute period
+    struct stats stats_1min[15];    // Accumulated stats for a full 1-minute window; this is a ring buffer maintaining a history of 15 minutes
+    int stats_newest_1min;          // Index into stats_1min of the most recent 1-minute window
+    struct stats stats_5min;        // Accumulated stats from the last 5 complete 1-minute windows
+    struct stats stats_15min;       // Accumulated stats from the last 15 complete 1-minute windows
 };
 
 extern struct _Modes Modes;

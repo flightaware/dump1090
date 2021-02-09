@@ -1,3 +1,9 @@
+dump1090-fa (4.1~dev) UNRELEASED; urgency=medium
+
+  * in development
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Thu, 01 Oct 2020 13:46:07 +0800
+
 dump1090-fa (4.0) stable; urgency=medium
 
   * dump1090: Build support for OS X, FreeBSD, OpenBSD [courtesy @mikenor / @apparentorder on Github, PRs #33 / #38]

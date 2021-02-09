@@ -1820,16 +1820,21 @@ static char * appendStatsJson(char *p,
 }
 
 char *generateStatsJson(const char *url_path, int *len) {
-    struct stats add;
-    char *buf = (char *) malloc(4096), *p = buf, *end = buf + 4096;
+    const size_t bufsize = 4096;
+    char *buf = malloc(bufsize), *p = buf, *end = buf + bufsize;
+    if (!buf) {
+        // allocation failed, give up
+        *len = 0;
+        return NULL;
+    }
 
     MODES_NOTUSED(url_path);
 
     p = safe_snprintf(p, end, "{\n");
-    p = appendStatsJson(p, end, &Modes.stats_current, "latest");
+    p = appendStatsJson(p, end, &Modes.stats_latest, "latest");
     p = safe_snprintf(p, end, ",\n");
 
-    p = appendStatsJson(p, end, &Modes.stats_1min[Modes.stats_latest_1min], "last1min");
+    p = appendStatsJson(p, end, &Modes.stats_1min[Modes.stats_newest_1min], "last1min");
     p = safe_snprintf(p, end, ",\n");
 
     p = appendStatsJson(p, end, &Modes.stats_5min, "last5min");
@@ -1838,13 +1843,15 @@ char *generateStatsJson(const char *url_path, int *len) {
     p = appendStatsJson(p, end, &Modes.stats_15min, "last15min");
     p = safe_snprintf(p, end, ",\n");
 
-    add_stats(&Modes.stats_alltime, &Modes.stats_current, &add);
-    p = appendStatsJson(p, end, &add, "total");
+    p = appendStatsJson(p, end, &Modes.stats_alltime, "total");
     p = safe_snprintf(p, end, "\n}\n");
 
-    assert(p < end);
+    if (p <= end) {
+        *len = p-buf;
+    } else {
+        *len = 0; // ran out of buffer space, give up
+    }
 
-    *len = p-buf;
     return buf;
 }
 

@@ -1,0 +1,20 @@
+#!/bin/sh -e
+
+# This script generates a machine-specific wisdom file for dump1090-fa
+# (containing information about which DSP implementations are fastest)
+
+WORKDIR=$(mktemp -t -d wisdom.XXXXXX)
+
+echo "Benchmarking .. this will take a while." >&2
+
+# generate initial wisdom so that twopass implementations have something to work with
+echo "First pass: generating $WORKDIR/wisdom.initial" >&2
+/usr/lib/dump1090-fa/starch-benchmark -i 5 -o $WORKDIR/wisdom.initial magnitude_uc8 magnitude_uc8_aligned mean_power_u16 mean_power_u16_aligned
+
+# generate the real wisdom
+echo "Second pass: generating $WORKDIR/wisdom.local" >&2
+/usr/lib/dump1090-fa/starch-benchmark -i 5 -r $WORKDIR/wisdom.initial -o $WORKDIR/wisdom.local
+
+echo "Wisdom written to $WORKDIR/wisdom.local" >&2
+echo "Copy this file to /etc/dump1090-fa/wisdom.local" >&2
+echo "(and restart dump1090-fa) to start using it." >&2
