@@ -84,6 +84,12 @@ var checkbox_div_map = new Map ([
 
 ]);
 
+var DefaultMinMaxFilters = {
+        'nautical': {min: 0, maxSpeed: 1000, maxAltitude: 65000},       // kt, ft
+        'metric' : {min: 0, maxSpeed: 1000, maxAltitude: 20000},        // km/h, m
+        'imperial' : {min: 0, maxSpeed: 600, maxAltitude: 65000}        // mph, ft
+};
+
 function processReceiverUpdate(data) {
 	// Loop through all the planes in the data packet
         var now = data.now;
@@ -302,79 +308,12 @@ function initialize() {
         // Initialize other controls
         initializeUnitsSelector();
 
-        altitude_slider = document.getElementById('altitude_slider');
-
-        noUiSlider.create(altitude_slider, {
-                start: [0, 65000],
-                connect: true,
-                range: {
-                    'min': DefaultMinAltitudeFilter,
-                    'max': DefaultMaxAltitudeFilter
-                },
-                step: 25,
-                format: {
-                        to: (v) => parseFloat(v).toFixed(0),
-                        from: (v) => parseFloat(v).toFixed(0)
-                    }
-            });
-
-        var minAltitudeInput = document.getElementById('minAltitudeText'),
-            maxAltitudeInput = document.getElementById('maxAltitudeText');
-
-        altitude_slider.noUiSlider.on('update', function (values, handle) {
-                if (handle) {
-                        maxAltitudeInput.innerHTML = values[handle];
-                } else {
-                        minAltitudeInput.innerHTML = values[handle];
-                }
-        });
-
-        altitude_slider.noUiSlider.on('set', function (values, handle) {
-                onFilterByAltitude();
-        });
-
         // check if the altitude color values are default to enable the altitude filter
         if (ColorByAlt.air.h.length === 3 && ColorByAlt.air.h[0].alt === 2000 && ColorByAlt.air.h[0].val === 20 && ColorByAlt.air.h[1].alt === 10000 && ColorByAlt.air.h[1].val === 140 && ColorByAlt.air.h[2].alt === 40000 && ColorByAlt.air.h[2].val === 300) {
             customAltitudeColors = false;
         }
 
-        speed_slider = document.getElementById('speed_slider');
-
-        noUiSlider.create(speed_slider, {
-                start: [0, 1000],
-                connect: true,
-                range: {
-                    'min': DefaultMinSpeedFilter,
-                    'max': DefaultMaxSpeedFilter
-                },
-                step: 5,
-                format: {
-                        // 'to' the formatted value. Receives a number.
-                        to: function (value) {
-                            return value;
-                        },
-                        // 'from' the formatted value.
-                        // Receives a string, should return a number.
-                        from: function (value) {
-                            return value;
-                        }
-                    }
-            });
-
-        var minSpeedInput = document.getElementById('minSpeedText'),
-            maxSpeedInput = document.getElementById('maxSpeedText');
-
-            speed_slider.noUiSlider.on('update', function (values, handle) {
-                if (handle) {
-                        maxSpeedInput.innerHTML = values[handle];
-                } else {
-                        minSpeedInput.innerHTML = values[handle];
-                }
-        });
-
-        speed_slider.noUiSlider.on('set', function (values, handle) {
-                onFilterBySpeed();
-        });
+        create_filter_sliders();
 
         $("#aircraft_type_filter_form").submit(onFilterByAircraftType);
         $("#aircraft_type_filter_reset_button").click(onResetAircraftTypeFilter);
@@ -509,6 +448,105 @@ function initialize() {
                         initialize_map();
                         start_load_history();
                 });
+}
+
+function create_filter_sliders() {
+        var maxAltitude = DefaultMinMaxFilters[DisplayUnits].maxAltitude;
+        var minAltitude = DefaultMinMaxFilters[DisplayUnits].min;
+        var maxSpeed = DefaultMinMaxFilters[DisplayUnits].maxSpeed;
+        var minSpeed = DefaultMinMaxFilters[DisplayUnits].min;
+
+        altitude_slider = document.getElementById('altitude_slider');
+
+        noUiSlider.create(altitude_slider, {
+                start: [minAltitude, maxAltitude],
+                connect: true,
+                range: {
+                    'min': minAltitude,
+                    'max': maxAltitude
+                },
+                step: 25,
+                format: {
+                        to: (v) => parseFloat(v).toFixed(0),
+                        from: (v) => parseFloat(v).toFixed(0)
+                    }
+            });
+
+        // Change text to reflect slider values
+        var minAltitudeInput = document.getElementById('minAltitudeText'),
+            maxAltitudeInput = document.getElementById('maxAltitudeText');
+
+        altitude_slider.noUiSlider.on('update', function (values, handle) {
+                if (handle) {
+                        maxAltitudeInput.innerHTML = values[handle];
+                } else {
+                        minAltitudeInput.innerHTML = values[handle];
+                }
+        });
+
+        // 'Set' event - Whenever a slider is changed to a new value, this event is fired. This function will trigger every time a slider stops changing, including after calls to the .set() method. This event can be considered as the 'end of slide'.
+        altitude_slider.noUiSlider.on('set', function (values, handle) {
+                onFilterByAltitude();
+        });
+
+        speed_slider = document.getElementById('speed_slider');
+
+        noUiSlider.create(speed_slider, {
+                start: [minSpeed, maxSpeed],
+                connect: true,
+                range: {
+                    'min': minSpeed,
+                    'max': maxSpeed
+                },
+                step: 5,
+                format: {
+                        to: (v) => parseFloat(v).toFixed(0),
+                        from: (v) => parseFloat(v).toFixed(0)
+                    }
+            });
+
+        // Change text to reflect slider values
+        var minSpeedInput = document.getElementById('minSpeedText'),
+            maxSpeedInput = document.getElementById('maxSpeedText');
+
+            speed_slider.noUiSlider.on('update', function (values, handle) {
+                if (handle) {
+                        maxSpeedInput.innerHTML = values[handle];
+                } else {
+                        minSpeedInput.innerHTML = values[handle];
+                }
+        });
+
+        // 'Set' event - Whenever a slider is changed to a new value, this event is fired. This function will trigger every time a slider stops changing, including after calls to the .set() method. This event can be considered as the 'end of slide'.
+        speed_slider.noUiSlider.on('set', function (values, handle) {
+                onFilterBySpeed();
+        });
+}
+
+function reset_filter_sliders() {
+        var maxAltitude = DefaultMinMaxFilters[DisplayUnits].maxAltitude;
+        var minAltitude = DefaultMinMaxFilters[DisplayUnits].min;
+        var maxSpeed = DefaultMinMaxFilters[DisplayUnits].maxSpeed;
+        var minSpeed = DefaultMinMaxFilters[DisplayUnits].min;
+
+        altitude_slider.noUiSlider.updateOptions({
+                start: [minAltitude, maxAltitude],
+                range: {
+                        'min': minAltitude,
+                        'max': maxAltitude
+                }
+        });
+
+        speed_slider.noUiSlider.updateOptions({
+                start: [minSpeed, maxSpeed],
+                range: {
+                        'min': minSpeed,
+                        'max': maxSpeed
+                }
+        });
+
+        // Update filters
+        updatePlaneFilter();
 }
 
 var CurrentHistoryFetch = null;
@@ -2034,6 +2072,9 @@ function onDisplayUnitsChanged(e) {
     refreshSelected();
     refreshHighlighted();
 
+    // Reset filter sliders on Display Units change
+    reset_filter_sliders();
+
     // Redraw range rings
     if (SitePosition !== null && SitePosition !== undefined && SiteCircles) {
         createSiteCircleFeatures();
@@ -2197,8 +2238,8 @@ function updatePlaneFilter() {
     PlaneFilter.aircraftTypeCode = aircraftTypeCode;
     PlaneFilter.aircraftIdent = aircraftIdent;
 
-    var altitudeFilterSet = (PlaneFilter.minAltitude == DefaultMinAltitudeFilter && PlaneFilter.maxAltitude == DefaultMaxAltitudeFilter) ? 0 : 1;
-    var speedFilterSet = (PlaneFilter.minSpeedFilter == DefaultMinSpeedFilter && PlaneFilter.maxSpeedFilter == DefaultMaxSpeedFilter) ? 0 : 1;
+    var altitudeFilterSet = (PlaneFilter.minAltitude == DefaultMinMaxFilters[DisplayUnits].min && PlaneFilter.maxAltitude == DefaultMinMaxFilters[DisplayUnits].maxAltitude) ? 0 : 1;
+    var speedFilterSet = (PlaneFilter.minSpeedFilter == DefaultMinMaxFilters[DisplayUnits].min && PlaneFilter.maxSpeedFilter == DefaultMinMaxFilters[DisplayUnits].maxSpeed) ? 0 : 1;
     var aircraftTypeFilterSet = (PlaneFilter.aircraftTypeCode == undefined) ? 0 : 1;
     var aircraftIdentFilterSet = (PlaneFilter.aircraftIdent == undefined) ? 0 : 1;
 
