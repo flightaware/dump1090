@@ -45,6 +45,7 @@ ifeq ($(UNAME), Linux)
   CPPFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb-1.0
+  LIBS_CURSES := -lncurses
   CPUFEATURES ?= yes
 endif
 
@@ -56,6 +57,7 @@ ifeq ($(UNAME), Darwin)
   CPPFLAGS += -DMISSING_NANOSLEEP
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
   LIBS_USB += -lusb-1.0
+  LIBS_CURSES := -lncurses
   CPUFEATURES ?= yes
 endif
 
@@ -63,12 +65,21 @@ ifeq ($(UNAME), OpenBSD)
   CPPFLAGS += -DMISSING_NANOSLEEP
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
   LIBS_USB += -lusb-1.0
+  LIBS_CURSES := -lncurses
 endif
 
 ifeq ($(UNAME), FreeBSD)
   CPPFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb
+  LIBS_CURSES := -lncurses
+endif
+
+ifeq ($(UNAME), NetBSD)
+  CFLAGS += -D_DEFAULT_SOURCE
+  LIBS += -lrt
+  LIBS_USB += -lusb-1.0
+  LIBS_CURSES := -lcurses
 endif
 
 CPUFEATURES ?= no
@@ -176,10 +187,10 @@ showconfig:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 dump1090: dump1090.o anet.o interactive.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o demod_2400.o stats.o cpr.o icao_filter.o track.o util.o convert.o ais_charset.o $(SDR_OBJ) $(COMPAT) $(CPUFEATURES_OBJS) $(STARCH_OBJS)
-	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS) $(LIBS_SDR) -lncurses
+	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS) $(LIBS_SDR) $(LIBS_CURSES)
 
 view1090: view1090.o anet.o interactive.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o stats.o cpr.o icao_filter.o track.o util.o ais_charset.o $(COMPAT)
-	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS) -lncurses
+	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS) $(LIBS_CURSES)
 
 faup1090: faup1090.o anet.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o stats.o cpr.o icao_filter.o track.o util.o ais_charset.o $(COMPAT)
 	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS)
