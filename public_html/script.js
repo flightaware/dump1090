@@ -214,6 +214,9 @@ var PositionHistorySize = 0;
 function initialize() {
         // Set page basics
         document.title = PageName;
+        if (SiteStats) {
+                $('#flightaware_radar_stats').attr("href", SiteStats);
+        }
 
         flightFeederCheck();
 

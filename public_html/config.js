@@ -35,6 +35,10 @@ SiteShow    = false;           // true to show a center marker
 SiteLat     = 45.0;            // position of the marker
 SiteLon     = 9.0;
 SiteName    = "My Radar Site"; // tooltip of the marker
+// FlightAware stats page for this receiver.
+// Defaults to https://flightaware.com/adsb/stats/user/ which
+// redirects to the user's stats page if the user is logged in.
+SiteStats   = "";
 
 // -- Marker settings -------------------------------------
 
