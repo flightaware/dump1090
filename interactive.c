@@ -103,7 +103,7 @@ void interactiveNoConnection(void) {
 void interactiveShowData(void) {
     struct aircraft *a = Modes.aircrafts;
     static uint64_t next_update;
-    static _Bool need_clear = true;
+    static bool need_clear = true;
     uint64_t now = mstime();
     char progress;
     char spinner[4] = "|/-\\";
