@@ -1,36 +1,72 @@
-html, body {
-	-ms-overflow-style: -ms-autohiding-scrollbar;
-    margin: 0; padding: 0; background-color: #ffffff; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 10pt; overflow: hidden; height: 100%;
+:root {
+    color-scheme: light dark;
+    --body-bgcolor: #ffffff;
+    --modal-bgcolor: #dddddd;
+    --body-text: #222222;
+    --head-text: #444444;
+    --title-text: #002F5D;
+    --link-default: #0000C8;
+    --link-hover: #d77925;
+    --error-text: red;
+    --error-border: red;
+    --error-background: #FFFFA3;
 }
 
-#layout_container { 
+@media (prefers-color-scheme: dark) {
+    :root {
+        --body-bgcolor: #000000;
+        --modal-bgcolor: #333333;
+        --body-text: #eeeeee;
+        --head-text: #cccccc;
+        --title-text: #ffffff;
+        --link-default: rgba(0, 160, 226, 1);
+        --link-hover: #de914b;
+        --error-text: red;
+        --error-border: red;
+        --error-background: #FFFFA3;
+    }
+}
+
+html,
+body {
+    -ms-overflow-style: -ms-autohiding-scrollbar;
+    margin: 0;
+    padding: 0;
+    background-color: var(--body-bgcolor);
+    color: var(--body-text);
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    overflow: hidden;
+    height: 100%;
+}
+
+#layout_container {
     display: flex;
     height: calc(100% - 60px);
 }
 
 #selected_infoblock {
-	position: absolute;
-	bottom: 0;
-	margin: 0;
-    background: #ffffff;
-	width: 100%;
-	height: 400px;
+    position: absolute;
+    bottom: 0;
+    margin: 0;
+    background: #var(--body-bgcolor);
+    width: 100%;
+    height: 400px;
 }
 .infoblock-container {
-	overflow: scroll;
-	height: 100%;
+    overflow: scroll;
+    height: 100%;
 }
-#sidebar_canvas { 
-    	padding: 10px;
-	overflow: auto;
+#sidebar_canvas {
+    padding: 10px;
+    overflow: auto;
 }
 #sidebar_container {
-	display: flex;
-	flex-direction: column;
+    display: flex;
+    flex-direction: column;
     width: 500px;
-	left: 0 !important;
-	height: 100%;
+    left: 0 !important;
+    height: 100%;
 }
 
 #map_container {
@@ -74,7 +110,6 @@ html, body {
     display: table-cell;
     width: 100%;
     left: 5px;
-
 }
 
 #toggle_sidebar_control {
@@ -130,7 +165,6 @@ html, body {
     background-size: cover;
 }
 
-
 #splitter {
     cursor: ew-resize;
     display: block;
@@ -150,43 +184,43 @@ html, body {
 }
 
 #splitter-infoblock {
-	cursor: ns-resize;
-	display: inline-block;
-	position: absolute	;
-	top: 0px;
-	right: 0;
-	margin-left: auto;
-	width: 24px;
-	height: 4px;
-	background-size: 24px 25px;
-	background-repeat: no-repeat;
-	background-position: 0px;
-	border: none;
-	width: 100%;
-	border-bottom: #234c75;
-	background-color: #65819e;
-	border-bottom-width: 1px;
-	border-bottom-style: solid;
+    cursor: ns-resize;
+    display: inline-block;
+    position: absolute;
+    top: 0px;
+    right: 0;
+    margin-left: auto;
+    width: 24px;
+    height: 4px;
+    background-size: 24px 25px;
+    background-repeat: no-repeat;
+    background-position: 0px;
+    border: none;
+    width: 100%;
+    border-bottom: #234c75;
+    background-color: #65819e;
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
 }
 #close-button {
-	display: inline-block;
-	position: absolute;
-	top: 18px;
-	color: #00A0E2;
-	right: 30px;
-	margin-left: auto;
-	font-size: 75%;
-	text-decoration: underline;
-	cursor: pointer;
-	background: #fff;
-	padding: 3px;
-	border-radius: 2px;
+    display: inline-block;
+    position: absolute;
+    top: 18px;
+    color: #00a0e2;
+    right: 30px;
+    margin-left: auto;
+    font-size: 75%;
+    text-decoration: underline;
+    cursor: pointer;
+    background-color: var(--body-bgcolor);
+    padding: 3px;
+    border-radius: 2px;
 }
 
 .ol-zoom-in {
     background-image: url("images/zoom-in.png");
     background-size: cover;
-    color:transparent !important;
+    color: transparent !important;
     width: 19px !important;
     height: 19px !important;
     background-color: transparent !important;
@@ -196,7 +230,7 @@ html, body {
 .ol-zoom-out {
     background-image: url("images/zoom-out.png");
     background-size: cover;
-    color:transparent !important;
+    color: transparent !important;
     width: 19px !important;
     height: 19px !important;
     background-color: transparent !important;
@@ -207,21 +241,61 @@ html, body {
     left: 10px !important;
 }
 
+div#SpecialSquawkWarning {
+    position: absolute;
+    bottom: 25px;
+    right: 430px;
+    border: 2px solid red;
+    background-color: #ffffa3;
+    opacity: 0.75;
+    filter: alpha(opacity=75);
+    padding: 5px;
+    text-align: center;
+}
 
+div#update_error {
+    position: absolute;
+    bottom: 25px;
+    left: 25px;
+    border: 2px solid red;
+    background-color: #ffffa3;
+    opacity: 0.75;
+    filter: alpha(opacity=75);
+    padding: 5px;
+    text-align: center;
+}
 
-div#SpecialSquawkWarning { position: absolute; bottom: 25px; right: 430px; border: 2px solid red;
-    background-color: #FFFFA3; opacity: 0.75; filter:alpha(opacity=75); padding: 5px;
-    text-align: center; }
+div#loader {
+    z-index: 99;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    background: #000;
+    opacity: 0.8;
+    filter: alpha(opacity=80);
+}
+#spinny {
+    width: 128px;
+    height: 128px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin: -64px 0 0 -64px;
+}
+#loader_progress {
+    width: 250px;
+    height: 20px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin: 128px 0 0 -125px;
+}
 
-div#update_error { position: absolute; bottom: 25px; left: 25px; border: 2px solid red;
-    background-color: #FFFFA3; opacity: 0.75; filter:alpha(opacity=75); padding: 5px;
-    text-align: center; }
-
-div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right: 0; background: #000; opacity: 0.8; filter: alpha(opacity=80); }
-#spinny { width: 128px; height: 128px; position: absolute; top: 50%; left: 50%; margin: -64px 0 0 -64px; }
-#loader_progress { width: 250px; height: 20px; position: absolute; top: 50%; left: 50%; margin: 128px 0 0 -125px; }
-
-#tableinfo { font-size: small; }
+#tableinfo {
+    font-size: small;
+}
 
 #sudo_buttons {
     display: flex;
@@ -235,9 +309,9 @@ div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right:
     margin: 10px 0 10px 0;
 }
 
-.aircraft_table_header { 
-    background-color: #002F5D;
-    color: #FFFFFF;
+.aircraft_table_header {
+    background-color: #002f5d;
+    color: #ffffff;
     cursor: pointer;
     white-space: nowrap;
 }
@@ -251,7 +325,7 @@ div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right:
 }
 
 .verticalRateTriangle {
-    font-family: "Courier New",monospace;
+    font-family: "Courier New", monospace;
 }
 
 .icaoCodeColumn {
@@ -259,41 +333,80 @@ div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right:
     text-transform: uppercase;
 }
 
-.vPosition  { background-color: #E5F6FC; }
-.uat        { background-color: #CDF7D0; }
-.mlat       { background-color: #FDF2E5; }
-.other      { background-color: #CCD5F8; }
-.tisb       { background-color: #FFF3B8; }
-.squawk7500 { font-weight: bold; background-color: #ff5555; }
-.squawk7600 { font-weight: bold; background-color: #00ffff; }
-.squawk7700 { font-weight: bold; background-color: #ffff00; }
-.selected   { background-color: #dddddd; }
-.plane_table_row { 
+.vPosition {
+    background-color: #e5f6fc;
+}
+.uat {
+    background-color: #cdf7d0;
+}
+.mlat {
+    background-color: #fdf2e5;
+}
+.other {
+    background-color: #ccd5f8;
+}
+.tisb {
+    background-color: #fff3b8;
+}
+.squawk7500 {
+    font-weight: bold;
+    background-color: #ff5555;
+}
+.squawk7600 {
+    font-weight: bold;
+    background-color: #00ffff;
+}
+.squawk7700 {
+    font-weight: bold;
+    background-color: #ffff00;
+}
+.selected {
+    background-color: #dddddd;
+}
+.plane_table_row {
     cursor: pointer;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-.ident_normal { font-weight: normal; font-style: normal; }
-.ident_fallback { font-weight: bold; font-style: italic; }
-.hidden { display: none; }
+.ident_normal {
+    font-weight: normal;
+    font-style: normal;
+}
+.ident_fallback {
+    font-weight: bold;
+    font-style: italic;
+}
+.hidden {
+    display: none;
+}
 
-.infoblock_heading    { font-size: larger; }
-.infoblock_heading a  { text-decoration: none; color: blue; font-size: x-small;}
+.infoblock_heading {
+    font-size: larger;
+}
+.infoblock_heading a {
+    text-decoration: none;
+   font-size: x-small;
+}
 
-.dim    { opacity: 0.3; filter:alpha(opacity=30); /* For IE8 and earlier */ }
+.dim {
+    opacity: 0.3;
+    filter: alpha(opacity=30); /* For IE8 and earlier */
+}
 
-.pointer { cursor: pointer; }
+.pointer {
+    cursor: pointer;
+}
 
 .sidebarButton {
-     background-color: #409EDF;
-     padding: 4px 15px 4px 15px;
-     color: #FFFFFF;
-     font-weight: normal;
-     font-size: small;
+    background-color: #409edf;
+    padding: 4px 15px 4px 15px;
+    color: #ffffff;
+    font-weight: normal;
+    font-size: small;
 }
 
 .sidebarButton:hover {
-     background-color: #3c6ea3;
+    background-color: #3c6ea3;
 }
 
 .altitudeFilterInput {
@@ -310,17 +423,19 @@ div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right:
 }
 
 .rangeOptions {
-	width: 170px;
-	padding-top: 8px;
-	text-indent: 10px;
+    width: 170px;
+    padding-top: 8px;
+    text-indent: 10px;
 }
 
 .set_range_rings_button {
-	padding-top: 8px;
+    padding-top: 8px;
 }
 
-select.error, textarea.error, input.error {
-    color: #FF0000;
+select.error,
+textarea.error,
+input.error {
+    color: #ff0000;
 }
 
 .layer-switcher {
@@ -330,8 +445,7 @@ select.error, textarea.error, input.error {
 }
 
 /* new css */
-.rangeRingText
-{
+.rangeRingText {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: bold;
     font-size: 8px;
@@ -339,13 +453,12 @@ select.error, textarea.error, input.error {
     color: rgb(51, 51, 51);
 }
 
-.dateTime
-{
+.dateTime {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: bold;
     font-size: 14px;
     line-height: 18px;
-    color: #FFFFFF;
+    color: #ffffff;
     color: rgb(255, 255, 255);
     line-height: 60px;
     text-align: right;
@@ -355,14 +468,14 @@ select.error, textarea.error, input.error {
 
 .infoHeading {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-	font-size: 12px;
-	font-weight: bold;
+    font-size: 12px;
+    font-weight: bold;
     line-height: 16px;
-    color: #002F5D;
+    color: #002f5d;
 }
 
 .infoHeading sub {
-	font-weight: normal;
+    font-weight: normal;
 }
 
 .infoData {
@@ -373,79 +486,81 @@ select.error, textarea.error, input.error {
 }
 
 .sectionTitle {
-	width: 100%;
-	text-transform: uppercase;
-	color: #fff;
-	background: #002F5D;
-	font-size: 14px;
+    width: 100%;
+    text-transform: uppercase;
+    color: #fff;
+    background: #002f5d;
+    font-size: 14px;
 }
 
 .section-title-content {
-	padding: 5px 20px;
+    padding: 5px 20px;
 }
 
-.legend
-{
+.legend {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     width: 100%;
     font-size: 12px;
-    color: #000000;
-    color: rgb(0, 0, 0);
+    color: #000000; /* keep this fixed; the legends are in little colored bubbles */
     display: inline-flex;
     justify-content: flex-end;
     padding-top: 10px;
 }
 
-.settingsHeading
-{
+.settingsHeading {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 14px;
     line-height: 20px;
-    color: #002F5D;
-    color: rgb(0, 47, 93);
+    color: var(--title-text);
 }
 
-.settingsText
-{
+.settingsText {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 14px;
     line-height: 20px;
     text-indent: 16px;
-    color: rgb(0, 0, 0);
+    color: var(--body-text);
 }
 
-.link
-{
+a {
+    color: var(--link-default);
+    text-decoration: underline;
+}
+a:visited {
+    color: var(--link-default);
+}
+a:hover {
+    color: var(--link-hover);
+}
+
+.link {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 10px;
     line-height: 20px;
-    color: #0000C8;
-    color: rgb(0, 0, 200);
-    text-decoration: underline;
 }
 
 #header {
     width: 100%;
     height: 60px;
-    background: #002F5D;
-    background: -webkit-linear-gradient(#002F5D, #002F5D 60%, #021624);
-    background: -moz-linear-gradient(#002F5D, #002F5D 60%, #021624);
-    background: -ms-linear-gradient(#002F5D, #002F5D 60%, #021624);
-    background: linear-gradient(#002F5D, #002F5D 60%, #021624);
+    background: #002f5d;
+    background: -webkit-linear-gradient(#002f5d, #002f5d 60%, #021624);
+    background: -moz-linear-gradient(#002f5d, #002f5d 60%, #021624);
+    background: -ms-linear-gradient(#002f5d, #002f5d 60%, #021624);
+    background: linear-gradient(#002f5d, #002f5d 60%, #021624);
     display: flex;
     box-shadow: -6px 0px 8px #999999;
     z-index: 99999;
 }
 
 .flightawareLogo {
-    background-color: #FFF;
+    background-color: #fff;
     padding-top: 7px;
     padding-bottom: 6px;
     padding-left: 20px;
     padding-right: 20px;
     width: 121px;
     height: 46px;
-    box-shadow:inset -12px 0 12px -12px #000000;
+    box-shadow: inset -12px 0 12px -12px #000000;
 }
 
 .adsbLogo {
@@ -471,12 +586,11 @@ select.error, textarea.error, input.error {
     margin-left: auto;
 }
 
-.buttonText
-{
+.buttonText {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: bold;
     font-size: 12px;
-    color: #FFFFFF;
+    color: #ffffff;
     color: rgb(255, 255, 255);
     line-height: 28px;
     padding-left: 10px;
@@ -484,7 +598,7 @@ select.error, textarea.error, input.error {
 }
 
 .button {
-    background: #00A0E2;
+    background: #00a0e2;
     background: rgba(0, 160, 226, 1);
     min-width: 80px;
     height: 28px;
@@ -497,8 +611,9 @@ select.error, textarea.error, input.error {
     text-align: center;
 }
 
-.lightblue-link, .lightblue-link a {
-	color: #00A0E2;
+.lightblue-link,
+.lightblue-link a {
+    color: #00a0e2;
 }
 
 .buttonHeader {
@@ -523,7 +638,7 @@ select.error, textarea.error, input.error {
     top: 60px;
     min-width: 168px;
     padding-right: 5px;
-    background: #ffffff;
+    background-color: var(--body-bgcolor);
     box-shadow: 4px 4px 10px #444444;
     cursor: pointer;
     z-index: 9999;
@@ -532,9 +647,9 @@ select.error, textarea.error, input.error {
 
 .highlightedTitle {
     height: 36px;
-    border-bottom: 1px solid #00A0E2;
+    border-bottom: 1px solid #00a0e2;
     padding-left: 18px;
-	padding-top: 18px;
+    padding-top: 18px;
 }
 
 .highlightedInfo {
@@ -545,7 +660,7 @@ select.error, textarea.error, input.error {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 24px;
     line-height: 20px;
-    color: #002F5D;
+    color: #002f5d;
     color: rgb(0, 47, 93);
     font-weight: lighter;
 }
@@ -555,7 +670,7 @@ select.error, textarea.error, input.error {
     font-size: 12px;
     font-weight: bold;
     line-height: 20px;
-    color: #00A0E2;
+    color: #00a0e2;
     color: rgb(0, 160, 226);
 }
 
@@ -580,10 +695,10 @@ select.error, textarea.error, input.error {
 }
 
 .infoRowLine {
-	width: 49%;
-	display: inline-block;
-	padding-top: 2px;
-	padding-bottom: 2px;
+    width: 49%;
+    display: inline-block;
+    padding-top: 2px;
+    padding-bottom: 2px;
 }
 
 .removePadding {
@@ -623,7 +738,7 @@ select.error, textarea.error, input.error {
 
 .infoBlockTitleText {
     font-weight: bold;
-    color: #002F5D;
+    color: var(--title-text);
 }
 
 .legendBox {
@@ -650,7 +765,7 @@ select.error, textarea.error, input.error {
     top: 60px;
     width: 398px;
     min-height: 180px;
-    background: #ffffff;
+    background-color: var(--body-bgcolor);
     box-shadow: 4px 4px 10px #444444;
     padding: 20px;
     z-index: 9999;
@@ -666,10 +781,12 @@ select.error, textarea.error, input.error {
     padding-bottom: 10px;
 }
 
-.settingsCheckbox, .columnSelectCheckbox, .columnSelectAllCheckbox {
+.settingsCheckbox,
+.columnSelectCheckbox,
+.columnSelectAllCheckbox {
     width: 20px;
     height: 11px;
-    background-image: url('images/box-empty.png');
+    background-image: url("images/box-empty.png");
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
@@ -677,13 +794,13 @@ select.error, textarea.error, input.error {
 }
 
 .settingsCheckboxChecked {
-    background-image: url('images/box-checked.png') !important;
+    background-image: url("images/box-checked.png") !important;
 }
 
 .sourceCheckbox {
     width: 13px;
     height: 13px;
-    background-image: url('images/box-empty.png');
+    background-image: url("images/box-empty.png");
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
@@ -693,14 +810,14 @@ select.error, textarea.error, input.error {
 }
 
 .sourceCheckboxChecked {
-    background-image: url('images/box-checked.png') !important;
+    background-image: url("images/box-checked.png") !important;
 }
 
 .settingsCloseBox {
     position: absolute;
     right: 8px;
     top: 8px;
-    background-image: url('images/close-settings.png');
+    background-image: url("images/close-settings.png");
     background-size: cover;
     width: 20px;
     height: 20px;
@@ -722,7 +839,7 @@ select.error, textarea.error, input.error {
 }
 
 #altitude_chart_button {
-    background-image: url('images/alt_legend_feet.svg');
+    background-image: url("images/alt_legend_feet.svg");
     background-size: cover;
     background-color: transparent;
     width: 100%;
@@ -732,7 +849,7 @@ select.error, textarea.error, input.error {
 }
 
 .altitudeMeters {
-    background-image: url('images/alt_legend_meters.svg') !important;
+    background-image: url("images/alt_legend_meters.svg") !important;
 }
 
 /* remove the blue highlighting around the map buttons */
@@ -741,54 +858,54 @@ select.error, textarea.error, input.error {
 }
 
 .bottom-container {
-	width: 100%;
-	margin-top: 8px;
-	padding: 40px 0px;
-	text-align: center;
-	background-color: #eee;
+    width: 100%;
+    margin-top: 8px;
+    padding: 40px 0px;
+    text-align: center;
+    background-color: #eee;
 }
 #selected_flightaware_link a {
-	background-color: #00a0e2;
-	color: white;
-	text-decoration: none;
-	padding: 10px;
-	border-radius: 4px;
-	float: right;
-	margin-right: 25px;
-	margin-top: 10px;
+    background-color: #00a0e2;
+    color: white;
+    text-decoration: none;
+    padding: 10px;
+    border-radius: 4px;
+    float: right;
+    margin-right: 25px;
+    margin-top: 10px;
 }
 .bottom-info-container {
-	padding-top: 10px;
-	padding-bottom: 10px;
-	text-align: center;
-	color: #002F5D;
-	line-height: 18px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-align: center;
+    color: #002f5d;
+    line-height: 18px;
 }
 .bottom-info-container img {
-	vertical-align: middle;
+    vertical-align: middle;
 }
 .bottom-info-container .bottom-info-text {
-	vertical-align: middle;
-	display: inline;
+    vertical-align: middle;
+    display: inline;
 }
 .selected_airframe a {
-	color: #002F5D;
+    color: #002f5d;
 }
 
 .infoblock-container-small .infoRowFluid {
-	display: block;
+    display: block;
 }
 
 /* Retina 2x images */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) { 
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
     .settingsCloseBox {
-        background-image: url('images/close-settings@2x.png');
+        background-image: url("images/close-settings@2x.png");
     }
     .settingsCheckboxChecked {
-        background-image: url('images/box-checked@2x.png') !important;
+        background-image: url("images/box-checked@2x.png") !important;
     }
     .settingsCheckbox {
-        background-image: url('images/box-empty@2x.png');
+        background-image: url("images/box-empty@2x.png");
     }
     .ol-zoom-out {
         background-image: url("images/zoom-out@2x.png");
@@ -808,15 +925,15 @@ select.error, textarea.error, input.error {
 }
 
 /* Retina 3x images */
-@media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 192dpi) { 
+@media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 192dpi) {
     .settingsCloseBox {
-        background-image: url('images/close-settings@3x.png');
+        background-image: url("images/close-settings@3x.png");
     }
     .settingsCheckboxChecked {
-        background-image: url('images/box-checked@3x.png') !important;
+        background-image: url("images/box-checked@3x.png") !important;
     }
     .settingsCheckbox {
-        background-image: url('images/box-empty@3x.png');
+        background-image: url("images/box-empty@3x.png");
     }
     .ol-zoom-out {
         background-image: url("images/zoom-out@3x.png");
@@ -837,8 +954,8 @@ select.error, textarea.error, input.error {
 
 .config_button {
     position: relative;
-    background-color: #FEBC11;
-    color: #002F5D;
+    background-color: #febc11;
+    color: #002f5d;
     cursor: pointer;
     text-align: center;
     width: auto;
@@ -854,7 +971,7 @@ select.error, textarea.error, input.error {
 .stats_button {
     position: relative;
     background-color: rgba(0, 160, 226, 1);
-    color: #FFFFFF;
+    color: #ffffff;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: bold;
     font-size: 12px;
@@ -865,10 +982,10 @@ select.error, textarea.error, input.error {
     -moz-border-radius: 4px;
     margin-top: 5px;
     padding: 5px 8px 5px 8px;
-
 }
 
-.config_button:hover, .config_button_active {
+.config_button:hover,
+.config_button_active {
     background-color: #abcad8;
 }
 
@@ -879,13 +996,13 @@ select.error, textarea.error, input.error {
 }
 
 .panel {
-    background-color: white;
+    background-color: var(--body-bgcolor);
     position: relative;
     padding: 3px 3px 10px 3px;
     display: none;
     margin-bottom: 5px;
     border: solid;
-    border-color: #002F5D;
+    border-color: #002f5d;
     height: auto;
     border-radius: 4px;
     -webkit-border-radius: 4px;
@@ -895,9 +1012,10 @@ select.error, textarea.error, input.error {
 .wrapper {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-  }
+}
 
-#altitude_slider, #speed_slider {
+#altitude_slider,
+#speed_slider {
     position: relative;
     display: block;
     margin-left: 10px;
@@ -912,20 +1030,21 @@ select.error, textarea.error, input.error {
     float: right;
 }
 
-.noUi-horizontal .noUi-handle, .noUi-vertical .noUi-handle {
-    background: #FEBC11;
+.noUi-horizontal .noUi-handle,
+.noUi-vertical .noUi-handle {
+    background: #febc11;
     height: 20px !important;
     width: 10px !important;
     right: -5px !important; /*  must be (width / 2) * -1 */
-
 }
 
-.noUi-handle:before, .noUi-handle:after {
+.noUi-handle:before,
+.noUi-handle:after {
     display: none !important;
 }
 
 .noUi-connect {
-    background: #00A0E2 !important;
+    background: #00a0e2 !important;
 }
 
 #aircraft_type_filter_form,
@@ -941,9 +1060,9 @@ select.error, textarea.error, input.error {
     -webkit-border-radius: 4px;
     -moz-border-radius: 4px;
     background-clip: padding-box;
-    border: 1px solid #e5e9f9;
-    background: #fff;
-    color: #060d46;
+    border: 1px solid var(--modal-bgcolor);
+    background-color: var(--body-bgcolor);
+    color: var(--body-color);
     width: auto;
 }
 
