@@ -2,14 +2,71 @@ PROGNAME=dump1090
 
 DUMP1090_VERSION ?= unknown
 
-CPPFLAGS += -I. -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
+CPPFLAGS += -I. -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -D_DEFAULT_SOURCE -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
 
 DIALECT = -std=c11
-CFLAGS += $(DIALECT) -O3 -g -Wall -Wmissing-declarations -Werror -W -D_DEFAULT_SOURCE -fno-common
+CFLAGS += $(DIALECT) -O3 -g -Wall -Wmissing-declarations -Werror -W -fno-common
 LIBS = -lpthread -lm
 SDR_OBJ = cpu.o sdr.o fifo.o sdr_ifile.o dsp/helpers/tables.o
 
+BIN_PATH = ./build
+OBJ_PATH = ./build/obj/
+MKDIR_P = mkdir -p
+CPU_FEATURES_PATH = ../external/cpu_features
+
+ifeq ($(OS),Windows_NT) 
+  DETECTED_OS := Windows
+else
+  DETECTED_OS := $(shell sh -c 'uname 2>/dev/null || echo Unknown')
+endif
+
+ifeq ($(DETECTED_OS), Linux)
+  LIBS += -lrt
+  LIBS_USB += -lusb-1.0
+  LIBS_CURSES := -lncurses
+  CPUFEATURES ?= yes
+endif
+
+ifeq ($(DETECTED_OS), Darwin)
+  ifneq ($(shell sw_vers -productVersion | egrep '^10\.([0-9]|1[01])\.'),) # Mac OS X ver <= 10.11
+    CPPFLAGS += -DMISSING_GETTIME
+    COMPAT += compat/clock_gettime/clock_gettime.o
+  endif
+  CPPFLAGS += -DMISSING_NANOSLEEP
+  COMPAT += compat/clock_nanosleep/clock_nanosleep.o
+  LIBS_USB += -lusb-1.0
+  LIBS_CURSES := -lncurses
+  CPUFEATURES ?= yes
+endif
+
+ifeq ($(DETECTED_OS), OpenBSD)
+  CPPFLAGS += -DMISSING_NANOSLEEP
+  COMPAT += compat/clock_nanosleep/clock_nanosleep.o
+  LIBS_USB += -lusb-1.0
+  LIBS_CURSES := -lncurses
+  CPUFEATURES ?= yes
+endif
+
+# TODO: Does google/cpu_features support FreeBSD and NetBSD?
+
+ifeq ($(DETECTED_OS), FreeBSD)
+  LIBS += -lrt
+  LIBS_USB += -lusb
+  LIBS_CURSES := -lncurses
+endif
+
+ifeq ($(DETECTED_OS), NetBSD)
+  LIBS += -lrt
+  LIBS_USB += -lusb-1.0
+  LIBS_CURSES := -lcurses
+endif
+
+##
+## SDR Libraries
+##
+
 # Try to autodetect available libraries via pkg-config if no explicit setting was used
+
 PKGCONFIG=$(shell pkg-config --version >/dev/null 2>&1 && echo "yes" || echo "no")
 ifeq ($(PKGCONFIG), yes)
   ifndef RTLSDR
@@ -38,59 +95,6 @@ else
   HACKRF ?= no
   LIMESDR ?= no
 endif
-
-UNAME := $(shell uname)
-
-ifeq ($(UNAME), Linux)
-  CPPFLAGS += -D_DEFAULT_SOURCE
-  LIBS += -lrt
-  LIBS_USB += -lusb-1.0
-  LIBS_CURSES := -lncurses
-  CPUFEATURES ?= yes
-endif
-
-ifeq ($(UNAME), Darwin)
-  ifneq ($(shell sw_vers -productVersion | egrep '^10\.([0-9]|1[01])\.'),) # Mac OS X ver <= 10.11
-    CPPFLAGS += -DMISSING_GETTIME
-    COMPAT += compat/clock_gettime/clock_gettime.o
-  endif
-  CPPFLAGS += -DMISSING_NANOSLEEP
-  COMPAT += compat/clock_nanosleep/clock_nanosleep.o
-  LIBS_USB += -lusb-1.0
-  LIBS_CURSES := -lncurses
-  CPUFEATURES ?= yes
-endif
-
-ifeq ($(UNAME), OpenBSD)
-  CPPFLAGS += -DMISSING_NANOSLEEP
-  COMPAT += compat/clock_nanosleep/clock_nanosleep.o
-  LIBS_USB += -lusb-1.0
-  LIBS_CURSES := -lncurses
-endif
-
-ifeq ($(UNAME), FreeBSD)
-  CPPFLAGS += -D_DEFAULT_SOURCE
-  LIBS += -lrt
-  LIBS_USB += -lusb
-  LIBS_CURSES := -lncurses
-endif
-
-ifeq ($(UNAME), NetBSD)
-  CFLAGS += -D_DEFAULT_SOURCE
-  LIBS += -lrt
-  LIBS_USB += -lusb-1.0
-  LIBS_CURSES := -lcurses
-endif
-
-CPUFEATURES ?= no
-
-ifeq ($(CPUFEATURES),yes)
-  include Makefile.cpufeatures
-  CPPFLAGS += -DENABLE_CPUFEATURES -Iexternal/cpu_features/include
-endif
-
-RTLSDR ?= yes
-BLADERF ?= yes
 
 ifeq ($(RTLSDR), yes)
   SDR_OBJ += sdr_rtlsdr.o
@@ -145,10 +149,20 @@ ifeq ($(LIMESDR), yes)
   LIBS_SDR += $(shell pkg-config --libs LimeSuite)
 endif
 
+##
+## END SDR Libraries
+##
+
 
 ##
 ## starch (runtime DSP code selection) mix, architecture-specific
 ##
+
+CPUFEATURES ?= no
+ifeq ($(CPUFEATURES),yes)
+  include Makefile.cpufeatures
+  CPPFLAGS += -DENABLE_CPUFEATURES -I"$(CPU_FEATURES_PATH)/include"
+endif
 
 ARCH ?= $(shell uname -m)
 ifneq ($(CPUFEATURES),yes)
@@ -177,6 +191,10 @@ all: showconfig dump1090 view1090 starch-benchmark
 STARCH_COMPILE := $(CC) $(CPPFLAGS) $(CFLAGS) -c
 include dsp/generated/makefile.$(STARCH_MIX)
 
+##
+## END starch
+##
+
 showconfig:
 	@echo "Building with:" >&2
 	@echo "  Version string:  $(DUMP1090_VERSION)" >&2
@@ -186,52 +204,56 @@ showconfig:
 	@echo "  HackRF support:  $(HACKRF)" >&2
 	@echo "  LimeSDR support: $(LIMESDR)" >&2
 
+$(BIN_PATH) $(OBJ_PATH):
+	@${MKDIR_P} $@
+
 %.o: %.c *.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@${MKDIR_P} $(dir $(OBJ_PATH)$@)
+	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $(OBJ_PATH)$@
 
 dump1090: dump1090.o anet.o interactive.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o demod_2400.o stats.o cpr.o icao_filter.o track.o util.o convert.o ais_charset.o adaptive.o $(SDR_OBJ) $(COMPAT) $(CPUFEATURES_OBJS) $(STARCH_OBJS)
-	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS) $(LIBS_SDR) $(LIBS_CURSES)
+	$(CC) -g -o $(BIN_PATH)/$@ $(addprefix $(OBJ_PATH), $^) $(LDFLAGS) $(LIBS) $(LIBS_SDR) $(LIBS_CURSES)
 
-view1090: view1090.o anet.o interactive.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o stats.o cpr.o icao_filter.o track.o util.o ais_charset.o sdr_stub.o $(COMPAT)
-	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS) $(LIBS_CURSES)
+view1090: view1090.o anet.o interactive.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o stats.o cpr.o icao_filter.o track.o util.o ais_charset.o sdr_stub.o$(COMPAT)
+	$(CC) -g -o $(BIN_PATH)/$@ $(addprefix $(OBJ_PATH), $^) $(LDFLAGS) $(LIBS) $(LIBS_CURSES)
 
 faup1090: faup1090.o anet.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o stats.o cpr.o icao_filter.o track.o util.o ais_charset.o sdr_stub.o $(COMPAT)
-	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS)
+	$(CC) -g -o $(BIN_PATH)/$@ $(addprefix $(OBJ_PATH), $^) $(LDFLAGS) $(LIBS)
 
 starch-benchmark: cpu.o dsp/helpers/tables.o $(CPUFEATURES_OBJS) $(STARCH_OBJS) $(STARCH_BENCHMARK_OBJ)
-	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS)
+	$(CC) -g -o $(BIN_PATH)/$@ $(addprefix $(OBJ_PATH), $^) $(LDFLAGS) $(LIBS)
 
 clean:
-	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o external/cpu_features/src/*.o dsp/generated/*.o dsp/helpers/*.o $(CPUFEATURES_OBJS) dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
+	@rm -rf build
 
 test: cprtests
-	./cprtests
+	$(BIN_PATH)/cprtests
 
 cprtests: cpr.o cprtests.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) -g -o $(BIN_PATH)/$@ $(addprefix $(OBJ_PATH), $^) -lm
 
 crctests: crc.c crc.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -DCRCDEBUG -o $@ $<
+	$(CC) -g -DCRCDEBUG -o $(BIN_PATH)/$@ -I. $<
 
 benchmarks: oneoff/convert_benchmark
-	oneoff/convert_benchmark
+	$(BIN_PATH)/oneoff/convert_benchmark
 
 oneoff/convert_benchmark: oneoff/convert_benchmark.o convert.o util.o dsp/helpers/tables.o cpu.o $(CPUFEATURES_OBJS) $(STARCH_OBJS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm -lpthread
+	$(CC) -g -o $(BIN_PATH)/$@ $(addprefix $(OBJ_PATH), $^) -lm -lpthread
 
 oneoff/decode_comm_b: oneoff/decode_comm_b.o comm_b.o ais_charset.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) -g -o $(BIN_PATH)/$@ $(addprefix $(OBJ_PATH), $^) -lm
 
 oneoff/dsp_error_measurement: oneoff/dsp_error_measurement.o dsp/helpers/tables.o cpu.o $(CPUFEATURES_OBJS) $(STARCH_OBJS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) -g -o $(BIN_PATH)/$@ $(addprefix $(OBJ_PATH), $^) -lm
 
 oneoff/uc8_capture_stats: oneoff/uc8_capture_stats.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) -g -o $(BIN_PATH)/$@ $(addprefix $(OBJ_PATH), $^) -lm
 
 starchgen:
 	dsp/starchgen.py .
 
 .PHONY: wisdom.local
 wisdom.local: starch-benchmark
-	./starch-benchmark -i 5 -o wisdom.local mean_power_u16 mean_power_u16_aligned magnitude_uc8 magnitude_uc8_aligned
-	./starch-benchmark -i 5 -r wisdom.local -o wisdom.local
+	$(BIN_PATH)/starch-benchmark -i 5 -o wisdom.local mean_power_u16 mean_power_u16_aligned magnitude_uc8 magnitude_uc8_aligned
+	$(BIN_PATH)/starch-benchmark -i 5 -r wisdom.local -o wisdom.local

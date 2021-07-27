@@ -26,7 +26,7 @@ node(label: 'raspberrypi') {
 
         stage("Prepare source for ${dist}") {
             sh "rm -fr ${pkgdir}"
-            sh "${srcdir}/prepare-build.sh ${dist} ${pkgdir}"
+            sh "cd ${srcdir}/src && ${srcdir}/prepare-build.sh ${dist} ${pkgdir}"
         }
 
         stage("Build for ${dist}") {

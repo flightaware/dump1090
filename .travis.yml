@@ -23,7 +23,8 @@ before_install:
       fi
 
 script:
-    - if [ `uname` = "Linux" ]; then
+    - cd src
+      if [ `uname` = "Linux" ]; then
           dpkg-buildpackage -b -us -uc;
       elif [ `uname` = "Darwin" ]; then
           make;
