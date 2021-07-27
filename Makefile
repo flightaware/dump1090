@@ -86,7 +86,7 @@ CPUFEATURES ?= no
 
 ifeq ($(CPUFEATURES),yes)
   include Makefile.cpufeatures
-  CPPFLAGS += -DENABLE_CPUFEATURES -Icpu_features/include
+  CPPFLAGS += -DENABLE_CPUFEATURES -Iexternal/cpu_features/include
 endif
 
 RTLSDR ?= yes
@@ -202,7 +202,7 @@ starch-benchmark: cpu.o dsp/helpers/tables.o $(CPUFEATURES_OBJS) $(STARCH_OBJS) 
 	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS)
 
 clean:
-	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o cpu_features/src/*.o dsp/generated/*.o dsp/helpers/*.o $(CPUFEATURES_OBJS) dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
+	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o external/cpu_features/src/*.o dsp/generated/*.o dsp/helpers/*.o $(CPUFEATURES_OBJS) dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
 
 test: cprtests
 	./cprtests
