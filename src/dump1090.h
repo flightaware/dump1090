@@ -82,6 +82,7 @@
 #else
 #  include <sys/ioctl.h>
 #endif
+#include <string.h>
 #include <time.h>
 #include <limits.h>
 

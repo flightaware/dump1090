@@ -2054,15 +2054,18 @@ void writeJsonToFile(const char *file, char * (*generator) (const char *,size_t*
         return;
     fd = fopen(tmppath, "wb");
 #else
+    int unix_fd = 0;
+    mode_t mask = 0;
     snprintf(tmppath, PATH_MAX, "%s/%sXXXXXX", Modes.json_dir, file);
     tmppath[PATH_MAX - 1] = 0;
-    fd = mkstemp(tmppath);
-    if (fd < 0)
+    unix_fd = mkstemp(tmppath);
+    if (unix_fd < 0)
         return;
 
     mask = umask(0);
     umask(mask);
-    fchmod(fd, 0644 & ~mask);
+    fchmod(unix_fd, 0644 & ~mask);
+    fd = fdopen(unix_fd, "wb");
 #endif
 
     snprintf(pathbuf, PATH_MAX, "/data/%s", file);
