@@ -74,6 +74,15 @@ libhackrf.
 ``make LIMESDR=no`` will disable LimeSDR support and remove the dependency on
 libLimeSuite.
 
+## Building on MSYS2 & MinGW-w64
+
+Install PothosSDR on the default location and install MSYS2 with MinGW-w64.
+
+```
+$ pacman -S mingw-w64-x86_64-ncurses mingw-w64-x86_64-libgnurx
+$ PKG_CONFIG_PATH="/c/PothosSDR/lib/pkgconfig:$PKG_CONFIG_PATH" make -j$(nproc)
+```
+
 ## Building on OSX
 
 Minimal testing on Mojave 10.14.6, YMMV.

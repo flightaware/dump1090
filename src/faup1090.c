@@ -219,6 +219,8 @@ int main(int argc, char **argv) {
         nanosleep(&r, NULL);
     }
 
+    modesDeInitNet();
+
     return 0;
 }
 //

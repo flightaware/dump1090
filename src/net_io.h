@@ -85,14 +85,15 @@ struct net_service *makeFaCmdInputService(void);
 void sendBeastSettings(struct client *c, const char *settings);
 
 void modesInitNet(void);
+void modesDeInitNet(void);
 void modesQueueOutput(struct modesMessage *mm, struct aircraft *a);
 void modesNetPeriodicWork(void);
 
 // TODO: move these somewhere else
-char *generateAircraftJson(const char *url_path, int *len);
-char *generateStatsJson(const char *url_path, int *len);
-char *generateReceiverJson(const char *url_path, int *len);
-char *generateHistoryJson(const char *url_path, int *len);
-void writeJsonToFile(const char *file, char * (*generator) (const char *,int*));
+char *generateAircraftJson(const char *url_path, size_t *len);
+char *generateStatsJson(const char *url_path, size_t *len);
+char *generateReceiverJson(const char *url_path, size_t *len);
+char *generateHistoryJson(const char *url_path, size_t *len);
+void writeJsonToFile(const char *file, char * (*generator) (const char *,size_t*));
 
 #endif

@@ -11,6 +11,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
+#include "compat/compat.h"
 
 #include "starch.h"
 

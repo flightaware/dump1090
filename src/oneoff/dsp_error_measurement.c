@@ -10,6 +10,7 @@
 
 #include "dsp-types.h"
 #include "dsp/generated/starch.h"
+#include "math_constants.h"
 
 static void write_results_uc8(const uc8_t *in, uint16_t *out, unsigned len, char *path)
 {

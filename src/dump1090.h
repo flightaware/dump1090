@@ -71,12 +71,18 @@
 #include <errno.h>
 #include <unistd.h>
 #include <math.h>
+#include "math_constants.h"
 #include <sys/time.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
+#ifdef _WIN32
+#  include <winsock.h>
+#else
+#  include <sys/ioctl.h>
+#endif
+#include <string.h>
 #include <time.h>
 #include <limits.h>
 
@@ -368,7 +374,7 @@ struct _Modes {                             // Internal state
     int   json_aircraft_history_next;
     struct {
         char *content;
-        int clen;
+        size_t clen;
     } json_aircraft_history[HISTORY_SIZE];
 
     // User details

@@ -256,10 +256,36 @@ struct net_service *makeFaCmdInputService(void)
     return serviceInit("faup Command input", NULL, NULL, READ_MODE_ASCII, "\n", handleFaupCommand);
 }
 
-void modesInitNet(void) {
+void modesDeInitNet(void)
+{
+#if defined(_WIN32)
+    if ((Modes.wsaData.wVersion) && (Modes.wsaData.wHighVersion))
+    {
+        if (WSACleanup() != 0)
+        {
+            fprintf(stderr, "WSACleanup returned Error\n");
+        }
+    }
+#endif
+}
+
+void modesInitNet(void)
+{
     struct net_service *s;
 
+#if !defined(_WIN32)
     signal(SIGPIPE, SIG_IGN);
+#else
+    if ((!Modes.wsaData.wVersion) && (!Modes.wsaData.wHighVersion))
+    {
+        // Try to start the windows socket support
+        if (WSAStartup(MAKEWORD(2, 1), &Modes.wsaData) != 0)
+        {
+            fprintf(stderr, "WSAStartup returned Error\n");
+        }
+    }
+#endif
+
     Modes.clients = NULL;
     Modes.services = NULL;
 
@@ -351,7 +377,7 @@ static void flushWrites(struct net_writer *writer) {
 #ifndef _WIN32
             int nwritten = write(c->fd, writer->data, writer->dataUsed);
 #else
-            int nwritten = send(c->fd, writer->data, writer->dataUsed, 0 );
+            int nwritten = send(c->fd, writer->data, writer->dataUsed, 0);
 #endif
             if (nwritten != writer->dataUsed) {
                 modesCloseClient(c);
@@ -1604,7 +1630,7 @@ static const char *nav_altitude_source_enum_string(nav_altitude_source_t src)
     }
 }
 
-char *generateAircraftJson(const char *url_path, int *len) {
+char *generateAircraftJson(const char *url_path, size_t *len) {
     uint64_t now = mstime();
     struct aircraft *a;
     int buflen = 32768; // The initial buffer is resized as needed
@@ -1890,7 +1916,7 @@ static char * appendStatsJson(char *p,
     return p;
 }
 
-char *generateStatsJson(const char *url_path, int *len) {
+char *generateStatsJson(const char *url_path, size_t *len) {
     MODES_NOTUSED(url_path);
 
     int buflen = 8192;
@@ -1937,7 +1963,7 @@ char *generateStatsJson(const char *url_path, int *len) {
 //
 // Return a description of the receiver in json.
 //
-char *generateReceiverJson(const char *url_path, int *len)
+char *generateReceiverJson(const char *url_path, size_t *len)
 {
     char *buf = (char *) malloc(1024), *p = buf;
     int history_size;
@@ -1976,7 +2002,7 @@ char *generateReceiverJson(const char *url_path, int *len)
     return buf;
 }
 
-char *generateHistoryJson(const char *url_path, int *len)
+char *generateHistoryJson(const char *url_path, size_t *len)
 {
     int history_index = -1;
 
@@ -1993,53 +2019,74 @@ char *generateHistoryJson(const char *url_path, int *len)
     return strdup(Modes.json_aircraft_history[history_index].content);
 }
 
-// Write JSON to file
-void writeJsonToFile(const char *file, char * (*generator) (const char *,int*))
+static bool UtilDeleteFile(const char *path)
 {
-#ifndef _WIN32
-    char pathbuf[PATH_MAX];
-    char tmppath[PATH_MAX];
-    int fd;
-    int len = 0;
-    mode_t mask;
+#ifdef _WIN32
+    return DeleteFileA(path);
+#else
+    return unlink(path) == 0;
+#endif
+}
+
+static bool UtilMoveFile(const char *fromPath, const char *toPath)
+{
+#ifdef _WIN32
+    return MoveFileA(fromPath, toPath);
+#else
+    return rename(fromPath, toPath) == 0;
+#endif
+}
+
+// Write JSON to file
+void writeJsonToFile(const char *file, char * (*generator) (const char *,size_t*))
+{
+    char pathbuf[PATH_MAX + 1];
+    char tmppath[PATH_MAX + 1];
+    FILE *fd;
+    size_t len = 0;
     char *content;
 
     if (!Modes.json_dir)
         return;
 
-    snprintf(tmppath, PATH_MAX, "%s/%s.XXXXXX", Modes.json_dir, file);
-    tmppath[PATH_MAX-1] = 0;
-    fd = mkstemp(tmppath);
-    if (fd < 0)
+#ifdef _WIN32
+    if (GetTempFileNameA(Modes.json_dir, file, 0, tmppath) == 0)
+        return;
+    fd = fopen(tmppath, "wb");
+#else
+    int unix_fd = 0;
+    mode_t mask = 0;
+    snprintf(tmppath, PATH_MAX, "%s/%sXXXXXX", Modes.json_dir, file);
+    tmppath[PATH_MAX - 1] = 0;
+    unix_fd = mkstemp(tmppath);
+    if (unix_fd < 0)
         return;
 
     mask = umask(0);
     umask(mask);
-    fchmod(fd, 0644 & ~mask);
+    fchmod(unix_fd, 0644 & ~mask);
+    fd = fdopen(unix_fd, "wb");
+#endif
 
     snprintf(pathbuf, PATH_MAX, "/data/%s", file);
-    pathbuf[PATH_MAX-1] = 0;
+    pathbuf[PATH_MAX - 1] = 0;
+
     content = generator(pathbuf, &len);
 
-    if (write(fd, content, len) != len)
-        goto error_1;
-
-    if (close(fd) < 0)
-        goto error_2;
+    if (fwrite(content, 1, len, fd) != len || fclose(fd) != 0)
+    {
+        fclose(fd);
+        UtilDeleteFile(tmppath);
+        free(content);
+        return;
+    }
 
     snprintf(pathbuf, PATH_MAX, "%s/%s", Modes.json_dir, file);
-    pathbuf[PATH_MAX-1] = 0;
-    rename(tmppath, pathbuf);
-    free(content);
-    return;
+    pathbuf[PATH_MAX - 1] = 0;
 
- error_1:
-    close(fd);
- error_2:
-    unlink(tmppath);
+    UtilMoveFile(tmppath, pathbuf);
     free(content);
     return;
-#endif
 }
 
 

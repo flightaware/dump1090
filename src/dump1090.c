@@ -920,6 +920,7 @@ int main(int argc, char **argv) {
         }
     }
 
+    modesDeInitNet();
     interactiveCleanup();
 
     // Write final stats

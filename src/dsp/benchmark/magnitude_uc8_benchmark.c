@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include "math_constants.h"
 
 void STARCH_BENCHMARK(magnitude_uc8) (void)
 {
