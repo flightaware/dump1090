@@ -571,7 +571,7 @@ class Generator(object):
 
     def render(self, template_path, output_path, **kwargs):
         t = self.templates.get_template(template_path)
-        result = t.render(gen=self, current_dir=os.path.dirname(output_path), **kwargs)
+        result = t.render(gen=self, current_dir=os.path.dirname(output_path), **kwargs).replace('\r\n', '\n')
 
         if os.path.exists(output_path):
             with open(output_path, 'r') as f:
