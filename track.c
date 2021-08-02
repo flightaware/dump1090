@@ -119,9 +119,9 @@ static struct aircraft *trackCreateAircraft(struct modesMessage *mm) {
     F(nav_altitude_src, 60, 70); // ADS-B or Comm-B
     F(nav_heading,     60, 70);  // ADS-B or Comm-B
     F(nav_modes,       60, 70);  // ADS-B or Comm-B
-    F(cpr_odd,         60, 70);  // ADS-B only
-    F(cpr_even,        60, 70);  // ADS-B only
-    F(position,        60, 70);  // ADS-B only
+    F(cpr_odd,         5, 70);  // ADS-B only
+    F(cpr_even,        5, 70);  // ADS-B only
+    F(position,        5, 70);  // ADS-B only
     F(nic_a,           60, 70);  // ADS-B only
     F(nic_c,           60, 70);  // ADS-B only
     F(nic_baro,        60, 70);  // ADS-B only
