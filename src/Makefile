@@ -63,7 +63,7 @@ endif
 
 ifeq ($(DETECTED_OS), Windows)
   # TODO: Perhaps copy the DLL files to the output folder if the OS is Windows?
-  CPPFLAGS += -DMISSING_TIME_R_FUNCS -DMISSING_ALIGNED_ALLOC_WIN -DMISSING_CURSES_H_NCURSES
+  CPPFLAGS += -DMISSING_TIME_R_FUNCS -DMISSING_CURSES_H_NCURSES
   LIBS += -lws2_32 -lsystre
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses

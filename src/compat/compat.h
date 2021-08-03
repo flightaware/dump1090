@@ -17,12 +17,6 @@
 #  define gmtime_r(T,Tm) (gmtime_s(Tm,T) ? NULL : Tm)
 #endif
 
-//Again, MSVC and MinGW does not have this
-#ifdef MISSING_ALIGNED_ALLOC_WIN
-#  include <malloc.h>
-#  define aligned_alloc(alignment,size) (_aligned_malloc(size, alignment))
-#endif
-
 #if defined(CLOCK_REALTIME)
 #  define HAVE_CLOCKID_T
 #endif
