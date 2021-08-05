@@ -89,12 +89,6 @@ $ pacman -S mingw-w64-clang-x86_64-toolchain mingw-w64-clang-x86_64-ncurses ming
 $ alias make=mingw32-make
 $ PKG_CONFIG_PATH="/c/PothosSDR/lib/pkgconfig:$PKG_CONFIG_PATH" make -j$(nproc)
 ```
-#### Building with MinGW-w64/UCRT
-```
-$ pacman -S mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-ncurses mingw-w64-ucrt-x86_64-libsystre mingw-w64-ucrt-x86_64-libgnurx
-$ alias make=mingw32-make
-$ PKG_CONFIG_PATH="/c/PothosSDR/lib/pkgconfig:$PKG_CONFIG_PATH" make -j$(nproc)
-```
 
 ## Building on OSX
 
