@@ -175,8 +175,7 @@ else
 endif
 all: showconfig dump1090 view1090 starch-benchmark
 
-# Compile starch generated code without warnings and -Werror
-STARCH_COMPILE := $(CC) $(CPPFLAGS) $(CFLAGS) -c
+STARCH_COMPILE := $(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGFLAGS) -c
 include dsp/generated/makefile.$(STARCH_MIX)
 
 showconfig:
