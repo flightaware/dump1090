@@ -935,14 +935,6 @@ function initialize_map() {
                                cache: true,
                                dataType: 'json' });
         request.done(function(data) {
-                var ringStyle = new ol.style.Style({
-                        fill: null,
-                        stroke: new ol.style.Stroke({
-                                color: '#000000',
-                                width: 1
-                        })
-                });
-
                 for (var i = 0; i < data.rings.length; ++i) {
                         var geom = new ol.geom.LineString();
                         var points = data.rings[i].points;
@@ -954,7 +946,7 @@ function initialize_map() {
                                 geom.transform('EPSG:4326', 'EPSG:3857');
 
                                 var feature = new ol.Feature(geom);
-                                feature.setStyle(ringStyle);
+                                feature.setStyle(ringStyleForAlt(data.rings[i].alt));
                                 StaticFeatures.push(feature);
                         }
                 }
@@ -964,6 +956,18 @@ function initialize_map() {
                 // no rings available, do nothing
         });
 }
+
+
+function ringStyleForAlt(altitude) {
+        return new ol.style.Style({
+                fill: null,
+                stroke: new ol.style.Stroke({
+                        color: PlaneObject.prototype.hslRepr(PlaneObject.prototype.getAltitudeColor(altitude*3.281)), // converting from m to ft
+                        width: 1
+                })
+        });
+}
+
 
 function createSiteCircleFeatures() {
     // Clear existing circles first
