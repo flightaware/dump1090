@@ -174,6 +174,10 @@ else
 endif
 all: showconfig dump1090 view1090 starch-benchmark
 
+dsp/generated/makefile.$(STARCH_MIX): dsp/starchgen.py
+	dsp/starchgen.py .
+	touch dsp/generated/makefile.$(STARCH_MIX)
+
 STARCH_COMPILE := $(CC) $(CPPFLAGS) $(CFLAGS) -c
 include dsp/generated/makefile.$(STARCH_MIX)
 
@@ -203,6 +207,9 @@ starch-benchmark: cpu.o dsp/helpers/tables.o $(CPUFEATURES_OBJS) $(STARCH_OBJS) 
 
 clean:
 	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o cpu_features/src/*.o dsp/generated/*.o dsp/helpers/*.o $(CPUFEATURES_OBJS) dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
+
+distclean: clean
+	rm -rf dsp/generated
 
 test: cprtests
 	./cprtests

@@ -9,8 +9,12 @@ starch_dir = os.path.join(top_dir, 'starch')
 sys.path.append(starch_dir)
 import starch
 
+generated_dir = os.path.join(top_dir, 'dsp', 'generated')
+if not os.path.isdir(generated_dir):
+    os.mkdir(generated_dir)
+
 gen = starch.Generator(runtime_dir = top_dir,
-                       output_dir = os.path.join(top_dir, 'dsp', 'generated'))
+                       output_dir = generated_dir)
 
 gen.add_include('"dsp-types.h"')
 gen.add_include('"cpu.h"')
