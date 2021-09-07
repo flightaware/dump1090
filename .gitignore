@@ -7,6 +7,9 @@ frames.js
 *~
 *.rej
 *.orig
+*.deb
+*.buildinfo
+*.changes
 untrackedDeveloperSettings.js
 view1090
 faup1090
@@ -15,5 +18,6 @@ oneoff/convert_benchmark
 oneoff/uc8_capture_stats
 oneoff/dsp_error_measurement
 oneoff/decode_comm_b
+package-*
 starch-benchmark
 wisdom.local
