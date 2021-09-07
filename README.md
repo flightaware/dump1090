@@ -30,7 +30,9 @@ $ dpkg-buildpackage -b --no-sign
 ## Building under buster
 
 ```bash
-$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev
+$ sudo apt-get install build-essential fakeroot debhelper devscripts \
+  librtlsdr-dev pkg-config dh-systemd libncurses5-dev \
+  libbladerf-dev libhackrf-dev liblimesuite-dev
 $ ./prepare-build.sh buster
 $ cd package-buster
 $ dpkg-buildpackage -b --no-sign
@@ -39,7 +41,8 @@ $ dpkg-buildpackage -b --no-sign
 ## Building under stretch
 
 ```bash
-$ sudo apt-get install build-essential debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev
+$ sudo apt-get install build-essential debhelper devscripts \
+  librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev
 $ ./prepare-build.sh stretch
 $ cd package-stretch
 $ dpkg-buildpackage -b --no-sign
@@ -62,9 +65,14 @@ profiles. The list of profiles should include `custom` and zero or more of
 `rtlsdr`, `bladerf`, `hackrf`, `limesdr` depending on what you want:
 
 ```bash
-$ dpkg-buildpackage -b --no-sign --build-profiles=custom,rtlsdr          # builds with rtlsdr support only
-$ dpkg-buildpackage -b --no-sign --build-profiles=custom,rtlsdr,bladerf  # builds with rtlsdr and bladeRF support
-$ dpkg-buildpackage -b --no-sign --build-profiles=custom                 # builds with _no_ SDR support (network support only)
+# builds with rtlsdr support only
+$ dpkg-buildpackage -b --no-sign --build-profiles=custom,rtlsdr
+
+# builds with rtlsdr and bladeRF support
+$ dpkg-buildpackage -b --no-sign --build-profiles=custom,rtlsdr,bladerf
+
+# builds with _no_ SDR support (network support only)
+$ dpkg-buildpackage -b --no-sign --build-profiles=custom
 ```
 
 ## Building manually
@@ -79,7 +87,7 @@ libbladeRF.
 ``make RTLSDR=no`` will disable rtl-sdr support and remove the dependency on
 librtlsdr.
 
-``make HACKRF=no`` will disable HackRF support and remove the dependency on 
+``make HACKRF=no`` will disable HackRF support and remove the dependency on
 libhackrf.
 
 ``make LIMESDR=no`` will disable LimeSDR support and remove the dependency on
