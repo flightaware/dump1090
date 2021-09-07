@@ -16,6 +16,17 @@ it can be used to contribute crowd-sourced flight tracking data to FlightAware.
 It is designed to build as a Debian package, but should also be buildable on
 many other Linux or Unix-like systems.
 
+## Building under bullseye
+
+```bash
+$ sudo apt-get install build-essential fakeroot debhelper devscripts \
+  librtlsdr-dev pkg-config debhelper libncurses5-dev \
+  libbladerf-dev libhackrf-dev liblimesuite-dev
+$ ./prepare-build.sh bullseye
+$ cd package-bullseye
+$ dpkg-buildpackage -b --no-sign
+```
+
 ## Building under buster
 
 ```bash
