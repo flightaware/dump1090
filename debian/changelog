@@ -1,3 +1,9 @@
+dump1090-fa (6.1) stable; urgency=medium
+
+  * No-change 6.1 release for PiAware 6.1
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 06 Sep 2021 16:06:00 +0800
+
 dump1090-fa (6.0) stable; urgency=medium
 
   * dump1090: Adaptive gain feature with associated dump1090-fa config parameters
