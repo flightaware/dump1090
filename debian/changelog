@@ -12,7 +12,7 @@ dump1090-fa (6.0) stable; urgency=medium
   * SkyAware: Fix ignored DisplayUnits in config.js (courtesy @paulyc, PR #76)
   * SkyAware: Update aircraft db to 20210817 with better Australian aircraft & types
 
- -- Eric Tran <eric.tran@flightaware.com>  Tues, 31 Aug 2021 12:41:06 -0600
+ -- Eric Tran <eric.tran@flightaware.com>  Tue, 31 Aug 2021 12:41:06 -0600
 
 dump1090-fa (5.0) stable; urgency=medium
 
