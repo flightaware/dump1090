@@ -32,7 +32,7 @@ $ dpkg-buildpackage -b --no-sign
 ```bash
 $ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev
 $ ./prepare-build.sh buster
-$ cd buster
+$ cd package-buster
 $ dpkg-buildpackage -b --no-sign
 ```
 
@@ -41,7 +41,7 @@ $ dpkg-buildpackage -b --no-sign
 ```bash
 $ sudo apt-get install build-essential debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev
 $ ./prepare-build.sh stretch
-$ cd stretch
+$ cd package-stretch
 $ dpkg-buildpackage -b --no-sign
 ```
 
