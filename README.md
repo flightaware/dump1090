@@ -19,9 +19,8 @@ many other Linux or Unix-like systems.
 ## Building under bullseye
 
 ```bash
-$ sudo apt-get install build-essential fakeroot debhelper devscripts \
-  librtlsdr-dev pkg-config debhelper libncurses5-dev \
-  libbladerf-dev libhackrf-dev liblimesuite-dev
+$ sudo apt install build-essential debhelper devscripts pkg-config \
+  libncurses-dev librtlsdr-dev libbladerf-dev libhackrf-dev liblimesuite-dev
 $ ./prepare-build.sh bullseye
 $ cd package-bullseye
 $ dpkg-buildpackage -b --no-sign
@@ -30,9 +29,8 @@ $ dpkg-buildpackage -b --no-sign
 ## Building under buster
 
 ```bash
-$ sudo apt-get install build-essential fakeroot debhelper devscripts \
-  librtlsdr-dev pkg-config dh-systemd libncurses5-dev \
-  libbladerf-dev libhackrf-dev liblimesuite-dev
+$ sudo apt install build-essential debhelper devscripts pkg-config dh-systemd \
+  libncurses-dev librtlsdr-dev libbladerf-dev libhackrf-dev liblimesuite-dev
 $ ./prepare-build.sh buster
 $ cd package-buster
 $ dpkg-buildpackage -b --no-sign
@@ -41,8 +39,8 @@ $ dpkg-buildpackage -b --no-sign
 ## Building under stretch
 
 ```bash
-$ sudo apt-get install build-essential debhelper devscripts \
-  librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev
+$ sudo apt install build-essential debhelper devscripts pkg-config dh-systemd \
+  libncurses-dev librtlsdr-dev libbladerf-dev libhackrf-dev liblimesuite-dev
 $ ./prepare-build.sh stretch
 $ cd package-stretch
 $ dpkg-buildpackage -b --no-sign

@@ -18,8 +18,8 @@
 //
 // To run it:
 //
-//   sudo apt-get install nodejs
-//   sudo apt-get install npm
+//   sudo apt install nodejs
+//   sudo apt install npm
 //   npm install csv     # must be done in the same dir as this script
 //   nodejs filter-regs.js <input.csv >output.csv
 
