@@ -50,6 +50,9 @@ case "$DIST" in
         ;;
 
     buster)
+        cp -a $TOP/debian-buster/* $OUT/debian/
+        echo "Updating changelog for bullseye backport build" >&2
+        dch --changelog $OUT/debian/changelog --local ~bpo10+ --force-distribution --distribution buster-backports "Automated backport build for buster"
         ;;
 
     bullseye)
