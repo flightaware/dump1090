@@ -2,7 +2,7 @@ PROGNAME=dump1090
 
 DUMP1090_VERSION ?= unknown
 
-CPPFLAGS += -I. -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
+override CPPFLAGS += -I. -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
 
 DIALECT = -std=c11
 CFLAGS += $(DIALECT) -O3 -g -Wall -Wmissing-declarations -Werror -W -D_DEFAULT_SOURCE -fno-common
@@ -42,7 +42,7 @@ endif
 UNAME := $(shell uname)
 
 ifeq ($(UNAME), Linux)
-  CPPFLAGS += -D_DEFAULT_SOURCE
+  override CPPFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses
@@ -51,10 +51,10 @@ endif
 
 ifeq ($(UNAME), Darwin)
   ifneq ($(shell sw_vers -productVersion | egrep '^10\.([0-9]|1[01])\.'),) # Mac OS X ver <= 10.11
-    CPPFLAGS += -DMISSING_GETTIME
+    override CPPFLAGS += -DMISSING_GETTIME
     COMPAT += compat/clock_gettime/clock_gettime.o
   endif
-  CPPFLAGS += -DMISSING_NANOSLEEP
+  override CPPFLAGS += -DMISSING_NANOSLEEP
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses
@@ -62,21 +62,21 @@ ifeq ($(UNAME), Darwin)
 endif
 
 ifeq ($(UNAME), OpenBSD)
-  CPPFLAGS += -DMISSING_NANOSLEEP
+  override CPPFLAGS += -DMISSING_NANOSLEEP
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses
 endif
 
 ifeq ($(UNAME), FreeBSD)
-  CPPFLAGS += -D_DEFAULT_SOURCE
+  override CPPFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb
   LIBS_CURSES := -lncurses
 endif
 
 ifeq ($(UNAME), NetBSD)
-  CFLAGS += -D_DEFAULT_SOURCE
+  override CFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lcurses
@@ -86,7 +86,7 @@ CPUFEATURES ?= no
 
 ifeq ($(CPUFEATURES),yes)
   include Makefile.cpufeatures
-  CPPFLAGS += -DENABLE_CPUFEATURES -Icpu_features/include
+  override CPPFLAGS += -DENABLE_CPUFEATURES -Icpu_features/include
 endif
 
 RTLSDR ?= yes
@@ -94,10 +94,10 @@ BLADERF ?= yes
 
 ifeq ($(RTLSDR), yes)
   SDR_OBJ += sdr_rtlsdr.o
-  CPPFLAGS += -DENABLE_RTLSDR
+  override CPPFLAGS += -DENABLE_RTLSDR
 
   ifdef RTLSDR_PREFIX
-    CPPFLAGS += -I$(RTLSDR_PREFIX)/include
+    override CPPFLAGS += -I$(RTLSDR_PREFIX)/include
     ifeq ($(STATIC), yes)
       LIBS_SDR += -L$(RTLSDR_PREFIX)/lib -Wl,-Bstatic -lrtlsdr -Wl,-Bdynamic $(LIBS_USB)
     else
@@ -111,7 +111,7 @@ ifeq ($(RTLSDR), yes)
     RTLSDR_CFLAGS := $(shell pkg-config --cflags librtlsdr)
     RTLSDR_CFLAGS := $(filter-out -std=%,$(RTLSDR_CFLAGS))
     RTLSDR_CFLAGS := $(filter-out -I/,$(RTLSDR_CFLAGS))
-    CFLAGS += $(RTLSDR_CFLAGS)
+    override CFLAGS += $(RTLSDR_CFLAGS)
 
     # some linux librtlsdr packages return a bare -L with no path in --libs
     # which horribly confuses things because it eats the next option on the command line
@@ -126,22 +126,22 @@ endif
 
 ifeq ($(BLADERF), yes)
   SDR_OBJ += sdr_bladerf.o
-  CPPFLAGS += -DENABLE_BLADERF
-  CFLAGS += $(shell pkg-config --cflags libbladeRF)
+  override CPPFLAGS += -DENABLE_BLADERF
+  override CFLAGS += $(shell pkg-config --cflags libbladeRF)
   LIBS_SDR += $(shell pkg-config --libs libbladeRF)
 endif
 
 ifeq ($(HACKRF), yes)
   SDR_OBJ += sdr_hackrf.o
-  CPPFLAGS += -DENABLE_HACKRF
-  CFLAGS += $(shell pkg-config --cflags libhackrf)
+  override CPPFLAGS += -DENABLE_HACKRF
+  override CFLAGS += $(shell pkg-config --cflags libhackrf)
   LIBS_SDR += $(shell pkg-config --libs libhackrf)
 endif
 
 ifeq ($(LIMESDR), yes)
   SDR_OBJ += sdr_limesdr.o
-  CPPFLAGS += -DENABLE_LIMESDR
-  CFLAGS += $(shell pkg-config --cflags LimeSuite)
+  override CPPFLAGS += -DENABLE_LIMESDR
+  override CFLAGS += $(shell pkg-config --cflags LimeSuite)
   LIBS_SDR += $(shell pkg-config --libs LimeSuite)
 endif
 
@@ -154,22 +154,22 @@ ARCH ?= $(shell uname -m)
 ifneq ($(CPUFEATURES),yes)
   # need to be able to detect CPU features at runtime to enable any non-standard compiler flags
   STARCH_MIX := generic
-  CPPFLAGS += -DSTARCH_MIX_GENERIC
+  override CPPFLAGS += -DSTARCH_MIX_GENERIC
 else
   ifeq ($(ARCH),x86_64)
     # AVX, AVX2
     STARCH_MIX := x86
-    CPPFLAGS += -DSTARCH_MIX_X86
+    override CPPFLAGS += -DSTARCH_MIX_X86
   else ifeq ($(findstring arm,$(ARCH)),arm)
     # ARMv7 NEON
     STARCH_MIX := arm
-    CPPFLAGS += -DSTARCH_MIX_ARM
+    override CPPFLAGS += -DSTARCH_MIX_ARM
   else ifeq ($(findstring aarch,$(ARCH)),aarch)
     STARCH_MIX := aarch64
-    CPPFLAGS += -DSTARCH_MIX_AARCH64
+    override CPPFLAGS += -DSTARCH_MIX_AARCH64
   else
     STARCH_MIX := generic
-    CPPFLAGS += -DSTARCH_MIX_GENERIC
+    override CPPFLAGS += -DSTARCH_MIX_GENERIC
   endif
 endif
 all: showconfig dump1090 view1090 starch-benchmark
