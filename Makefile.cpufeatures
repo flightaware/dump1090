@@ -2,8 +2,8 @@
 
 # cmake integration is a little tricky, so let's do this by hand for now
 
-CPUFEATURES_UNAME := $(shell uname)
-CPUFEATURES_ARCH := $(shell uname -m)
+CPUFEATURES_UNAME ?= $(UNAME)
+CPUFEATURES_ARCH ?= $(ARCH)
 
 CPUFEATURES_OBJS := cpu_features/src/filesystem.o cpu_features/src/stack_line_reader.o cpu_features/src/string_view.o
 CPUFEATURES_CFLAGS := -std=c99 -O -g -DSTACK_LINE_READER_BUFFER_SIZE=1024 -DNDEBUG

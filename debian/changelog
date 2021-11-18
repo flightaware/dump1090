@@ -1,8 +1,30 @@
-dump1090-fa (6.0~dev) UNRELEASED; urgency=medium
+dump1090-fa (7.0~dev) UNRELEASED; urgency=medium
 
   * in development
 
- -- Oliver Jowett <oliver.jowett@flightaware.com>  Sat, 13 Mar 2021 12:41:06 +0800
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Thu, 23 Sep 2021 13:13:45 +0800
+
+dump1090-fa (6.1) stable; urgency=medium
+
+  * No-change 6.1 release for PiAware 6.1
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 06 Sep 2021 16:06:00 +0800
+
+dump1090-fa (6.0) stable; urgency=medium
+
+  * dump1090: Adaptive gain feature with associated dump1090-fa config parameters
+  * dump1090: Add support for decoding BDS 4,4 - Meteorological Routine Air Report (MRAR) Comm-B messages
+  * dump1090: Stratux output: include current receiver gain (courtesy @b3nn0, PR #144)
+  * dump1090: Enable rtlsdr bounce buffers on aarch64 (courtesy @wiedehopf for suggestion)
+  * dump1090: New default dump1090-fa config file format
+  * dump1090: Use compat/compat.h for endian-swapping functions in DSP code
+  * dump1090: Report json write errors, with some rate limiting (fixes issue #129)
+  * starch: Update starch to upstream commit 0c8249fa4bc523345c156885542e9192e8bf68fd
+  * SkyAware: restrict overlay rendering to covered areas (reduce source load) (courtesy @wiedehopf, PR #137)
+  * SkyAware: Fix ignored DisplayUnits in config.js (courtesy @paulyc, PR #76)
+  * SkyAware: Update aircraft db to 20210817 with better Australian aircraft & types
+
+ -- Eric Tran <eric.tran@flightaware.com>  Tue, 31 Aug 2021 12:41:06 -0600
 
 dump1090-fa (5.0) stable; urgency=medium
 

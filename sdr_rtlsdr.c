@@ -53,7 +53,7 @@
 
 #include <rtl-sdr.h>
 
-#ifdef __arm__
+#if defined(__arm__) || defined(__aarch64__)
 // Assume we need to use a bounce buffer to avoid performance problems on Pis running kernel 5.x and using zerocopy
 #  define USE_BOUNCE_BUFFER
 #endif

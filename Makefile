@@ -39,20 +39,25 @@ else
   LIMESDR ?= no
 endif
 
+HOST_UNAME := $(shell uname)
+HOST_ARCH := $(shell uname -m)
+
+# There is no standard for the uname's output on a Windows environment
 ifeq ($(OS),Windows_NT) 
-  DETECTED_OS := Windows
-else
-  DETECTED_OS := $(shell sh -c 'uname 2>/dev/null || echo Unknown')
+  HOST_UNAME := Windows
 endif
 
-ifeq ($(DETECTED_OS), Linux)
+UNAME ?= $(HOST_UNAME)
+ARCH ?= $(HOST_ARCH)
+
+ifeq ($(UNAME), Linux)
   LIBS += -lrt
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses
   CPUFEATURES ?= yes
 endif
 
-ifeq ($(DETECTED_OS), Darwin)
+ifeq ($(UNAME), Darwin)
   ifneq ($(shell sw_vers -productVersion | egrep '^10\.([0-9]|1[01])\.'),) # Mac OS X ver <= 10.11
     CPPFLAGS += -DMISSING_GETTIME
     COMPAT += compat/clock_gettime/clock_gettime.o
@@ -64,7 +69,7 @@ ifeq ($(DETECTED_OS), Darwin)
   CPUFEATURES ?= yes
 endif
 
-ifeq ($(DETECTED_OS), OpenBSD)
+ifeq ($(UNAME), OpenBSD)
   CPPFLAGS += -DMISSING_NANOSLEEP
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
   LIBS_USB += -lusb-1.0
@@ -72,19 +77,19 @@ ifeq ($(DETECTED_OS), OpenBSD)
   CPUFEATURES ?= yes
 endif
 
-ifeq ($(DETECTED_OS), FreeBSD)
+ifeq ($(UNAME), FreeBSD)
   LIBS += -lrt
   LIBS_USB += -lusb
   LIBS_CURSES := -lncurses
 endif
 
-ifeq ($(DETECTED_OS), NetBSD)
+ifeq ($(UNAME), NetBSD)
   LIBS += -lrt
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lcurses
 endif
 
-ifeq ($(DETECTED_OS), Windows)
+ifeq ($(UNAME), Windows)
   # TODO: Perhaps copy the DLL files to the output folder if the OS is Windows?
   CPPFLAGS += -DMISSING_TIME_R_FUNCS -DMISSING_CURSES_H_NCURSES -D_USE_MATH_DEFINES
   LIBS += -lws2_32 -lsystre
@@ -161,7 +166,6 @@ endif
 ## starch (runtime DSP code selection) mix, architecture-specific
 ##
 
-ARCH ?= $(shell uname -m)
 ifneq ($(CPUFEATURES),yes)
   # need to be able to detect CPU features at runtime to enable any non-standard compiler flags
   STARCH_MIX := generic
@@ -191,6 +195,7 @@ include dsp/generated/makefile.$(STARCH_MIX)
 showconfig:
 	@echo "Building with:" >&2
 	@echo "  Version string:  $(DUMP1090_VERSION)" >&2
+	@echo "  Architecture:    $(ARCH)" >&2
 	@echo "  DSP mix:         $(STARCH_MIX)" >&2
 	@echo "  RTLSDR support:  $(RTLSDR)" >&2
 	@echo "  BladeRF support: $(BLADERF)" >&2
