@@ -49,7 +49,7 @@ function createBaseLayers() {
 
         world.push(new ol.layer.Tile({
                 source: new ol.source.XYZ({
-			"url" : "http://tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png",
+			"url" : "https://tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png",
 			"attributions" : "© <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">OpenStreetMap</a>  contributors."
                 }),
                 name: 'osm_blackwhite',
@@ -61,7 +61,7 @@ function createBaseLayers() {
                 source: new ol.source.OSM({
                         "url" : "https://{a-z}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
                         "attributions" : 'Courtesy of <a href="https://carto.com">CARTO.com</a>'
-                               + ' using data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.',
+                               + ' using data by <a href="https://openstreetmap.org">OpenStreetMap</a>, under <a href="https://www.openstreetmap.org/copyright">ODbL</a>.',
                 }),
                 name: 'carto_dark_all',
                 title: 'CARTO.com Dark',
@@ -72,7 +72,7 @@ function createBaseLayers() {
                 source: new ol.source.OSM({
                         "url" : "https://{a-z}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png",
                         "attributions" : 'Courtesy of <a href="https://carto.com">CARTO.com</a>'
-                               + ' using data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.',
+                               + ' using data by <a href="https://openstreetmap.org">OpenStreetMap</a>, under <a href="https://www.openstreetmap.org/copyright">ODbL</a>.',
                 }),
                 name: 'carto_dark_nolabels',
                 title: 'CARTO.com Dark (No Labels)',
@@ -83,7 +83,7 @@ function createBaseLayers() {
                 source: new ol.source.OSM({
                         "url" : "https://{a-z}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
                         "attributions" : 'Courtesy of <a href="https://carto.com">CARTO.com</a>'
-                               + ' using data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.',
+                               + ' using data by <a href="https://openstreetmap.org">OpenStreetMap</a>, under <a href="https://www.openstreetmap.org/copyright">ODbL</a>.',
                 }),
                 name: 'carto_light_all',
                 title: 'CARTO.com Light',
@@ -94,7 +94,7 @@ function createBaseLayers() {
                 source: new ol.source.OSM({
                         "url" : "https://{a-z}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png",
                         "attributions" : 'Courtesy of <a href="https://carto.com">CARTO.com</a>'
-                               + ' using data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.',
+                               + ' using data by <a href="https://openstreetmap.org">OpenStreetMap</a>, under <a href="https://www.openstreetmap.org/copyright">ODbL</a>.',
                 }),
                 name: 'carto_light_nolabels',
                 title: 'CARTO.com Light (No Labels)',
@@ -137,10 +137,10 @@ function createBaseLayers() {
                 for (var type in chartbundleTypes) {
                         us.push(new ol.layer.Tile({
                                 source: new ol.source.TileWMS({
-                                        url: 'http://wms.chartbundle.com/wms',
+                                        url: 'https://wms.chartbundle.com/wms',
                                         params: {LAYERS: type},
                                         projection: 'EPSG:3857',
-                                        attributions: 'Tiles courtesy of <a href="http://www.chartbundle.com/">ChartBundle</a>'
+                                        attributions: 'Tiles courtesy of <a href="https://www.chartbundle.com/">ChartBundle</a>'
                                 }),
                                 name: 'chartbundle_' + type,
                                 title: chartbundleTypes[type],
@@ -166,8 +166,8 @@ function createBaseLayers() {
                 // re-build the source to force a refresh of the nexrad tiles
                 var now = new Date().getTime();
                 nexrad.setSource(new ol.source.XYZ({
-                        url : 'http://mesonet{1-3}.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png?_=' + now,
-                        attributions: 'NEXRAD courtesy of <a href="http://mesonet.agron.iastate.edu/">IEM</a>'
+                        url : 'https://mesonet{1-3}.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png?_=' + now,
+                        attributions: 'NEXRAD courtesy of <a href="https://mesonet.agron.iastate.edu/">IEM</a>'
                 }));
         };
 

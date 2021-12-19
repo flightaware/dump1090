@@ -1153,12 +1153,12 @@ function initialize_map() {
         //  create a panorama for your receiver location on heywhatsthat.com
         //
         //  note the "view" value from the URL at the top of the panorama
-        //    i.e. the XXXX in http://www.heywhatsthat.com/?view=XXXX
+        //    i.e. the XXXX in https://www.heywhatsthat.com/?view=XXXX
         //
         // fetch a json file from the API for the altitudes you want to see:
         //
         //  wget -O /usr/share/dump1090-mutability/html/upintheair.json \
-        //    'http://www.heywhatsthat.com/api/upintheair.json?id=XXXX&refraction=0.25&alts=3048,9144'
+        //    'https://www.heywhatsthat.com/api/upintheair.json?id=XXXX&refraction=0.25&alts=3048,9144'
         //
         // NB: altitudes are in _meters_, you can specify a list of altitudes
 
@@ -2478,7 +2478,7 @@ function getFlightAwarePhotoLink(registration) {
 
 function getAirframesModeSLink(code) {
     if (code !== null && code.length > 0 && code[0] !== '~' && code !== "000000") {
-        return "<a href=\"http://www.airframes.org/\" onclick=\"$('#airframes_post_icao').attr('value','" + code + "'); document.getElementById('horrible_hack').submit.call(document.getElementById('airframes_post')); return false;\">Airframes.org: " + code.toUpperCase() + "</a>";
+        return "<a href=\"https://www.airframes.org/\" onclick=\"$('#airframes_post_icao').attr('value','" + code + "'); document.getElementById('horrible_hack').submit.call(document.getElementById('airframes_post')); return false;\">Airframes.org: " + code.toUpperCase() + "</a>";
     }
 
     return "";   
