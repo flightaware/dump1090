@@ -51,6 +51,8 @@
 #include "dump1090.h"
 #include "sdr_ifile.h"
 
+#include <strings.h>
+
 static struct {
     const char *filename;
     input_format_t input_format;

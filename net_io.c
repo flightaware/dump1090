@@ -54,6 +54,7 @@
 
 #include <assert.h>
 #include <stdarg.h>
+#include <alloca.h>
 
 //
 // ============================= Networking =============================
