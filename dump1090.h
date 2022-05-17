@@ -61,28 +61,24 @@
 
 // ============================= Include files ==========================
 
-#ifndef _WIN32
-    #include <stdio.h>
-    #include <string.h>
-    #include <stdlib.h>
-    #include <stdbool.h>
-    #include <pthread.h>
-    #include <stdint.h>
-    #include <errno.h>
-    #include <unistd.h>
-    #include <math.h>
-    #include <sys/time.h>
-    #include <signal.h>
-    #include <fcntl.h>
-    #include <ctype.h>
-    #include <sys/stat.h>
-    #include <sys/ioctl.h>
-    #include <time.h>
-    #include <limits.h>
-    #include <mongoc.h>
-#else
-    #include "winstubs.h" //Put everything Windows specific in here
-#endif
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <stdatomic.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <errno.h>
+#include <unistd.h>
+#include <math.h>
+#include <sys/time.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <ctype.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <time.h>
+#include <limits.h>
 
 #include "compat/compat.h"
 #include "dsp/generated/starch.h"
@@ -300,11 +296,8 @@ typedef enum {
 #include "adaptive.h"
 
 #ifdef ENABLE_MONGOC
-#  include "mongo_conn.h"
-#endif
-
-#ifdef ENABLE_MONGOC
-#  include "mongo_conn.h"
+  #include <mongoc.h>
+  #include "mongo_conn.h"
 #endif
 
 //======================== structure declarations =========================

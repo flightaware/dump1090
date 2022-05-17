@@ -270,9 +270,6 @@ wisdom.local: starch-benchmark
 	./starch-benchmark -i 5 -o wisdom.local mean_power_u16 mean_power_u16_aligned magnitude_uc8 magnitude_uc8_aligned
 	./starch-benchmark -i 5 -r wisdom.local -o wisdom.local
 
-convert_benchmark: convert_benchmark.o convert.o util.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
-
 dist: all
 	mkdir -p $(DISTDIR)
 	for F in $(DISTFILES); do cp -r $$F $(DISTDIR)/; done

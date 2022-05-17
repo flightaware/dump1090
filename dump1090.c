@@ -431,6 +431,15 @@ static void showHelp(void)
 "--interactive-distance-units <u>    Distance units ('km', 'sm', 'nm')\n"
 "--interactive-callsign-filter <r>   Filter rows by callsign against regex\n"
 "\n"
+// ------ 80 char limit ----------------------------------------------------------|
+#ifdef ENABLE_MONGOC
+"      MongoDB support (output)\n"
+"\n"
+"--write-mongo-uri    Database URI\n"
+"--write-mongo-db     Database name\n"
+"--write-mongo-col    Collection name\n"
+"\n"
+#endif
 "      Misc\n"
 "\n"
 "--wisdom <path>          Read DSP wisdom from given path\n"
