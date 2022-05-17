@@ -71,15 +71,26 @@
 static int handleBeastCommand(struct client *c, char *p);
 static int decodeBinMessage(struct client *c, char *p);
 static int decodeHexMessage(struct client *c, char *hex);
+static int handleFaupCommand(struct client *c, char *hex);
+
+static void moveNetClient(struct client *c, struct net_service *new_service);
 
 static void send_raw_heartbeat(struct net_service *service);
 static void send_beast_heartbeat(struct net_service *service);
 static void send_sbs_heartbeat(struct net_service *service);
+static void send_stratux_heartbeat(struct net_service *service);
+
+static void writeBeastMessage(struct net_writer *writer, uint64_t timestamp, double signalLevel, unsigned char *msg, int msgLen);
 
 static void writeFATSVEvent(struct modesMessage *mm, struct aircraft *a);
 static void writeFATSVPositionUpdate(float lat, float lon, float alt);
 
 static void autoset_modeac();
+
+__attribute__ ((format (printf,3,0))) static char *safe_vsnprintf(char *p, char *end, const char *format, va_list ap);
+__attribute__ ((format (printf,3,4))) static char *safe_snprintf(char *p, char *end, const char *format, ...);
+
+static const char *jsonEscapeString(const char *str);
 
 //
 //=========================================================================
@@ -143,17 +154,14 @@ struct client *createGenericClient(struct net_service *service, int fd)
         exit(1);
     }
 
-    c->service    = service;
+    c->service    = NULL;
     c->next       = Modes.clients;
     c->fd         = fd;
     c->buflen     = 0;
     c->modeac_requested = 0;
     Modes.clients = c;
 
-    ++service->connections;
-    if (service->writer && service->connections == 1) {
-        service->writer->lastWrite = mstime(); // suppress heartbeat initially
-    }
+    moveNetClient(c, service);
 
     return c;
 }
@@ -243,6 +251,11 @@ struct net_service *makeFatsvOutputService(void)
     return serviceInit("FATSV TCP output", &Modes.fatsv_out, NULL, READ_MODE_IGNORE, NULL, NULL);
 }
 
+struct net_service *makeFaCmdInputService(void)
+{
+    return serviceInit("faup Command input", NULL, NULL, READ_MODE_ASCII, "\n", handleFaupCommand);
+}
+
 void modesInitNet(void) {
     struct net_service *s;
 
@@ -254,11 +267,21 @@ void modesInitNet(void) {
     s = serviceInit("Raw TCP output", &Modes.raw_out, send_raw_heartbeat, READ_MODE_IGNORE, NULL, NULL);
     serviceListen(s, Modes.net_bind_address, Modes.net_output_raw_ports);
 
-    s = serviceInit("Beast TCP output", &Modes.beast_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
-    serviceListen(s, Modes.net_bind_address, Modes.net_output_beast_ports);
+    // we maintain two output services, one producing a stream of verbatim messages, one producing a stream of cooked messages
+    // and switch clients between them if they request a change in mode
+    Modes.beast_cooked_service = serviceInit("Beast TCP output (cooked mode)", &Modes.beast_cooked_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
+    Modes.beast_verbatim_service = serviceInit("Beast TCP output (verbatim mode)", &Modes.beast_verbatim_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
+
+    if (Modes.net_verbatim)
+        serviceListen(Modes.beast_verbatim_service, Modes.net_bind_address, Modes.net_output_beast_ports);
+    else
+        serviceListen(Modes.beast_cooked_service, Modes.net_bind_address, Modes.net_output_beast_ports);
 
     s = serviceInit("Basestation TCP output", &Modes.sbs_out, send_sbs_heartbeat, READ_MODE_IGNORE, NULL, NULL);
     serviceListen(s, Modes.net_bind_address, Modes.net_output_sbs_ports);
+
+    s = serviceInit("Stratux TCP output", &Modes.stratux_out, send_stratux_heartbeat, READ_MODE_IGNORE, NULL, NULL);
+    serviceListen(s, Modes.net_bind_address, Modes.net_output_stratux_ports);
 
     s = serviceInit("Raw TCP input", NULL, NULL, READ_MODE_ASCII, "\n", decodeHexMessage);
     serviceListen(s, Modes.net_bind_address, Modes.net_input_raw_ports);
@@ -376,14 +399,38 @@ static void completeWrite(struct net_writer *writer, void *endptr) {
 //
 // Write raw output in Beast Binary format with Timestamp to TCP clients
 //
-static void modesSendBeastOutput(struct modesMessage *mm) {
-    int  msgLen = mm->msgbits / 8;
-    char *p = prepareWrite(&Modes.beast_out, 2 + 2 * (7 + msgLen));
+static void modesSendBeastVerbatimOutput(struct modesMessage *mm, struct aircraft __attribute__((unused)) *a) {
+    // Don't forward mlat messages, unless --forward-mlat is set
+    if (mm->source == SOURCE_MLAT && !Modes.forward_mlat)
+        return;
+
+    // Do verbatim output for all messages
+    writeBeastMessage(&Modes.beast_verbatim_out, mm->timestampMsg, mm->signalLevel, mm->verbatim, mm->msgbits / 8);
+}
+
+static void modesSendBeastCookedOutput(struct modesMessage *mm, struct aircraft *a) {
+    // Don't forward mlat messages, unless --forward-mlat is set
+    if (mm->source == SOURCE_MLAT && !Modes.forward_mlat)
+        return;
+
+    // Filter some messages from cooked output
+    // Don't forward 2-bit-corrected messages
+    if (mm->correctedbits >= 2)
+        return;
+
+    // Don't forward unreliable messages
+    if ((a && !a->reliable) && !mm->reliable)
+        return;
+
+    writeBeastMessage(&Modes.beast_cooked_out, mm->timestampMsg, mm->signalLevel, mm->msg, mm->msgbits / 8);
+}
+
+static void writeBeastMessage(struct net_writer *writer, uint64_t timestamp, double signalLevel, unsigned char *msg, int msgLen) {
     char ch;
     int  j;
     int sig;
-    unsigned char *msg = (Modes.net_verbatim ? mm->verbatim : mm->msg);
 
+    char *p = prepareWrite(writer, 2 + 2 * (7 + msgLen));
     if (!p)
         return;
 
@@ -398,21 +445,21 @@ static void modesSendBeastOutput(struct modesMessage *mm) {
       {return;}
 
     /* timestamp, big-endian */
-    *p++ = (ch = (mm->timestampMsg >> 40));
+    *p++ = (ch = (timestamp >> 40));
     if (0x1A == ch) {*p++ = ch; }
-    *p++ = (ch = (mm->timestampMsg >> 32));
+    *p++ = (ch = (timestamp >> 32));
     if (0x1A == ch) {*p++ = ch; }
-    *p++ = (ch = (mm->timestampMsg >> 24));
+    *p++ = (ch = (timestamp >> 24));
     if (0x1A == ch) {*p++ = ch; }
-    *p++ = (ch = (mm->timestampMsg >> 16));
+    *p++ = (ch = (timestamp >> 16));
     if (0x1A == ch) {*p++ = ch; }
-    *p++ = (ch = (mm->timestampMsg >> 8));
+    *p++ = (ch = (timestamp >> 8));
     if (0x1A == ch) {*p++ = ch; }
-    *p++ = (ch = (mm->timestampMsg));
+    *p++ = (ch = (timestamp));
     if (0x1A == ch) {*p++ = ch; }
 
-    sig = round(sqrt(mm->signalLevel) * 255);
-    if (mm->signalLevel > 0 && sig < 1)
+    sig = round(sqrt(signalLevel) * 255);
+    if (signalLevel > 0 && sig < 1)
         sig = 1;
     if (sig > 255)
         sig = 255;
@@ -424,7 +471,7 @@ static void modesSendBeastOutput(struct modesMessage *mm) {
         if (0x1A == ch) {*p++ = ch; }
     }
 
-    completeWrite(&Modes.beast_out, p);
+    completeWrite(writer, p);
 }
 
 static void send_beast_heartbeat(struct net_service *service)
@@ -448,12 +495,22 @@ static void send_beast_heartbeat(struct net_service *service)
 //
 // Write raw output to TCP clients
 //
-static void modesSendRawOutput(struct modesMessage *mm) {
-    int  msgLen = mm->msgbits / 8;
-    char *p = prepareWrite(&Modes.raw_out, msgLen*2 + 15);
-    int j;
-    unsigned char *msg = (Modes.net_verbatim ? mm->verbatim : mm->msg);
+static void modesSendRawOutput(struct modesMessage *mm, struct aircraft *a) {
+    // Don't ever forward mlat messages via raw output.
+    if (mm->source == SOURCE_MLAT)
+        return;
 
+    // Filter some messages
+    // Don't forward 2-bit-corrected messages
+    if (mm->correctedbits >= 2)
+        return;
+
+    // Don't forward unreliable messages
+    if ((a && !a->reliable) && !mm->reliable)
+        return;
+
+    int msgLen = mm->msgbits / 8;
+    char *p = prepareWrite(&Modes.raw_out, msgLen*2 + 15);
     if (!p)
         return;
 
@@ -465,7 +522,8 @@ static void modesSendRawOutput(struct modesMessage *mm) {
     } else
         *p++ = '*';
 
-    for (j = 0; j < msgLen; j++) {
+    unsigned char *msg = mm->msg;
+    for (int j = 0; j < msgLen; j++) {
         sprintf(p, "%02X", msg[j]);
         p += 2;
     }
@@ -503,6 +561,22 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     struct timespec now;
     struct tm    stTime_receive, stTime_now;
     int          msgType;
+
+    // We require a tracked aircraft for SBS output
+    if (!a)
+        return;
+
+    // Don't ever forward 2-bit-corrected messages via SBS output.
+    if (mm->correctedbits >= 2)
+        return;
+
+    // Don't ever forward mlat messages via SBS output.
+    if (mm->source == SOURCE_MLAT)
+        return;
+
+    // Don't ever send unreliable messages via SBS output
+    if (!mm->reliable && !a->reliable)
+        return;
 
     // For now, suppress non-ICAO addresses
     if (mm->addr & MODES_NON_ICAO_ADDRESS)
@@ -720,34 +794,224 @@ static void send_sbs_heartbeat(struct net_service *service)
 //
 //=========================================================================
 //
+// Write Stratux output to TCP clients
+//
+
+#define STRATUX_MAX_PACKET_SIZE 1000
+static void modesSendStratuxOutput(struct modesMessage *mm, struct aircraft *a) {
+    char *p;
+
+    // We require a tracked aircraft for Stratux output
+    if (!a)
+        return;
+
+    // Don't ever forward 2-bit-corrected messages via Stratux output.
+    if (mm->correctedbits >= 2)
+        return;
+
+    // Don't ever send unreliable messages via Stratux output
+    if (!mm->reliable && !a->reliable)
+        return;
+
+    p = prepareWrite(&Modes.stratux_out, STRATUX_MAX_PACKET_SIZE); // larger buffer size needed vs SBS
+    if (!p)
+        return;
+
+    char *end = p + STRATUX_MAX_PACKET_SIZE;
+
+    // Begin populating the traffic.go fields.
+    // ICAO address, Mode S message types, and signal level
+
+    int cacf = 0; // overload the JSON "CA" field to report CA (DF11 or DF17), CF (DF18), or zero (all other DF types)
+    if ((mm->msgtype == 11) || (mm->msgtype == 17)) {
+        cacf = mm->CA;
+    } else if (mm->msgtype == 18) {
+        cacf = mm->CF;
+    }
+
+    const char* is_mlat_str = "false";
+    if (mm->source == SOURCE_MLAT)
+        is_mlat_str = "true";
+
+    p = safe_snprintf(p, end,
+            "{\"Icao_addr\":%d,"
+            "\"DF\":%d,\"CA\":%d,"
+            "\"TypeCode\":%d,"
+            "\"SubtypeCode\":%d,"
+            "\"SignalLevel\":%f,"
+            "\"Gain\":%f,"
+            "\"IsMlat\":%s,",
+            mm->addr,
+            mm->msgtype, cacf,
+            mm->metype,
+            mm->mesub,
+            mm->signalLevel, // what precision and range is needed for RSSI?
+            sdrGetGainDb(sdrGetGain()),
+            is_mlat_str);
+
+    //// callsign
+    if (mm->callsign_valid)
+        p = safe_snprintf(p, end, "\"Tail\":\"%s\",", jsonEscapeString(mm->callsign));
+    else
+        p = safe_snprintf(p, end, "\"Tail\":null,");
+
+    //// altitude & gnss
+    bool alt_is_geom;
+    if (mm->altitude_baro_valid) {
+        p = safe_snprintf(p, end, "\"Alt\":%d,",mm->altitude_baro);
+        alt_is_geom = false;
+    } else if (mm->altitude_geom_valid) {
+        p = safe_snprintf(p, end, "\"Alt\":%d,",mm->altitude_geom);
+        alt_is_geom = true;
+    } else {
+        p = safe_snprintf(p, end, "\"Alt\":null,");
+        alt_is_geom = false;
+    }
+
+    // altitude source
+    if (alt_is_geom)
+        p = safe_snprintf(p, end, "\"AltIsGNSS\":true,");
+    else
+        p = safe_snprintf(p, end, "\"AltIsGNSS\":false,");
+
+    // GNSS alt. delta From baro alt.
+    if (trackDataValid(&a->geom_delta_valid))
+        p = safe_snprintf(p, end, "\"GnssDiffFromBaroAlt\":%d,",a->geom_delta);
+    else
+        p = safe_snprintf(p, end, "\"GnssDiffFromBaroAlt\":null,");
+    ////
+
+    //// ground speed and track
+    if (mm->gs_valid)
+        p = safe_snprintf(p, end, "\"Speed_valid\":true,\"Speed\":%.0f,", mm->gs.selected);
+    else
+        p = safe_snprintf(p, end, "\"Speed_valid\":false,\"Speed\":null,");
+
+    //// ground heading
+    if (mm->heading_valid && mm->heading_type == HEADING_GROUND_TRACK)
+        p = safe_snprintf(p, end, "\"Track\":%.0f,", mm->heading);
+    else
+        p = safe_snprintf(p, end, "\"Track\":null,");
+
+    //// position
+    if (mm->cpr_decoded)
+        p = safe_snprintf(p, end, "\"Lat\":%.6f,\"Lng\":%.6f,\"Position_valid\":true,",
+                    mm->decoded_lat, mm->decoded_lon);
+    else
+        p = safe_snprintf(p, end, "\"Lat\":null,\"Lng\":null,\"Position_valid\":false,");
+
+    //// vrate (use barometric if possible)
+    if (mm->baro_rate_valid)
+        p = safe_snprintf(p, end, "\"Vvel\":%d,", mm->baro_rate);
+    else if (mm->geom_rate_valid)
+        p = safe_snprintf(p, end, "\"Vvel\":%d,", mm->geom_rate);
+    else
+        p = safe_snprintf(p, end, "\"Vvel\":null,");
+
+    //// squawk
+    if (mm->squawk_valid)
+        p = safe_snprintf(p, end, "\"Squawk\":%x,", mm->squawk);
+    else
+        p = safe_snprintf(p, end, "\"Squawk\":null,");
+
+    // TODO: squawk changing alert support in stratux?
+    // TODO: squawk emergency flag?
+    // TODO: squawk ident flag?
+
+    // airground
+    switch (mm->airground) {
+        case AG_GROUND:
+            p = safe_snprintf(p, end, "\"OnGround\":true,");
+            break;
+        case AG_AIRBORNE:
+            p = safe_snprintf(p, end, "\"OnGround\":false,");
+            break;
+        default:
+            p = safe_snprintf(p, end, "\"OnGround\":null,");
+    }
+
+    // navigation accuracy category - position
+    if (mm->accuracy.nac_p_valid) {
+        p = safe_snprintf(p, end, "\"NACp\":%d,", mm->accuracy.nac_p);
+    } else {
+        p = safe_snprintf(p, end, "\"NACp\":null,");
+    }
+
+    // emitter type
+    int emitter = -1;
+    if ((mm->msgtype ==  17) || (mm->msgtype == 18)) {
+        switch (mm->metype) {
+            case 1:
+                emitter = ((mm->mesub) | 0x18);
+                break;
+            case 2:
+                emitter = ((mm->mesub) | 0x10);
+                break;
+            case 3:
+                emitter = ((mm->mesub) | 0x08);
+                break;
+            case 4:
+                emitter = (mm->mesub);
+                break;
+        }
+    }
+
+    if (emitter >= 0)
+        p = safe_snprintf(p, end, "\"Emitter_category\":%d,", emitter);
+    else
+        p = safe_snprintf(p, end, "\"Emitter_category\":null,");
+
+    // Time message received (based on system clock). Format is 2016-02-20T06:35:43.155Z
+    struct tm stTime_receive;
+    time_t received = (time_t) (mm->sysTimestampMsg / 1000);
+    gmtime_r(&received, &stTime_receive);
+    p = safe_snprintf(p, end, "\"Timestamp\":\"%04d-%02d-%02dT%02d:%02d:%02d.%03dZ\"",
+            (stTime_receive.tm_year+1900),(stTime_receive.tm_mon+1),
+            stTime_receive.tm_mday, stTime_receive.tm_hour,
+            stTime_receive.tm_min, stTime_receive.tm_sec,
+            (unsigned)(mm->sysTimestampMsg % 1000));
+
+    p = safe_snprintf(p, end, "}\r\n");
+
+    if (p < end)
+        completeWrite(&Modes.stratux_out, p);
+    else
+        fprintf(stderr, "stratux: output too large (max %d, overran by %d)\n", STRATUX_MAX_PACKET_SIZE, (int) (p - end));
+}
+
+static void send_stratux_heartbeat(struct net_service *service)
+{
+    static char *heartbeat_message = "{\"Icao_addr\":134217727}\r\n";  // 0x07FFFFFF. Overflows 24-bit ICAO to signal invalic #, need to validate that this won't cause problems with traffic.go
+    char *data;
+    int len = strlen(heartbeat_message);
+
+    if (!service->writer)
+        return;
+
+    data = prepareWrite(service->writer, len);
+    if (!data)
+        return;
+
+    memcpy(data, heartbeat_message, len);
+    completeWrite(service->writer, data + len);
+}
+
+//
+//=========================================================================
+//
 void modesQueueOutput(struct modesMessage *mm, struct aircraft *a) {
-    int is_mlat = (mm->source == SOURCE_MLAT);
 
-    if (a && !is_mlat && mm->correctedbits < 2) {
-        // Don't ever forward 2-bit-corrected messages via SBS output.
-        // Don't ever forward mlat messages via SBS output.
-        modesSendSBSOutput(mm, a);
-    }
-
-    if (!is_mlat && (Modes.net_verbatim || mm->correctedbits < 2)) {
-        // Forward 2-bit-corrected messages via raw output only if --net-verbatim is set
-        // Don't ever forward mlat messages via raw output.
-        modesSendRawOutput(mm);
-    }
-
-    if ((!is_mlat || Modes.forward_mlat) && (Modes.net_verbatim || mm->correctedbits < 2)) {
-        // Forward 2-bit-corrected messages via beast output only if --net-verbatim is set
-        // Forward mlat messages via beast output only if --forward-mlat is set
-        modesSendBeastOutput(mm);
-    }
-
-    if (a && !is_mlat) {
-        writeFATSVEvent(mm, a);
-    }
+    // Delegate to the format-specific outputs, each of which makes its own decision about filtering messages
+    modesSendSBSOutput(mm, a);
+    modesSendStratuxOutput(mm, a);
+    modesSendRawOutput(mm, a);
+    modesSendBeastVerbatimOutput(mm, a);
+    modesSendBeastCookedOutput(mm, a);
+    writeFATSVEvent(mm, a);
 }
 
 // Decode a little-endian IEEE754 float (binary32)
-float ieee754_binary32_le_to_float(uint8_t *data)
+static float ieee754_binary32_le_to_float(uint8_t *data)
 {
     double sign = (data[3] & 0x80) ? -1.0 : 1.0;
     int16_t raw_exponent = ((data[3] & 0x7f) << 1) | ((data[2] & 0x80) >> 7);
@@ -830,6 +1094,68 @@ void sendBeastSettings(struct client *c, const char *settings)
     anetWrite(c->fd, buf, len);
 }
 
+// Move a network client to a new service
+static void moveNetClient(struct client *c, struct net_service *new_service)
+{
+    if (c->service == new_service)
+        return;
+
+    if (c->service) {
+        // Flush to ensure correct message framing
+        if (c->service->writer)
+            flushWrites(c->service->writer);
+        --c->service->connections;
+    }
+
+    if (new_service) {
+        // Flush to ensure correct message framing
+        if (new_service->writer)
+            flushWrites(new_service->writer);
+        ++new_service->connections;
+    }
+
+    c->service = new_service;
+}
+
+static int handleFaupCommand(struct client *c, char *p) {
+    if (p == NULL)
+        return 0;
+
+    MODES_NOTUSED(c);
+    char* msg_field;
+    double multiplier;
+    msg_field = strtok (p, "\t");
+
+    // Traverse through message for commands
+    while (msg_field != NULL) {
+        if (!strcmp(msg_field, "upload_rate_multiplier")) {
+            msg_field = strtok (NULL, "\t");
+            multiplier = atof(msg_field);
+
+            // Sanity check on multiplier value
+            if (!(multiplier > 0 && multiplier <= 100)) {
+                fprintf(stderr, "handleFaupCommand(): upload_rate_multiplier (%0.2f) out of range\n", multiplier);
+                return 0;
+            }
+
+            fprintf(stderr, "handleFaupCommand(): Adjusting message rate to FlightAware by %0.2fx\n", multiplier);
+            Modes.faup_rate_multiplier = multiplier;
+            break;
+        }
+
+        if (!strcmp(msg_field, "upload_unknown_commb")) {
+            msg_field = strtok (NULL, "\t");
+            unsigned enable = atoi(msg_field);
+            fprintf(stderr, "handleFaupCommand(): %s upload of unknown Comm-B messages\n", enable ? "Enabling" : "Disabling");
+            Modes.faup_upload_unknown_commb = enable;
+            break;
+        }
+        msg_field = strtok (NULL, "\t");
+    }
+
+    return 0;
+}
+
 //
 // Handle a Beast command message.
 // Currently, we just look for the Mode A/C command message
@@ -844,13 +1170,20 @@ static int handleBeastCommand(struct client *c, char *p) {
     switch (p[1]) {
     case 'j':
         c->modeac_requested = 0;
+        autoset_modeac();
         break;
     case 'J':
         c->modeac_requested = 1;
+        autoset_modeac();
+        break;
+    case 'v':
+        moveNetClient(c, Modes.beast_cooked_service);
+        break;
+    case 'V':
+        moveNetClient(c, Modes.beast_verbatim_service);
         break;
     }
 
-    autoset_modeac();
     return 0;
 }
 
@@ -967,6 +1300,36 @@ static int hexDigitVal(int c) {
     else if (c >= 'a' && c <= 'f') return c-'a'+10;
     else return -1;
 }
+
+
+// decode 12 hex digits as a 48-bit timestamp
+static bool timestampFromHex(const char *hex, uint64_t *timestamp)
+{
+    uint64_t ts = 0;
+    for (unsigned i = 0; i < 12; ++i) {
+        int v = hexDigitVal(hex[i]);
+        if (v < 0)
+            return false;
+        ts = (ts << 4) | v;
+    }
+
+    *timestamp = ts;
+    return true;
+}
+
+// decode 2 hex digits as a signal level
+static bool signalFromHex(const char *hex, double *signal)
+{
+    int d1 = hexDigitVal(hex[0]);
+    int d2 = hexDigitVal(hex[1]);
+    if (d1 < 0 || d2 < 0)
+        return false;
+
+    double sig = ((d1 << 4) | d2) / 255.0;
+    *signal = sig * sig;
+    return true;
+}
+
 //
 //=========================================================================
 //
@@ -1008,26 +1371,50 @@ static int decodeHexMessage(struct client *c, char *hex) {
     // and some AVR records that we can understand
     if (hex[l-1] != ';') {return (0);} // not complete - abort
 
-    switch(hex[0]) {
-        case '<': {
-            mm.signalLevel = ((hexDigitVal(hex[13])<<4) | hexDigitVal(hex[14])) / 255.0;
-            mm.signalLevel = mm.signalLevel * mm.signalLevel;
-            hex += 15; l -= 16; // Skip <, timestamp and siglevel, and ;
-            break;}
+    switch (hex[0]) {
+        case '<':
+            // [0]       '<'
+            // [1..12]   timestamp
+            // [13..14]  signal level
+            // [15..l-2] data
+            // [l-1]     ';'
+            if (l < 18)
+                return 0; // truncated
+            if (!timestampFromHex(hex + 1, &mm.timestampMsg))
+                return 0; // malformed timestamp
+            if (!signalFromHex(hex + 13, &mm.signalLevel))
+                return 0; // malformed signal level
+            hex += 15;
+            l -= 16;
+            break;
 
         case '@':     // No CRC check
-        case '%': {   // CRC is OK
-            hex += 13; l -= 14; // Skip @,%, and timestamp, and ;
-            break;}
+        case '%':     // CRC is OK
+            // [0]       '@' or '%'
+            // [1..12]   timestamp
+            // [13..l-2] data
+            // [l-1]     ';'
+            if (l < 16)
+                return 0; // truncated
+            if (!timestampFromHex(hex + 1, &mm.timestampMsg))
+                return 0; // malformed timestamp
+            hex += 13;
+            l -= 14;
+            break;
 
         case '*':
-        case ':': {
-            hex++; l-=2; // Skip * and ;
-            break;}
+        case ':':
+            // [0]       '*' or ':'
+            // [1..l-2]  data
+            // [l-1]     ';'
+            if (l < 4)
+                return 0; // truncated
+            hex++;
+            l -= 2;
+            break;
 
-        default: {
-            return (0); // We don't know what this is, so abort
-            break;}
+        default:
+            return 0;
     }
 
     if ( (l != (MODEAC_MSG_BYTES      * 2))
@@ -1281,6 +1668,29 @@ static const char *nav_altitude_source_enum_string(nav_altitude_source_t src)
     }
 }
 
+static const char *mrar_source_enum_string(mrar_source_t src)
+{
+    switch (src) {
+    case MRAR_SOURCE_INVALID:  return "invalid";
+    case MRAR_SOURCE_INS:      return "ins";
+    case MRAR_SOURCE_GNSS:     return "gnss";
+    case MRAR_SOURCE_DMEDME:   return "dmedme";
+    case MRAR_SOURCE_VORDME:   return "vordme";
+    default:                   return "reserved";
+    }
+}
+
+static const char *hazard_enum_string(hazard_t hazard)
+{
+    switch (hazard) {
+    case HAZARD_NIL:       return "nil";
+    case HAZARD_LIGHT:     return "light";
+    case HAZARD_MODERATE:  return "moderate";
+    case HAZARD_SEVERE:    return "severe";
+    default:               return "invalid";
+    }
+}
+
 char *generateAircraftJson(const char *url_path, int *len) {
     uint64_t now = mstime();
     struct aircraft *a;
@@ -1301,7 +1711,7 @@ char *generateAircraftJson(const char *url_path, int *len) {
                        Modes.stats_current.messages_total + Modes.stats_alltime.messages_total);
 
     for (a = Modes.aircrafts; a; a = a->next) {
-        if (a->messages < 2) { // basic filter for bad decodes
+        if (!a->reliable) {
             continue;
         }
 
@@ -1384,7 +1794,22 @@ char *generateAircraftJson(const char *url_path, int *len) {
             p = safe_snprintf(p, end, ",\"gva\":%u", a->gva);
         if (trackDataValid(&a->sda_valid))
             p = safe_snprintf(p, end, ",\"sda\":%u", a->sda);
-
+        if (trackDataValid(&a->mrar_source_valid))
+            p = safe_snprintf(p, end, ",\"mrar_source\":\"%s\"", mrar_source_enum_string(a->mrar_source));
+        if (trackDataValid(&a->wind_valid))
+            p = safe_snprintf(p, end, ",\"wind_speed\":%.0f,\"wind_dir\":%.1f", a->wind_speed, a->wind_dir);
+        if (trackDataValid(&a->temperature_valid))
+            p = safe_snprintf(p, end, ",\"temperature\":%.2f", a->temperature);
+        if (trackDataValid(&a->pressure_valid))
+            p = safe_snprintf(p, end, ",\"pressure\":%.0f", a->pressure);
+        if (trackDataValid(&a->turbulence_valid))
+            p = safe_snprintf(p, end, ",\"turbulence\":\"%s\"", hazard_enum_string(a->turbulence));
+        if (trackDataValid(&a->humidity_valid))
+            p = safe_snprintf(p, end, ",\"humidity\":%.1f", a->humidity);
+        if (a->modeA_hit)
+            p = safe_snprintf(p, end, ",\"modea\":true");
+        if (a->modeC_hit)
+            p = safe_snprintf(p, end, ",\"modec\":true");
 
         p = safe_snprintf(p, end, ",\"mlat\":");
         p = append_flags(p, end, a, SOURCE_MLAT);
@@ -1476,68 +1901,114 @@ static char * appendStatsJson(char *p,
         p = safe_snprintf(p, end, "]}");
     }
 
-    {
-        uint64_t demod_cpu_millis = (uint64_t)st->demod_cpu.tv_sec*1000UL + st->demod_cpu.tv_nsec/1000000UL;
-        uint64_t reader_cpu_millis = (uint64_t)st->reader_cpu.tv_sec*1000UL + st->reader_cpu.tv_nsec/1000000UL;
-        uint64_t background_cpu_millis = (uint64_t)st->background_cpu.tv_sec*1000UL + st->background_cpu.tv_nsec/1000000UL;
+    uint64_t demod_cpu_millis = (uint64_t)st->demod_cpu.tv_sec*1000UL + st->demod_cpu.tv_nsec/1000000UL;
+    uint64_t reader_cpu_millis = (uint64_t)st->reader_cpu.tv_sec*1000UL + st->reader_cpu.tv_nsec/1000000UL;
+    uint64_t background_cpu_millis = (uint64_t)st->background_cpu.tv_sec*1000UL + st->background_cpu.tv_nsec/1000000UL;
 
-        p = safe_snprintf(p, end,
-                           ",\"cpr\":{\"surface\":%u"
-                           ",\"airborne\":%u"
-                           ",\"global_ok\":%u"
-                           ",\"global_bad\":%u"
-                           ",\"global_range\":%u"
-                           ",\"global_speed\":%u"
-                           ",\"global_skipped\":%u"
-                           ",\"local_ok\":%u"
-                           ",\"local_aircraft_relative\":%u"
-                           ",\"local_receiver_relative\":%u"
-                           ",\"local_skipped\":%u"
-                           ",\"local_range\":%u"
-                           ",\"local_speed\":%u"
-                           ",\"filtered\":%u}"
-                           ",\"altitude_suppressed\":%u"
-                           ",\"cpu\":{\"demod\":%llu,\"reader\":%llu,\"background\":%llu}"
-                           ",\"tracks\":{\"all\":%u"
-                           ",\"single_message\":%u}"
-                           ",\"messages\":%u}",
-                           st->cpr_surface,
-                           st->cpr_airborne,
-                           st->cpr_global_ok,
-                           st->cpr_global_bad,
-                           st->cpr_global_range_checks,
-                           st->cpr_global_speed_checks,
-                           st->cpr_global_skipped,
-                           st->cpr_local_ok,
-                           st->cpr_local_aircraft_relative,
-                           st->cpr_local_receiver_relative,
-                           st->cpr_local_skipped,
-                           st->cpr_local_range_checks,
-                           st->cpr_local_speed_checks,
-                           st->cpr_filtered,
-                           st->suppressed_altitude_messages,
-                           (unsigned long long)demod_cpu_millis,
-                           (unsigned long long)reader_cpu_millis,
-                           (unsigned long long)background_cpu_millis,
-                           st->unique_aircraft,
-                           st->single_message_aircraft,
-                           st->messages_total);
+    p = safe_snprintf(p, end,
+                      ",\"cpr\":{\"surface\":%u"
+                      ",\"airborne\":%u"
+                      ",\"global_ok\":%u"
+                      ",\"global_bad\":%u"
+                      ",\"global_range\":%u"
+                      ",\"global_speed\":%u"
+                      ",\"global_skipped\":%u"
+                      ",\"local_ok\":%u"
+                      ",\"local_aircraft_relative\":%u"
+                      ",\"local_receiver_relative\":%u"
+                      ",\"local_skipped\":%u"
+                      ",\"local_range\":%u"
+                      ",\"local_speed\":%u"
+                      ",\"filtered\":%u}"
+                      ",\"altitude_suppressed\":%u"
+                      ",\"cpu\":{\"demod\":%llu,\"reader\":%llu,\"background\":%llu}"
+                      ",\"tracks\":{\"all\":%u"
+                      ",\"single_message\":%u"
+                      ",\"unreliable\":%u}"
+                      ",\"messages\":%u",
+                      st->cpr_surface,
+                      st->cpr_airborne,
+                      st->cpr_global_ok,
+                      st->cpr_global_bad,
+                      st->cpr_global_range_checks,
+                      st->cpr_global_speed_checks,
+                      st->cpr_global_skipped,
+                      st->cpr_local_ok,
+                      st->cpr_local_aircraft_relative,
+                      st->cpr_local_receiver_relative,
+                      st->cpr_local_skipped,
+                      st->cpr_local_range_checks,
+                      st->cpr_local_speed_checks,
+                      st->cpr_filtered,
+                      st->suppressed_altitude_messages,
+                      (unsigned long long)demod_cpu_millis,
+                      (unsigned long long)reader_cpu_millis,
+                      (unsigned long long)background_cpu_millis,
+                      st->unique_aircraft,
+                      st->single_message_aircraft,
+                      st->unreliable_aircraft,
+                      st->messages_total);
+
+    for (i = 0; i < 32; ++i) {
+        if (i == 0)
+            p = safe_snprintf(p, end, ",\"messages_by_df\":[%u", st->messages_by_df[i]);
+        else
+            p = safe_snprintf(p, end, ",%u", st->messages_by_df[i]);
     }
+    p = safe_snprintf(p, end, "]");
 
+    if (st->adaptive_valid) {
+        p = safe_snprintf(p, end,
+                          ",\"adaptive\":"
+                          "{\"gain_db\":%.1f"
+                          ",\"dynamic_range_limit_db\":%.1f"
+                          ",\"gain_changes\":%u"
+                          ",\"loud_undecoded\":%u"
+                          ",\"loud_decoded\":%u"
+                          ",\"noise_dbfs\":%.1f"
+                          ",\"gain_seconds\":[",
+                          sdrGetGainDb(st->adaptive_gain),
+                          sdrGetGainDb(st->adaptive_range_gain_limit),
+                          st->adaptive_gain_changes,
+                          st->adaptive_loud_undecoded,
+                          st->adaptive_loud_decoded,
+                          st->adaptive_noise_dbfs);
+        bool first = true;
+        for (unsigned i = 0; i < STATS_GAIN_COUNT; ++i) {
+            if (st->adaptive_gain_seconds[i] > 0) {
+                p = safe_snprintf(p, end, "%s[%.1f,%u]",
+                                  first ? "" : ",",
+                                  sdrGetGainDb(i), st->adaptive_gain_seconds[i]);
+                first = false;
+            }
+        }
+        p = safe_snprintf(p, end, "]}");
+    }
+    p = safe_snprintf(p, end, "}");
     return p;
 }
 
 char *generateStatsJson(const char *url_path, int *len) {
-    struct stats add;
-    char *buf = (char *) malloc(4096), *p = buf, *end = buf + 4096;
-
     MODES_NOTUSED(url_path);
 
+    int buflen = 8192;
+    char *buf, *p, *end;
+
+ retry:
+    if (!(buf = malloc(buflen))) {
+        // allocation failed, give up
+        *len = 0;
+        return NULL;
+    }
+
+    p = buf;
+    end = buf + buflen;
+
     p = safe_snprintf(p, end, "{\n");
-    p = appendStatsJson(p, end, &Modes.stats_current, "latest");
+    p = appendStatsJson(p, end, &Modes.stats_latest, "latest");
     p = safe_snprintf(p, end, ",\n");
 
-    p = appendStatsJson(p, end, &Modes.stats_1min[Modes.stats_latest_1min], "last1min");
+    p = appendStatsJson(p, end, &Modes.stats_1min[Modes.stats_newest_1min], "last1min");
     p = safe_snprintf(p, end, ",\n");
 
     p = appendStatsJson(p, end, &Modes.stats_5min, "last5min");
@@ -1546,13 +2017,18 @@ char *generateStatsJson(const char *url_path, int *len) {
     p = appendStatsJson(p, end, &Modes.stats_15min, "last15min");
     p = safe_snprintf(p, end, ",\n");
 
-    add_stats(&Modes.stats_alltime, &Modes.stats_current, &add);
-    p = appendStatsJson(p, end, &add, "total");
+    p = appendStatsJson(p, end, &Modes.stats_alltime, "total");
     p = safe_snprintf(p, end, "\n}\n");
 
-    assert(p < end);
+    int used = p - buf;
+    if (p >= end) {
+        // overran the buffer
+        buflen = used + 50;
+        free(buf);
+        goto retry;
+    }
 
-    *len = p-buf;
+    *len = used;
     return buf;
 }
 
@@ -1615,6 +2091,30 @@ char *generateHistoryJson(const char *url_path, int *len)
     return strdup(Modes.json_aircraft_history[history_index].content);
 }
 
+static void ratelimitWriteError(const char *format, ...)
+{
+    static uint64_t lastError = 0;
+    static unsigned suppressed = 0;
+
+    uint64_t now = mstime();
+    if (now - lastError < 60000) {
+        ++suppressed;
+        return;
+    }
+
+    lastError = now;
+
+    va_list ap;
+    va_start(ap, format);
+    vfprintf(stderr, format, ap);
+    if (suppressed) {
+        fprintf(stderr, " (%u more error messages suppressed)", suppressed);
+        suppressed = 0;
+    }
+    fprintf(stderr, "\n");
+    va_end(ap);
+}
+
 // Write JSON to file
 void writeJsonToFile(const char *file, char * (*generator) (const char *,int*))
 {
@@ -1632,8 +2132,10 @@ void writeJsonToFile(const char *file, char * (*generator) (const char *,int*))
     snprintf(tmppath, PATH_MAX, "%s/%s.XXXXXX", Modes.json_dir, file);
     tmppath[PATH_MAX-1] = 0;
     fd = mkstemp(tmppath);
-    if (fd < 0)
+    if (fd < 0) {
+        ratelimitWriteError("failed to create %s (while updating %s/%s): %s", tmppath, Modes.json_dir, file, strerror(errno));
         return;
+    }
 
     mask = umask(0);
     umask(mask);
@@ -1643,15 +2145,23 @@ void writeJsonToFile(const char *file, char * (*generator) (const char *,int*))
     pathbuf[PATH_MAX-1] = 0;
     content = generator(pathbuf, &len);
 
-    if (write(fd, content, len) != len)
+    if (write(fd, content, len) != len) {
+        ratelimitWriteError("failed to write to %s (while updating %s/%s): %s", tmppath, Modes.json_dir, file, strerror(errno));
         goto error_1;
+    }
 
-    if (close(fd) < 0)
+    if (close(fd) < 0) {
+        ratelimitWriteError("failed to write to %s (while updating %s/%s): %s", tmppath, Modes.json_dir, file, strerror(errno));
         goto error_2;
+    }
 
     snprintf(pathbuf, PATH_MAX, "%s/%s", Modes.json_dir, file);
     pathbuf[PATH_MAX-1] = 0;
-    rename(tmppath, pathbuf);
+    if (rename(tmppath, pathbuf) < 0) {
+        ratelimitWriteError("failed to rename %s to %s: %s", tmppath, pathbuf, strerror(errno));
+        goto error_2;
+    }
+
     free(content);
     return;
 
@@ -1879,7 +2389,7 @@ __attribute__ ((format (printf,4,5))) static char *appendFATSV(char *p, char *en
 }
 
 #define TSV_MAX_PACKET_SIZE 800
-#define TSV_VERSION "6E"
+#define TSV_VERSION "9E"
 
 static void writeFATSVPositionUpdate(float lat, float lon, float alt)
 {
@@ -1950,7 +2460,7 @@ static void writeFATSVEvent(struct modesMessage *mm, struct aircraft *a)
         return; // not enabled or no active connections
     }
 
-    if (a->messages < 2)  // basic filter for bad decodes
+    if (!a || mm->source == SOURCE_MLAT || (!a->reliable && !mm->reliable))
         return;
 
     switch (mm->msgtype) {
@@ -1971,6 +2481,23 @@ static void writeFATSVEvent(struct modesMessage *mm, struct aircraft *a)
             if (memcmp(mm->MB, a->fatsv_emitted_bds_30, 7) != 0) {
                 memcpy(a->fatsv_emitted_bds_30, mm->MB, 7);
                 writeFATSVEventMessage(mm, "commb_acas_ra", mm->MB, 7);
+            }
+            break;
+
+        case COMMB_GICB_CAPS:
+            // BDS 1,7: common usage GICB capability report
+            if (memcmp(mm->MB, a->fatsv_emitted_bds_17, 7) != 0) {
+                memcpy(a->fatsv_emitted_bds_17, mm->MB, 7);
+                writeFATSVEventMessage(mm, "gicb_caps", mm->MB, 7);
+            }
+            break;
+
+        case COMMB_UNKNOWN:
+            // If enabled, upload raw unrecognized Comm-B messages
+            // for server-side analysis
+            if (Modes.faup_upload_unknown_commb && memcmp(mm->MB, a->fatsv_emitted_unknown_commb, 7) != 0) {
+                memcpy(a->fatsv_emitted_unknown_commb, mm->MB, 7);
+                writeFATSVEventMessage(mm, "unknown_commb", mm->MB, 7);
             }
             break;
 
@@ -2020,6 +2547,9 @@ static inline float heading_difference(float h1, float h2)
         break;
     case SOURCE_TISB:
         sourcetype = "T";
+        break;
+    case SOURCE_ADSR:
+        sourcetype = "R";
         break;
     case SOURCE_ADSB:
         sourcetype = "A";
@@ -2091,7 +2621,7 @@ static void writeFATSV()
     next_update = now + 1000;
 
     for (a = Modes.aircrafts; a; a = a->next) {
-        if (a->messages < 2)  // basic filter for bad decodes
+        if (!a->reliable)
             continue;
 
         // don't emit if it hasn't updated since last time
@@ -2145,9 +2675,16 @@ static void writeFATSV()
             (airgroundValid && a->airground == AG_AIRBORNE && a->fatsv_emitted_airground == AG_GROUND) ||
             (airgroundValid && a->airground == AG_GROUND && a->fatsv_emitted_airground == AG_AIRBORNE) ||
             (squawkValid && a->squawk != a->fatsv_emitted_squawk) ||
-            (trackDataValid(&a->emergency_valid) && a->emergency != a->fatsv_emitted_emergency);
+            (trackDataValid(&a->emergency_valid) && a->emergency != a->fatsv_emitted_emergency) ||
+            (trackDataValid(&a->mrar_source_valid) && a->mrar_source_valid.updated > a->fatsv_last_emitted) ||
+            (trackDataValid(&a->wind_valid) && a->wind_valid.updated > a->fatsv_last_emitted) ||
+            (trackDataValid(&a->pressure_valid) && a->pressure_valid.updated > a->fatsv_last_emitted) ||
+            (trackDataValid(&a->temperature_valid) && a->temperature_valid.updated > a->fatsv_last_emitted) ||
+            (trackDataValid(&a->turbulence_valid) && a->turbulence_valid.updated > a->fatsv_last_emitted) ||
+            (trackDataValid(&a->humidity_valid) && a->humidity_valid.updated > a->fatsv_last_emitted);
 
         uint64_t minAge;
+        double adjustedMinAge;
         if (immediate) {
             // a change we want to emit right away
             minAge = 0;
@@ -2167,8 +2704,12 @@ static void writeFATSV()
             minAge = (changed ? 10000 : 30000);
         }
 
-        if ((now - a->fatsv_last_emitted) < minAge)
+        // Adjust rate for multiplier
+        adjustedMinAge = minAge / Modes.faup_rate_multiplier;
+
+        if ((now - a->fatsv_last_emitted) < adjustedMinAge) {
             continue;
+        }
 
         char *p = prepareWrite(&Modes.fatsv_out, TSV_MAX_PACKET_SIZE);
         if (!p)
@@ -2242,10 +2783,17 @@ static void writeFATSV()
         p = appendFATSVMeta(p, end, "nav_alt_mcp", a, &a->nav_altitude_mcp_valid, "%u",   a->nav_altitude_mcp);
         p = appendFATSVMeta(p, end, "nav_alt_fms", a, &a->nav_altitude_fms_valid, "%u",   a->nav_altitude_fms);
         p = appendFATSVMeta(p, end, "nav_alt_src", a, &a->nav_altitude_src_valid, "%s", nav_altitude_source_enum_string(a->nav_altitude_src));
-        p = appendFATSVMeta(p, end, "nav_heading", a, &a->nav_heading_valid,   "%.1f", a->nav_heading);
-        p = appendFATSVMeta(p, end, "nav_modes",   a, &a->nav_modes_valid,     "{%s}", nav_modes_flags_string(a->nav_modes));
-        p = appendFATSVMeta(p, end, "nav_qnh",     a, &a->nav_qnh_valid,       "%.1f", a->nav_qnh);
-        p = appendFATSVMeta(p, end, "emergency",   a, &a->emergency_valid,     "%s",   emergency_enum_string(a->emergency));
+        p = appendFATSVMeta(p, end, "nav_heading", a, &a->nav_heading_valid,    "%.1f", a->nav_heading);
+        p = appendFATSVMeta(p, end, "nav_modes",   a, &a->nav_modes_valid,      "{%s}", nav_modes_flags_string(a->nav_modes));
+        p = appendFATSVMeta(p, end, "nav_qnh",     a, &a->nav_qnh_valid,        "%.1f", a->nav_qnh);
+        p = appendFATSVMeta(p, end, "emergency",   a, &a->emergency_valid,      "%s",   emergency_enum_string(a->emergency));
+        p = appendFATSVMeta(p, end, "mrar_source", a, &a->mrar_source_valid,    "%s",   mrar_source_enum_string(a->mrar_source));
+        p = appendFATSVMeta(p, end, "wind_speed",  a, &a->wind_valid,           "%.0f", a->wind_speed);
+        p = appendFATSVMeta(p, end, "wind_dir",    a, &a->wind_valid,           "%.1f", a->wind_dir);
+        p = appendFATSVMeta(p, end, "temperature", a, &a->temperature_valid,    "%.2f", a->temperature);
+        p = appendFATSVMeta(p, end, "pressure",    a, &a->pressure_valid,       "%.0f", a->pressure);
+        p = appendFATSVMeta(p, end, "turbulence",  a, &a->turbulence_valid,     "%s",   hazard_enum_string(a->turbulence));
+        p = appendFATSVMeta(p, end, "humidity",    a, &a->humidity_valid,       "%.0f", a->humidity);
 
         // if we didn't get anything interesting, bail out.
         // We don't need to do anything special to unwind prepareWrite().

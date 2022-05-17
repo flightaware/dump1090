@@ -1,0 +1,31 @@
+# derived from wisdom.aarch64.pi4b and wisdom.pi0w (in the absence of a non-neon aarch64 benchmark)
+
+magnitude_power_uc8                      neon_vrsqrte_armv8_neon_simd              # 242171 ns/call
+magnitude_power_uc8                      lookup_unroll_4_generic                   # 5464685 ns/call
+
+magnitude_power_uc8_aligned              neon_vrsqrte_armv8_neon_simd              # 231223 ns/call
+magnitude_power_uc8_aligned              lookup_unroll_4_generic                   # 5516196 ns/call
+
+magnitude_sc16                           neon_vrsqrte_armv8_neon_simd              # 687064 ns/call
+magnitude_sc16                           exact_float_generic                       # 28623479 ns/call
+
+magnitude_sc16_aligned                   neon_vrsqrte_armv8_neon_simd              # 669434 ns/call
+magnitude_sc16_aligned                   exact_float_generic                       # 28613950 ns/call
+
+magnitude_sc16q11                        neon_vrsqrte_armv8_neon_simd              # 166265 ns/call
+magnitude_sc16q11                        exact_float_generic                       # 7131190 ns/call
+
+magnitude_sc16q11_aligned                neon_vrsqrte_armv8_neon_simd              # 155062 ns/call
+magnitude_sc16q11_aligned                exact_float_generic                       # 7124159 ns/call
+
+magnitude_uc8                            neon_vrsqrte_armv8_neon_simd              # 213353 ns/call
+magnitude_uc8                            lookup_unroll_4_generic                   # 4179036 ns/call
+
+magnitude_uc8_aligned                    neon_vrsqrte_armv8_neon_simd              # 214464 ns/call
+magnitude_uc8_aligned                    lookup_unroll_4_generic                   # 4445877 ns/call
+
+mean_power_u16                           u32_armv8_neon_simd                       # 45663 ns/call
+mean_power_u16                           u64_generic                               # 990367 ns/call
+
+mean_power_u16_aligned                   u32_armv8_neon_simd                       # 44865 ns/call
+mean_power_u16_aligned                   u64_generic                               # 934445 ns/call

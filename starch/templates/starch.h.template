@@ -1,0 +1,68 @@
+### Copyright (c) 2020, FlightAware LLC.
+### All rights reserved.
+### See the LICENSE file for licensing terms.
+
+/* starch generated code. Do not edit. */
+
+% for include in gen.includes:
+#include ${include}
+% endfor
+
+/* mixes */
+
+% for mix in sorted(gen.mixes.values()):
+/* ${mix.description} */
+#ifdef ${mix.macro}
+  % for flavor in mix.flavors:
+#define ${flavor.macro}
+  % endfor
+#define STARCH_MIX_ALIGNMENT ${max((flavor.alignment) for flavor in mix.flavors)}
+#endif /* ${mix.macro} */
+
+% endfor
+
+#ifdef STARCH_MIX_ALIGNMENT
+#define STARCH_ALIGNMENT STARCH_MIX_ALIGNMENT
+#define STARCH_IS_ALIGNED(_ptr) (((uintptr_t)(_ptr) & (STARCH_MIX_ALIGNMENT-1)) == 0)
+#else
+/* mix not defined, alignment is unknown, treat everything as unaligned */
+#define STARCH_IS_ALIGNED(_ptr) (0)
+#endif
+
+
+/* entry points and registries */
+
+% for function in gen.functions.values():
+typedef ${function.returntype} (* ${function.pointer_type}) ( ${function.declaration_arglist} );
+extern ${function.pointer_type} ${function.callable_symbol};
+
+typedef struct {
+    int rank;
+    const char *name;
+    const char *flavor;
+    ${function.pointer_type} callable;
+    int (*flavor_supported)();
+} ${function.regentry_type};
+
+extern ${function.regentry_type} ${function.registry_symbol}[];
+${function.regentry_type} * ${function.select_symbol}();
+void ${function.set_wisdom_symbol}( const char * const * received_wisdom );
+
+% endfor
+/* flavors and prototypes */
+
+% for flavor in sorted(gen.flavors.values()):
+#ifdef ${flavor.macro}
+  % if flavor.test_function is not None:
+int ${flavor.test_function} (void);
+  % endif
+  % for impl in gen.function_impls.values():
+    % if (flavor.alignment > 1 or not impl.function.aligned) and (impl.feature is None or impl.feature in flavor.features):
+${impl.function.returntype} ${impl.impl_symbol(flavor)} ( ${impl.function.declaration_arglist} );
+    % endif
+  % endfor
+#endif /* ${flavor.macro} */
+
+int ${gen.sym("read_wisdom")} (const char * path);
+
+% endfor

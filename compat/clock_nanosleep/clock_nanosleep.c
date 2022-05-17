@@ -22,10 +22,7 @@
 #include <errno.h>                           // for errno, EINVAL
 #include <time.h>                            // for nanosleep, NULL
 
-#include "clock_nanosleep.h"
-#ifdef MISSING_GETTIME
-#include "../clock_gettime/clock_gettime.h"  // for clock_gettime
-#endif
+#include "../compat.h"
 
 int clock_nanosleep(clockid_t id, int flags, const struct timespec *ts,
                     struct timespec *ots) {

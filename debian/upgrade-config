@@ -1,0 +1,187 @@
+#!/bin/sh
+
+# This script runs during upgrade from pre-6.0 to try to
+# update /etc/default/dump1090-fa to the new-style
+# config.
+
+if [ $# -lt 2 ]
+then
+    echo "syntax: $0 path-to-config path-to-package-defaults" >&2
+    exit 2
+fi
+
+OLDCONFIG="$1"
+NEWCONFIG="${OLDCONFIG}.v6-upgrade"
+BACKUPCONFIG="${OLDCONFIG}.pre-v6-upgrade"
+PACKAGECONFIG="$2"
+
+if [ ! -f $OLDCONFIG ]
+then
+    echo "$OLDCONFIG does not exist, nothing to upgrade" >&2
+    exit 0
+fi
+
+if [ ! -f $PACKAGECONFIG ]
+then
+    echo "$PACKAGECONFIG does not exist, cannot continue" >&2
+    exit 1
+fi
+
+if [ -f $BACKUPCONFIG ]
+then
+    echo "$BACKUPCONFIG already exists, I'm not going to clobber it" >&2
+    exit 1
+fi
+
+# set some assumed defaults (5.0 dump1090 binary defaults if no command-line options are given)
+ENABLED="no"
+RECEIVER="rtlsdr"
+RECEIVER_SERIAL=""
+RECEIVER_GAIN="50"
+WISDOM=""
+ERROR_CORRECTION="no"
+MAX_RANGE=""
+NET_RAW_INPUT_PORTS="30001"
+NET_RAW_OUTPUT_PORTS="30002"
+NET_SBS_OUTPUT_PORTS="30003"
+NET_BEAST_INPUT_PORTS="30004,30104"
+NET_BEAST_OUTPUT_PORTS="30005"
+EXTRAS_NET_RO_SIZE="0"
+EXTRAS_NET_RO_INTERVAL="0"
+EXTRAS_NET_HEARTBEAT="60"
+
+# read the old config
+. "$OLDCONFIG"
+
+# if there's no CONFIG_STYLE, infer a version
+if [ -z "$CONFIG_STYLE" ]
+then
+   if [ -n "$RECEIVER_OPTIONS" -o -n "$DECODER_OPTIONS" -o -n "$NET_OPTIONS" -o -n "$JSON_OPTIONS" ]
+   then
+       CONFIG_STYLE=5
+   else
+       CONFIG_STYLE=6
+   fi
+fi
+
+# process all the options from the old config file and accumulate settings in env vars
+process_v5_options() {
+    while [ $# -gt 0 ]
+    do
+        opt="$1"
+        shift
+        case "$opt" in
+            --device-type)   RECEIVER="$1"; shift ;;
+            --device-index)  RECEIVER_SERIAL="$1"; shift ;;
+            --gain)          RECEIVER_GAIN="$1"; shift ;;
+            --max-range)     MAX_RANGE="$1"; shift ;;
+            --fix)           ERROR_CORRECTION="yes" ;;
+            --net)           ;;
+            --net-ri-port)   NET_RAW_INPUT_PORTS="$1"; shift ;;
+            --net-ro-port)   NET_RAW_OUTPUT_PORTS="$1"; shift ;;
+            --net-sbs-port)  NET_SBS_OUTPUT_PORTS="$1"; shift ;;
+            --net-bi-port)   NET_BEAST_INPUT_PORTS="$1"; shift ;;
+            --net-bo-port)   NET_BEAST_OUTPUT_PORTS="$1"; shift ;;
+            --json-location-accuracy) JSON_LOCATION_ACCURACY="$1"; shift ;;
+            --wisdom)        WISDOM="$1"; shift ;;
+
+            --ppm)             EXTRAS_PPM="$1"; shift ;;
+            --net-heartbeat)   EXTRAS_NET_HEARTBEAT="$1"; shift ;;
+            --net-ro-size)     EXTRAS_NET_RO_SIZE="$1"; shift ;;
+            --net-ro-interval) EXTRAS_NET_RO_INTERVAL="$1"; shift ;;
+
+            *) EXTRA_OPTIONS="$EXTRA_OPTIONS ${opt}" ;;
+        esac
+    done
+
+    # update EXTRA_OPTIONS for any non-default special settings
+    if [ "${EXTRAS_PPM:-0}" != "0" ]; then EXTRA_OPTIONS="$EXTRA_OPTIONS --ppm $EXTRAS_PPM"; fi
+    if [ "${EXTRAS_NET_HEARTBEAT:-60}" != "60" ]; then EXTRA_OPTIONS="$EXTRA_OPTIONS --net-heartbeat $EXTRAS_NET_HEARTBEAT"; fi
+    if [ "${EXTRAS_NET_RO_SIZE:-1300}" != "1300" ]; then EXTRA_OPTIONS="$EXTRA_OPTIONS --net-ro-size $EXTRAS_NET_RO_SIZE"; fi
+    if [ "${EXTRAS_NET_RO_INTERVAL:-1300}" != "0.2" ]; then EXTRA_OPTIONS="$EXTRA_OPTIONS --net-ro-interval $EXTRAS_NET_RO_INTERVAL"; fi
+
+    # special case for device index 0 (the default)
+    if [ "${RECEIVER_SERIAL}" = "0" ]; then RECEIVER_SERIAL=""; fi
+
+    # special case for gain -10 -> gain 60
+    if [ "${RECEIVER_GAIN}" = "-10" ]; then RECEIVER_GAIN="60"; fi
+
+    # special case for ports set to zero (new config uses a blank entry for that)
+    if [ "${NET_RAW_INPUT_PORTS}" = "0" ]; then NET_RAW_INPUT_PORTS=""; fi
+    if [ "${NET_RAW_OUTPUT_PORTS}" = "0" ]; then NET_RAW_OUTPUT_PORTS=""; fi
+    if [ "${NET_SBS_INPUT_PORTS}" = "0" ]; then NET_SBS_OUTPUT_PORTS=""; fi
+    if [ "${NET_BEAST_INPUT_PORTS}" = "0" ]; then NET_BEAST_INPUT_PORTS=""; fi
+    if [ "${NET_BEAST_OUTPUT_PORTS}" = "0" ]; then NET_BEAST_OUTPUT_PORTS=""; fi
+}
+
+SEDSCRIPT=$(mktemp -t dump1090XXX.sed)
+
+if [ "$CONFIG_STYLE" = "5" ]
+then
+    echo "Generating a v6-style config from the v5-style config in $OLDCONFIG" >&2
+
+    # nb: all values either derived from env vars or the package defaults
+    process_v5_options $RECEIVER_OPTIONS $DECODER_OPTIONS $NET_OPTIONS $JSON_OPTIONS
+    FROMCONFIG=$PACKAGECONFIG
+    cat >>$SEDSCRIPT <<EOF
+s@^ENABLED=.*@ENABLED=${ENABLED}@
+s@^RECEIVER=.*@RECEIVER=${RECEIVER}@
+s@^RECEIVER_SERIAL=.*@RECEIVER_SERIAL="${RECEIVER_SERIAL}"@
+s@^RECEIVER_GAIN=.*@RECEIVER_GAIN=${RECEIVER_GAIN}@
+s@^WISDOM=.*@WISDOM=${WISDOM}@
+s@^ERROR_CORRECTION=.*@ERROR_CORRECTION=${ERROR_CORRECTION}@
+s@^MAX_RANGE=.*@MAX_RANGE=${MAX_RANGE}@
+s@^NET_RAW_INPUT_PORTS=.*@NET_RAW_INPUT_PORTS=${NET_RAW_INPUT_PORTS}@
+s@^NET_RAW_OUTPUT_PORTS=.*@NET_RAW_OUTPUT_PORTS=${NET_RAW_OUTPUT_PORTS}@
+s@^NET_SBS_OUTPUT_PORTS=.*@NET_SBS_OUTPUT_PORTS=${NET_SBS_OUTPUT_PORTS}@
+s@^NET_BEAST_INPUT_PORTS=.*@NET_BEAST_INPUT_PORTS=${NET_BEAST_INPUT_PORTS}@
+s@^NET_BEAST_OUTPUT_PORTS=.*@NET_BEAST_OUTPUT_PORTS=${NET_BEAST_OUTPUT_PORTS}@
+s@^JSON_LOCATION_ACCURACY=.*@JSON_LOCATION_ACCURACY=${JSON_LOCATION_ACCURACY}@
+s@^EXTRA_OPTIONS=.*@EXTRA_OPTIONS="$EXTRA_OPTIONS"@
+EOF
+
+else
+    # Existing config file doesn't seem to be a v5, just turn off adaptive gain settings
+    # as this is an upgrade but otherwise leave it unchanged. (This happens when
+    # there were no changes made by the user to the config file before upgrading; dpkg
+    # will install the new v6 default config file automatically in that case)
+    FROMCONFIG=$OLDCONFIG
+fi
+
+# All upgrades get adaptive gain defaulting to off, to preserve the behaviour of
+# existing installs. New installs using the package defaults will default to on.
+echo "Disabling adaptive gain in $OLDCONFIG as this is an upgrade from pre-v6" >&2
+cat >>$SEDSCRIPT <<EOF
+s@^ADAPTIVE_DYNAMIC_RANGE=.*@ADAPTIVE_DYNAMIC_RANGE=no@
+s@^ADAPTIVE_BURST=.*@ADAPTIVE_BURST=no@
+EOF
+
+# substitute into the config file template to generate our customized config
+if ! sed -f $SEDSCRIPT <$FROMCONFIG >$NEWCONFIG
+then
+    echo "Something went wrong trying to upgrade $OLDCONFIG, giving up.." >&2
+    exit 1
+fi
+rm $SEDSCRIPT
+
+# back up the old config and install the new config
+if ! cp -p $OLDCONFIG $BACKUPCONFIG
+then
+    echo "Something went wrong trying to back up $OLDCONFIG, giving up.." >&2
+    exit 1
+fi
+
+if ! mv $NEWCONFIG $OLDCONFIG
+then
+    echo "Something went wrong trying to install the new version of $NEWCONFIG, giving up.." >&2
+    exit 1
+fi
+
+# all good
+cat >&2 <<EOF
+Upgraded existing config $OLDCONFIG to the new config syntax.
+Please doublecheck that it looks ok!
+The old config file has been preserved at $BACKUPCONFIG
+EOF
+
+exit 0

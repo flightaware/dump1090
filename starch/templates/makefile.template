@@ -1,0 +1,61 @@
+# -*- makefile -*-
+
+### Copyright (c) 2020, FlightAware LLC.
+### All rights reserved.
+### See the LICENSE file for licensing terms.
+
+# starch generated makefile fragment. do not edit.
+# 
+# This makefile is designed to be included in a surrounding makefile. The including makefile
+# should set $(STARCH_COMPILE) to a (partial) command line that provides suitable cflags etc
+# and handles the following appended things:
+#   * a C source filename to compile to the corresponding .o file
+#   * a -o option to specify the output object file
+#   * additional command-line arguments to set compile flags as defined in each flavor
+#
+# Including the makefile fragment provides these variables/rules:
+#
+#  $(STARCH_CFLAGS): additional cflags that may be used when compiling other code that uses starch.h
+#    (not required - if omitted, the only change is that flavor-specific prototypes are unavailable)
+#  $(STARCH_OBJS): a list of object files to link to the main binary
+#  $(STARCH_BENCHMARK_OBJ): object files providing a standalone benchmarking app (link all of $(STARCH_OBJS) too)
+#  explicit build rules for each object file listed in $(STARCH_OBJS)
+
+MKDIR_P = mkdir -p
+STARCH_CFLAGS := -D${mix.macro}
+<%
+   import os
+   o_files = []
+   impl_c_files = ' '.join( map(lambda x, gen=gen: os.path.relpath(x.path, gen.runtime_dir), gen.impl_files) )
+   benchmark_c_files = ' '.join( map(lambda x, gen=gen: os.path.relpath(x.path, gen.runtime_dir), gen.benchmark_files) )
+%>
+% for flavor in mix.flavors:
+<%
+   c_file = os.path.relpath(gen.generated_flavor_path(flavor), gen.runtime_dir)
+   o_file = os.path.splitext(c_file)[0] + '.o'
+   o_files.append(o_file)
+%>
+${o_file}: ${c_file} ${impl_c_files}
+	@$(MKDIR_P) $(dir $(STARCH_OBJ_PATH)${o_file})
+	$(STARCH_COMPILE) $(STARCH_CFLAGS) ${flavor.cflags} ${c_file} -o $(STARCH_OBJ_PATH)${o_file}
+% endfor
+<%
+   c_file = os.path.relpath(gen.generated_dispatcher_path, gen.runtime_dir)
+   o_file = os.path.splitext(c_file)[0] + '.o'
+   o_files.append(o_file)
+ %>
+${o_file}: ${c_file} ${impl_c_files}
+	@$(MKDIR_P) $(dir $(STARCH_OBJ_PATH)${o_file})
+	$(STARCH_COMPILE) $(STARCH_CFLAGS) ${c_file} -o $(STARCH_OBJ_PATH)${o_file}
+
+STARCH_OBJS := ${' '.join(o_files)}
+
+<%
+   c_file = os.path.relpath(gen.generated_benchmark_path, gen.runtime_dir)
+   o_file = os.path.splitext(c_file)[0] + '.o'
+ %>
+${o_file}: ${c_file} ${benchmark_c_files}
+	@$(MKDIR_P) $(dir $(STARCH_OBJ_PATH)${o_file})
+	$(STARCH_COMPILE) $(STARCH_CFLAGS) ${c_file} -o $(STARCH_OBJ_PATH)${o_file}
+
+STARCH_BENCHMARK_OBJ := ${o_file}

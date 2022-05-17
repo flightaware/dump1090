@@ -56,7 +56,7 @@ static uint16_t *outdata;
 // SC16Q11_TABLE_BITS=8:          5.77M samples/second
 // SC16Q11_TABLE_BITS=7:         10.23M samples/second
 
-void prepare()
+static void prepare()
 {
     srand(1);
 
@@ -89,7 +89,7 @@ void prepare()
     }
 }
 
-void test(const char *what, input_format_t format, void **data, double sample_rate, bool filter_dc) {
+static void test(const char *what, input_format_t format, void **data, double sample_rate, bool filter_dc) {
     fprintf(stderr, "Benchmarking: %s ", what);
 
     struct converter_state *state;
@@ -102,8 +102,12 @@ void test(const char *what, input_format_t format, void **data, double sample_ra
     struct timespec total = { 0, 0 };
     int iterations = 0;
 
+    double level, power;
+
     // Run it once to force init.
-    converter(data[0], outdata, MODES_MAG_BUF_SAMPLES, state, NULL, NULL);
+    for (int i = 0; i < 10; ++i) {
+        converter(data[i], outdata, MODES_MAG_BUF_SAMPLES, state, &level, &power);
+    }
 
     while (total.tv_sec < 5) {
         fprintf(stderr, ".");
@@ -112,7 +116,7 @@ void test(const char *what, input_format_t format, void **data, double sample_ra
         start_cpu_timing(&start);
 
         for (int i = 0; i < 10; ++i) {
-            converter(data[i], outdata, MODES_MAG_BUF_SAMPLES, state, NULL, NULL);
+            converter(data[i], outdata, MODES_MAG_BUF_SAMPLES, state, &level, &power);
         }
 
         end_cpu_timing(&start, &total);
@@ -134,6 +138,9 @@ int main(int argc, char **argv)
 {
     MODES_NOTUSED(argc);
     MODES_NOTUSED(argv);
+
+    if (argc > 1)
+        starch_read_wisdom(argv[1]);
 
     prepare();
 

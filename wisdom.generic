@@ -1,0 +1,19 @@
+# some fairly arbitrary defaults for when we don't know the target architecture
+
+magnitude_power_uc8                      twopass_generic
+magnitude_power_uc8_aligned              twopass_generic
+
+magnitude_sc16                           exact_float_generic
+magnitude_sc16_aligned                   exact_float_generic
+
+magnitude_sc16q11                        exact_float_generic
+magnitude_sc16q11_aligned                exact_float_generic
+
+magnitude_uc8                            lookup_unroll_4_generic
+magnitude_uc8_aligned                    lookup_unroll_4_generic
+
+mean_power_u16                           u32_generic
+mean_power_u16_aligned                   u32_generic
+
+count_above_u16                          generic_generic
+count_above_u16_aligned                  generic_generic

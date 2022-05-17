@@ -20,6 +20,9 @@
 #ifndef DUMP1090_ICAO_FILTER_H
 #define DUMP1090_ICAO_FILTER_H
 
+// Special address bit used to mark ADS-B (NT) emitters
+#define ICAO_FILTER_ADSB_NT (1 << 25)
+
 // Call once:
 void icaoFilterInit();
 

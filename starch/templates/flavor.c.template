@@ -1,0 +1,48 @@
+### Copyright (c) 2020, FlightAware LLC.
+### All rights reserved.
+### See the LICENSE file for licensing terms.
+
+/* starch generated code. Do not edit. */
+
+#define ${flavor.macro}
+% for feature in flavor.features:
+#define ${feature.macro}
+% endfor
+
+#include "${os.path.relpath(gen.generated_include_path, current_dir)}"
+
+#undef STARCH_ALIGNMENT
+
+#define STARCH_ALIGNMENT 1
+#define STARCH_ALIGNED(_ptr) (_ptr)
+#define STARCH_SYMBOL(_name) ${gen.symbol_prefix} ## _name ## _ ## ${flavor.name}
+#define STARCH_IMPL(_function,_impl) ${gen.symbol_prefix} ## _function ## _ ## _impl ## _ ## ${flavor.name}
+#define STARCH_IMPL_REQUIRES(_function,_impl,_feature) STARCH_IMPL(_function,_impl)
+
+% for source in sorted(gen.impl_files):
+  % if any( ((impl.feature is None or impl.feature in flavor.features) and not impl.function.aligned) for impl in source.impls):
+#include "${os.path.relpath(source.path, current_dir)}"
+  % endif
+% endfor
+
+% if flavor.alignment > 1:
+
+#undef STARCH_ALIGNMENT
+#undef STARCH_ALIGNED
+#undef STARCH_SYMBOL
+#undef STARCH_IMPL
+#undef STARCH_IMPL_REQUIRES
+
+#define STARCH_ALIGNMENT STARCH_MIX_ALIGNMENT
+#define STARCH_ALIGNED(_ptr) (__builtin_assume_aligned((_ptr), STARCH_MIX_ALIGNMENT))
+#define STARCH_SYMBOL(_name) ${gen.symbol_prefix} ## _name ## _aligned_ ## ${flavor.name}
+#define STARCH_IMPL(_function,_impl) ${gen.symbol_prefix} ## _function ## _aligned_ ## _impl ## _ ## ${flavor.name}
+#define STARCH_IMPL_REQUIRES(_function,_impl,_feature) STARCH_IMPL(_function,_impl)
+
+% for source in sorted(gen.impl_files):
+  % if any( ((impl.feature is None or impl.feature in flavor.features) and impl.function.aligned) for impl in source.impls):
+#include "${os.path.relpath(source.path, current_dir)}"
+  % endif
+% endfor
+
+% endif

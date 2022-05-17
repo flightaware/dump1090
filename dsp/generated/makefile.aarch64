@@ -1,0 +1,44 @@
+# -*- makefile -*-
+
+
+# starch generated makefile fragment. do not edit.
+# 
+# This makefile is designed to be included in a surrounding makefile. The including makefile
+# should set $(STARCH_COMPILE) to a (partial) command line that provides suitable cflags etc
+# and handles the following appended things:
+#   * a C source filename to compile to the corresponding .o file
+#   * a -o option to specify the output object file
+#   * additional command-line arguments to set compile flags as defined in each flavor
+#
+# Including the makefile fragment provides these variables/rules:
+#
+#  $(STARCH_CFLAGS): additional cflags that may be used when compiling other code that uses starch.h
+#    (not required - if omitted, the only change is that flavor-specific prototypes are unavailable)
+#  $(STARCH_OBJS): a list of object files to link to the main binary
+#  $(STARCH_BENCHMARK_OBJ): object files providing a standalone benchmarking app (link all of $(STARCH_OBJS) too)
+#  explicit build rules for each object file listed in $(STARCH_OBJS)
+
+MKDIR_P = mkdir -p
+STARCH_CFLAGS := -DSTARCH_MIX_AARCH64
+
+
+dsp/generated/flavor.armv8_neon_simd.o: dsp/generated/flavor.armv8_neon_simd.c dsp/impl/mean_power_u16.c dsp/impl/magnitude_power_uc8.c dsp/impl/magnitude_uc8.c dsp/impl/magnitude_sc16q11.c dsp/impl/count_above_u16.c dsp/impl/magnitude_sc16.c
+	@$(MKDIR_P) $(dir $(STARCH_OBJ_PATH)dsp/generated/flavor.armv8_neon_simd.o)
+	$(STARCH_COMPILE) $(STARCH_CFLAGS) -march=armv8-a+simd -ffast-math dsp/generated/flavor.armv8_neon_simd.c -o $(STARCH_OBJ_PATH)dsp/generated/flavor.armv8_neon_simd.o
+
+dsp/generated/flavor.generic.o: dsp/generated/flavor.generic.c dsp/impl/mean_power_u16.c dsp/impl/magnitude_power_uc8.c dsp/impl/magnitude_uc8.c dsp/impl/magnitude_sc16q11.c dsp/impl/count_above_u16.c dsp/impl/magnitude_sc16.c
+	@$(MKDIR_P) $(dir $(STARCH_OBJ_PATH)dsp/generated/flavor.generic.o)
+	$(STARCH_COMPILE) $(STARCH_CFLAGS)  dsp/generated/flavor.generic.c -o $(STARCH_OBJ_PATH)dsp/generated/flavor.generic.o
+
+dsp/generated/dispatcher.o: dsp/generated/dispatcher.c dsp/impl/mean_power_u16.c dsp/impl/magnitude_power_uc8.c dsp/impl/magnitude_uc8.c dsp/impl/magnitude_sc16q11.c dsp/impl/count_above_u16.c dsp/impl/magnitude_sc16.c
+	@$(MKDIR_P) $(dir $(STARCH_OBJ_PATH)dsp/generated/dispatcher.o)
+	$(STARCH_COMPILE) $(STARCH_CFLAGS) dsp/generated/dispatcher.c -o $(STARCH_OBJ_PATH)dsp/generated/dispatcher.o
+
+STARCH_OBJS := dsp/generated/flavor.armv8_neon_simd.o dsp/generated/flavor.generic.o dsp/generated/dispatcher.o
+
+
+dsp/generated/benchmark.o: dsp/generated/benchmark.c dsp/benchmark/magnitude_sc16_benchmark.c dsp/benchmark/magnitude_uc8_benchmark.c dsp/benchmark/magnitude_power_uc8_benchmark.c dsp/benchmark/mean_power_u16_benchmark.c dsp/benchmark/count_above_u16_benchmark.c dsp/benchmark/magnitude_sc16q11_benchmark.c
+	@$(MKDIR_P) $(dir $(STARCH_OBJ_PATH)dsp/generated/benchmark.o)
+	$(STARCH_COMPILE) $(STARCH_CFLAGS) dsp/generated/benchmark.c -o $(STARCH_OBJ_PATH)dsp/generated/benchmark.o
+
+STARCH_BENCHMARK_OBJ := dsp/generated/benchmark.o

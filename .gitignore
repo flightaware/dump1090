@@ -14,4 +14,13 @@ package-wheezy
 build
 .idea
 oneoff/convert_benchmark
+oneoff/uc8_capture_stats
+oneoff/dsp_error_measurement
+oneoff/decode_comm_b
+starch-benchmark
+wisdom.local
+build
+.idea
+data
+oneoff/convert_benchmark
 oneoff/decode_comm_b

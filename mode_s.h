@@ -2,7 +2,7 @@
 //
 // mode_s.h: Mode S message decoding (prototypes)
 //
-// Copyright (c) 2017 FlightAware, LLC
+// Copyright (c) 2017-2021 FlightAware, LLC
 // Copyright (c) 2017 Oliver Jowett <oliver@mutability.co.uk>
 //
 // This file is free software: you may copy, redistribute and/or modify it
@@ -26,9 +26,62 @@
 //
 // Functions exported from mode_s.c
 //
+
+// Possible return values of scoreModesMessage,
+// ordered from worst to best
+typedef enum {
+    SR_NOT_SET = 0,               // message has not been scored yet
+
+    SR_ALL_ZEROS,                 // a message that's all zeros
+    SR_UNKNOWN_DF,                // message with unrecognized DF
+    SR_UNCORRECTABLE,             // message with uncorrectable errors
+
+    SR_UNKNOWN_THRESHOLD,         // cutoff for message that might be valid, but don't match an existing aircraft
+
+    SR_UNRELIABLE_UNKNOWN,        // Address/Parity,                 unknown aircraft
+
+    SR_DF11_IID_1ERROR_UNKNOWN,   // DF11, non-zero IID, 1 error,    unknown aircraft
+    SR_DF11_ACQ_1ERROR_UNKNOWN,   // DF11, zero IID,     1 error,    unknown aircraft
+    SR_DF11_IID_UNKNOWN,          // DF11, non-zero IID, no errors,  unknown aircraft
+
+    SR_DF18_2ERROR_UNKNOWN,       // DF17,               2 errors,   unknown aircraft
+    SR_DF17_2ERROR_UNKNOWN,       // DF17,               2 errors,   unknown aircraft
+
+    SR_ACCEPT_THRESHOLD,          // cutoff for accepting messages
+
+    // Address/Parity is unreliable, prefer anything else but this
+    SR_UNRELIABLE_KNOWN,          // Address/Parity,                 known aircraft
+
+    // 2-bit error correction is quite unreliable, put it low down the ranking even for known aircraft
+    SR_DF18_2ERROR_KNOWN,         // DF18,               2 errors,   known aircraft
+    SR_DF17_2ERROR_KNOWN,         // DF17,               2 errors,   known aircraft
+
+    // 1-bit error when we haven't previously seen anything from this address, low priority
+    SR_DF18_1ERROR_UNKNOWN,       // DF18,               1 error,    unknown aircraft
+    SR_DF17_1ERROR_UNKNOWN,       // DF17,               1 error,    unknown aircraft
+
+    // We need to accept at least one non-ES message type from unknown aircraft
+    // or else we'd never accept message from Mode-S only aircraft
+    SR_DF11_ACQ_UNKNOWN,          // DF11, zero IID,     no errors,  unknown aircraft
+
+    SR_DF11_IID_1ERROR_KNOWN,     // DF11, non-zero IID, 1 error,    known aircraft
+    SR_DF11_ACQ_1ERROR_KNOWN,     // DF11, zero IID,     1 error,    known aircraft
+    SR_DF11_IID_KNOWN,            // DF11, non-zero IID, no errors,  known aircraft
+
+    SR_DF18_1ERROR_KNOWN,         // DF18,               1 error,    known aircraft
+    SR_DF17_1ERROR_KNOWN,         // DF17,               1 error,    known aircraft
+
+    SR_DF11_ACQ_KNOWN,            // DF11, zero IID,     no errors,  known aircraft
+
+    SR_DF18_UNKNOWN,              // DF18,               no errors,  unknown aircraft
+    SR_DF17_UNKNOWN,              // DF17,               no errors,  unknown aircraft
+    SR_DF18_KNOWN,                // DF18,               no errors,  known aircraft
+    SR_DF17_KNOWN,                // DF17,               no errors,  known aircraft
+} score_rank;
+
 int modesMessageLenByType(int type);
-int scoreModesMessage(unsigned char *msg, int validbits);
-int decodeModesMessage (struct modesMessage *mm, unsigned char *msg);
+score_rank scoreModesMessage(const unsigned char *msg);
+int decodeModesMessage (struct modesMessage *mm, const unsigned char *msg);
 void displayModesMessage(struct modesMessage *mm);
 void useModesMessage    (struct modesMessage *mm);
 
@@ -38,7 +91,7 @@ void useModesMessage    (struct modesMessage *mm);
 // with how the specs number them.
 
 // Extract one bit from a message.
-static inline  __attribute__((always_inline)) unsigned getbit(unsigned char *data, unsigned bitnum)
+static inline  __attribute__((always_inline)) unsigned getbit(const unsigned char *data, unsigned bitnum)
 {
     unsigned bi = bitnum - 1;
     unsigned by = bi >> 3;
@@ -48,7 +101,7 @@ static inline  __attribute__((always_inline)) unsigned getbit(unsigned char *dat
 }
 
 // Extract some bits (firstbit .. lastbit inclusive) from a message.
-static inline  __attribute__((always_inline)) unsigned getbits(unsigned char *data, unsigned firstbit, unsigned lastbit)
+static inline  __attribute__((always_inline)) unsigned getbits(const unsigned char *data, unsigned firstbit, unsigned lastbit)
 {
     unsigned fbi = firstbit - 1;
     unsigned lbi = lastbit - 1;

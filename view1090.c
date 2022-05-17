@@ -28,10 +28,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 #include "dump1090.h"
+
+struct _Modes Modes;
+
 //
 // ============================= Utility functions ==========================
 //
-void sigintHandler(int dummy) {
+static void sigintHandler(int dummy) {
     MODES_NOTUSED(dummy);
     signal(SIGINT, SIG_DFL);  // reset signal handler - bit extra safety
     Modes.exit = 1;           // Signal to threads that we are done
@@ -48,12 +51,13 @@ void receiverPositionChanged(float lat, float lon, float alt)
 //
 // =============================== Initialization ===========================
 //
-void view1090InitConfig(void) {
+static void view1090InitConfig(void) {
     // Default everything to zero/NULL
     memset(&Modes,    0, sizeof(Modes));
 
     // Now initialise things that should not be 0/NULL to their defaults
     Modes.check_crc               = 1;
+    Modes.fix_df                  = 1;
     Modes.interactive_display_ttl = MODES_INTERACTIVE_DISPLAY_TTL;
     Modes.interactive             = 1;
     Modes.maxRange                = 1852 * 300; // 300NM default max range
@@ -61,10 +65,7 @@ void view1090InitConfig(void) {
 //
 //=========================================================================
 //
-void view1090Init(void) {
-
-    pthread_mutex_init(&Modes.data_mutex,NULL);
-    pthread_cond_init(&Modes.data_cond,NULL);
+static void view1090Init(void) {
 
 #ifdef _WIN32
     if ( (!Modes.wsaData.wVersion)
@@ -100,19 +101,22 @@ void view1090Init(void) {
     modesChecksumInit(Modes.nfix_crc);
     icaoFilterInit();
     modeACInit();
-    interactiveInit();
 }
 
 //
 // ================================ Main ====================================
 //
-void showHelp(void) {
+static void showHelp(void) {
     printf(
-"-----------------------------------------------------------------------------\n"
+"-------------------------------------------------------------------------------------\n"
 "| view1090 ModeS Viewer       %45s |\n"
-"-----------------------------------------------------------------------------\n"
+"-------------------------------------------------------------------------------------\n"
   "--no-interactive         Disable interactive mode, print messages to stdout\n"
   "--interactive-ttl <sec>  Remove from list if idle for <sec> (default: 60)\n"
+  "--interactive-show-distance   Show aircraft distance and bearing instead of lat/lon\n"
+  "                              (requires --lat and --lon)\n"
+  "--interactive-distance-units  Distance units ('km', 'sm', 'nm') (default: 'nm')\n"
+  "--interactive-callsign-filter Only callsigns that match the prefix or regex will be displayed\n"
   "--modeac                 Enable decoding of SSR modes 3/A & 3/C\n"
   "--net-bo-ipaddr <IPv4>   TCP Beast output listen IPv4 (default: 127.0.0.1)\n"
   "--net-bo-port <port>     TCP Beast output listen port (default: 30005)\n"
@@ -120,14 +124,21 @@ void showHelp(void) {
   "--lon <longitude>        Reference/receiver longitude for surface posn (opt)\n"
   "--max-range <distance>   Absolute maximum range for position decoding (in nm, default: 300)\n"
   "--no-crc-check           Disable messages with broken CRC (discouraged)\n"
-  "--no-fix                 Disable single-bits error correction using CRC\n"
   "--fix                    Enable single-bits error correction using CRC\n"
-  "--aggressive             More CPU for more messages (two bits fixes, ...)\n"
+  "                         (specify twice for two-bit error correction)\n"
+  "--no-fix                 Disable error correction using CRC\n"
   "--metric                 Use metric units (meters, km/h, ...)\n"
   "--show-only <addr>       Show only messages from the given ICAO on stdout\n"
   "--help                   Show this help\n",
   MODES_DUMP1090_VARIANT " " MODES_DUMP1090_VERSION
     );
+}
+
+static void sendSettings(struct client *c)
+{
+    sendBeastSettings(c, "CdV"); // Beast binary format, no filters, verbatim mode on
+    sendBeastSettings(c, Modes.mode_ac ? "J" : "j");  // Mode A/C on or off
+    sendBeastSettings(c, Modes.check_crc ? "f" : "F");  // CRC checks on or off
 }
 
 //
@@ -162,7 +173,21 @@ int main(int argc, char **argv) {
             Modes.interactive = 0;
         } else if (!strcmp(argv[j],"--interactive-ttl") && more) {
             Modes.interactive_display_ttl = (uint64_t)(1000 * atof(argv[++j]));
-        } else if (!strcmp(argv[j],"--lat") && more) {
+            Modes.interactive_display_size = strlen(argv[j]);
+        } else if (!strcmp(argv[j], "--interactive-show-distance")) {
+            Modes.interactive_show_distance = 1;
+        } else if (!strcmp(argv[j], "--interactive-distance-units") && more) {
+            char *units = argv[++j];
+            if (!strcmp(units, "km")) {
+                Modes.interactive_distance_units = UNIT_KILOMETERS;
+            } else if (!strcmp(units, "sm")) {
+                Modes.interactive_distance_units = UNIT_STATUTE_MILES;
+            } else {
+                Modes.interactive_distance_units = UNIT_NAUTICAL_MILES;
+            }
+        } else if (!strcmp(argv[j], "--interactive-callsign-filter") && more) {
+            Modes.interactive_callsign_filter = strdup(argv[++j]);
+        } else if (!strcmp(argv[j], "--lat") && more) {
             Modes.fUserLat = atof(argv[++j]);
         } else if (!strcmp(argv[j],"--lon") && more) {
             Modes.fUserLon = atof(argv[++j]);
@@ -171,11 +196,9 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[j],"--no-crc-check")) {
             Modes.check_crc = 0;
         } else if (!strcmp(argv[j],"--fix")) {
-            Modes.nfix_crc = 1;
+            ++Modes.nfix_crc;
         } else if (!strcmp(argv[j],"--no-fix")) {
             Modes.nfix_crc = 0;
-        } else if (!strcmp(argv[j],"--aggressive")) {
-            Modes.nfix_crc = MODES_MAX_BITERRORS;
         } else if (!strcmp(argv[j],"--max-range") && more) {
             Modes.maxRange = atof(argv[++j]) * 1852.0; // convert to metres
         } else if (!strcmp(argv[j],"--help")) {
@@ -194,6 +217,9 @@ int main(int argc, char **argv) {
 #define MSG_DONTWAIT 0
 #endif
 
+    if (Modes.nfix_crc > MODES_MAX_BITERRORS)
+        Modes.nfix_crc = MODES_MAX_BITERRORS;
+
     // Initialization
     view1090Init();
     modesInitNet();
@@ -202,31 +228,37 @@ int main(int argc, char **argv) {
     s = makeBeastInputService();
     c = serviceConnect(s, bo_connect_ipaddr, bo_connect_port);
     if (!c) {
+        interactiveCleanup();
         fprintf(stderr, "Failed to connect to %s:%d: %s\n", bo_connect_ipaddr, bo_connect_port, Modes.aneterr);
         exit(1);
     }
-
-    sendBeastSettings(c, "Cd"); // Beast binary format, no filters
-    sendBeastSettings(c, Modes.mode_ac ? "J" : "j");  // Mode A/C on or off
-    sendBeastSettings(c, Modes.check_crc ? "f" : "F");  // CRC checks on or off
+    sendSettings(c);
 
     // Keep going till the user does something that stops us
+    interactiveInit();
     while (!Modes.exit) {
+        struct timespec r = { 0, 100 * 1000 * 1000};
         icaoFilterExpire();
         trackPeriodicUpdate();
         modesNetPeriodicWork();
 
-        if (Modes.interactive)
-            interactiveShowData();
+        interactiveShowData();
 
         if (s->connections == 0) {
+            if (!Modes.interactive)
+                break;
+
             // lost input connection, try to reconnect
-            usleep(1000000);
+            interactiveNoConnection();
+            sleep(1);
             c = serviceConnect(s, bo_connect_ipaddr, bo_connect_port);
+            if (c) {
+                sendSettings(c);
+            }
             continue;
         }
 
-        usleep(100000);
+        nanosleep(&r, NULL);
     }
 
     interactiveCleanup();

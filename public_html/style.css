@@ -6,7 +6,7 @@ html, body {
 
 #layout_container { 
     display: flex;
-    height: calc(100% - 60px);;
+    height: calc(100% - 60px);
 }
 
 #selected_infoblock {
@@ -22,8 +22,8 @@ html, body {
 	height: 100%;
 }
 #sidebar_canvas { 
-    padding: 10px;
-	overflow: scroll;
+    	padding: 10px;
+	overflow: auto;
 }
 #sidebar_container {
 	display: flex;
@@ -43,6 +43,38 @@ html, body {
     position: absolute;
     width: 100%;
     height: 100%;
+}
+
+#planes_table_container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#planes_table {
+    overflow-x: scroll;
+}
+
+.columnOptionContainer {
+    position: relative;
+    display: table;
+    padding-top: 5px;
+    left: 20px;
+}
+
+.columnOptionSelectAllContainer {
+    position: relative;
+    display: table;
+    padding-top: 5px;
+}
+
+.columnOptionText {
+    position: relative;
+    line-height: 10px;
+    display: table-cell;
+    width: 100%;
+    left: 5px;
+
 }
 
 #toggle_sidebar_control {
@@ -207,11 +239,15 @@ div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right:
     background-color: #002F5D;
     color: #FFFFFF;
     cursor: pointer;
+    white-space: nowrap;
 }
 .aircraft_table_header td {
     font-size: smaller;
     padding: 5px;
     text-align: center;
+    border-radius: 4px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
 }
 
 .verticalRateTriangle {
@@ -224,6 +260,7 @@ div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right:
 }
 
 .vPosition  { background-color: #E5F6FC; }
+.uat        { background-color: #CDF7D0; }
 .mlat       { background-color: #FDF2E5; }
 .other      { background-color: #CCD5F8; }
 .tisb       { background-color: #FFF3B8; }
@@ -235,6 +272,9 @@ div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right:
     cursor: pointer;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
+
+.ident_normal { font-weight: normal; font-style: normal; }
+.ident_fallback { font-weight: bold; font-style: italic; }
 .hidden { display: none; }
 
 .infoblock_heading    { font-size: larger; }
@@ -258,6 +298,25 @@ div#loader { z-index: 99; position: absolute; left: 0; top: 0; bottom: 0; right:
 
 .altitudeFilterInput {
     width: 50px;
+}
+
+.aircraftFilterInput {
+    width: 80px;
+}
+
+.rangeRingsInput {
+    width: 30px;
+    float: right;
+}
+
+.rangeOptions {
+	width: 170px;
+	padding-top: 8px;
+	text-indent: 10px;
+}
+
+.set_range_rings_button {
+	padding-top: 8px;
 }
 
 select.error, textarea.error, input.error {
@@ -396,7 +455,7 @@ select.error, textarea.error, input.error {
 }
 
 .piAwareLogo {
-    width: 186px;
+    width: 235px;
     height: 24px;
 }
 .flightfeederLogo {
@@ -576,27 +635,13 @@ select.error, textarea.error, input.error {
     -webkit-border-radius: 4px;
 }
 
-#adsbLegendBox {
-    background-color: #E5F6FC;
-}
-
-#mlatLegendBox {
-    background-color: #FDF2E5;
-}
-
-#otherLegendBox {
-    background-color: #E6E6E6;
-}
-
-#tisbLegendBox {
-    background-color: #CCD5DF;
-}
-
 .legendTitle {
     line-height: 19px;
     display: inline-block;
-    padding-right: 20px;
+    padding-right: 5px;
     padding-left: 5px;
+    border-radius: 5px;
+    margin-right: 20px;
 }
 
 #settings_infoblock {
@@ -621,16 +666,33 @@ select.error, textarea.error, input.error {
     padding-bottom: 10px;
 }
 
-.settingsCheckbox {
+.settingsCheckbox, .columnSelectCheckbox, .columnSelectAllCheckbox {
     width: 20px;
     height: 11px;
     background-image: url('images/box-empty.png');
     background-repeat: no-repeat;
     background-position: center;
+    background-size: contain;
     cursor: pointer;
 }
 
 .settingsCheckboxChecked {
+    background-image: url('images/box-checked.png') !important;
+}
+
+.sourceCheckbox {
+    width: 13px;
+    height: 13px;
+    background-image: url('images/box-empty.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    cursor: pointer;
+    margin-top: 3px;
+    margin-right: 3px;
+}
+
+.sourceCheckboxChecked {
     background-image: url('images/box-checked.png') !important;
 }
 
@@ -771,4 +833,125 @@ select.error, textarea.error, input.error {
     #toggle_sidebar_button.hide_sidebar {
         background-image: url("images/map-icon@3x.png");
     }
+}
+
+.config_button {
+    position: relative;
+    background-color: #FEBC11;
+    color: #002F5D;
+    cursor: pointer;
+    text-align: center;
+    width: auto;
+    border-radius: 4px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+}
+
+.italicize {
+    font-style: italic;
+}
+
+.stats_button {
+    position: relative;
+    background-color: rgba(0, 160, 226, 1);
+    color: #FFFFFF;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: bold;
+    font-size: 12px;
+    cursor: pointer;
+    width: auto;
+    border-radius: 4px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    margin-top: 5px;
+    padding: 5px 8px 5px 8px;
+
+}
+
+.config_button:hover, .config_button_active {
+    background-color: #abcad8;
+}
+
+.config_button_row {
+    position: relative;
+    margin-top: 10px;
+    padding: 3px 0 3px 0;
+}
+
+.panel {
+    background-color: white;
+    position: relative;
+    padding: 3px 3px 10px 3px;
+    display: none;
+    margin-bottom: 5px;
+    border: solid;
+    border-color: #002F5D;
+    height: auto;
+    border-radius: 4px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+}
+
+.wrapper {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+#altitude_slider, #speed_slider {
+    position: relative;
+    display: block;
+    margin-left: 10px;
+    margin-right: 10px;
+    width: auto;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    height: 10px;
+}
+
+.align_right {
+    float: right;
+}
+
+.noUi-horizontal .noUi-handle, .noUi-vertical .noUi-handle {
+    background: #FEBC11;
+    height: 20px !important;
+    width: 10px !important;
+    right: -5px !important; /*  must be (width / 2) * -1 */
+
+}
+
+.noUi-handle:before, .noUi-handle:after {
+    display: none !important;
+}
+
+.noUi-connect {
+    background: #00A0E2 !important;
+}
+
+#aircraft_type_filter_form,
+#aircraft_ident_filter_form {
+    position: relative;
+    padding: 5px 5px 5px 5px;
+}
+
+.group {
+    padding: 5px 5px 5px 5px;
+    margin-top: 5px;
+    border-radius: 4px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    background-clip: padding-box;
+    border: 1px solid #e5e9f9;
+    background: #fff;
+    color: #060d46;
+    width: auto;
+}
+
+.filter_input_group {
+    margin-top: 10px;
+    margin-bottom: 5px;
+}
+
+.ui-resizable {
+    min-width: 400px;
 }

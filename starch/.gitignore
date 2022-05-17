@@ -1,0 +1,6 @@
+__pycache__
+example/mako/
+example/starch-benchmark
+*.o
+*~
+.mypy_cache

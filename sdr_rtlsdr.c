@@ -53,14 +53,22 @@
 
 #include <rtl-sdr.h>
 
+#if defined(__arm__) || defined(__aarch64__)
+// Assume we need to use a bounce buffer to avoid performance problems on Pis running kernel 5.x and using zerocopy
+#  define USE_BOUNCE_BUFFER
+#endif
+
 static struct {
     rtlsdr_dev_t *dev;
     bool digital_agc;
     int ppm_error;
     int direct_sampling;
-
+    uint8_t *bounce_buffer;
     iq_convert_fn converter;
     struct converter_state *converter_state;
+    int *gains;
+    int gain_steps;
+    int current_gain;
 } RTLSDR;
 
 //
@@ -73,8 +81,12 @@ void rtlsdrInitConfig()
     RTLSDR.digital_agc = false;
     RTLSDR.ppm_error = 0;
     RTLSDR.direct_sampling = 0;
+    RTLSDR.bounce_buffer = NULL;
     RTLSDR.converter = NULL;
     RTLSDR.converter_state = NULL;
+    RTLSDR.gains = NULL;
+    RTLSDR.gain_steps = 0;
+    RTLSDR.current_gain = 0;
 }
 
 static void show_rtlsdr_devices()
@@ -167,7 +179,16 @@ bool rtlsdrHandleOption(int argc, char **argv, int *jptr)
     return true;
 }
 
-bool rtlsdrOpen(void) {
+// sort function to sort by increasing gain
+static int sort_gains(const void *left, const void *right)
+{
+    const int *left_int = (const int *)left;
+    const int *right_int = (const int *)right;
+    return *left_int - *right_int;
+}
+
+bool rtlsdrOpen(void)
+{
     if (!rtlsdr_get_device_count()) {
         fprintf(stderr, "rtlsdr: no supported devices found.\n");
         return false;
@@ -204,41 +225,48 @@ bool rtlsdrOpen(void) {
     if (RTLSDR.direct_sampling) {
         fprintf(stderr, "rtlsdr: direct sampling from input %d\n", RTLSDR.direct_sampling);
         rtlsdr_set_direct_sampling(RTLSDR.dev, RTLSDR.direct_sampling);
+        RTLSDR.gain_steps = 0;
     } else {
-        if (Modes.gain == MODES_AUTO_GAIN) {
-            fprintf(stderr, "rtlsdr: enabling tuner AGC\n");
-            rtlsdr_set_tuner_gain_mode(RTLSDR.dev, 0);
-        } else {
-            int *gains;
-            int numgains;
+        int *gains;
+        int numgains;
 
-            numgains = rtlsdr_get_tuner_gains(RTLSDR.dev, NULL);
-            if (numgains <= 0) {
-                fprintf(stderr, "rtlsdr: error getting tuner gains\n");
-                return false;
+        numgains = rtlsdr_get_tuner_gains(RTLSDR.dev, NULL);
+        if (numgains <= 0) {
+            fprintf(stderr, "rtlsdr: error getting tuner gains\n");
+            return false;
             }
 
-            gains = malloc(numgains * sizeof(int));
-            if (rtlsdr_get_tuner_gains(RTLSDR.dev, gains) != numgains) {
-                fprintf(stderr, "rtlsdr: error getting tuner gains\n");
-                free(gains);
-                return false;
-            }
-
-            int target = (Modes.gain == MODES_MAX_GAIN ? 9999 : Modes.gain);
-            int closest = -1;
-
-            for (int i = 0; i < numgains; ++i) {
-                if (closest == -1 || abs(gains[i] - target) < abs(gains[closest] - target))
-                    closest = i;
-            }
-
-            rtlsdr_set_tuner_gain(RTLSDR.dev, gains[closest]);
+        gains = malloc((numgains + 1) * sizeof(int));
+        if (rtlsdr_get_tuner_gains(RTLSDR.dev, gains) != numgains) {
+            fprintf(stderr, "rtlsdr: error getting tuner gains\n");
             free(gains);
-
-            fprintf(stderr, "rtlsdr: tuner gain set to %.1f dB\n",
-                    rtlsdr_get_tuner_gain(RTLSDR.dev)/10.0);
+            return false;
         }
+
+        qsort(gains, numgains, sizeof(gains[0]), sort_gains);
+
+        // Fake an entry at slightly higher than max manual gain;
+        // we will use this for the "tuner AGC enabled" settings
+        // which due to librtlsdr quirks behaves like a "more than
+        // max" gain. :/
+        gains[numgains] = gains[numgains-1] + 90; // +9.0dB
+
+        RTLSDR.gain_steps = numgains + 1;
+        RTLSDR.gains = gains;
+
+        int selected = -1;
+        if (Modes.gain == MODES_LEGACY_AUTO_GAIN) {
+            selected = numgains;
+        } else if (Modes.gain == MODES_DEFAULT_GAIN) {
+            selected = numgains - 1;
+        } else {
+            for (int i = 0; i <= numgains; ++i) {
+                if (selected == -1 || fabs(gains[i]/10.0 - Modes.gain) < fabs(gains[selected]/10.0 - Modes.gain))
+                    selected = i;
+            }
+        }
+
+        rtlsdrSetGain(selected);
     }
 
     if (RTLSDR.digital_agc) {
@@ -262,96 +290,83 @@ bool rtlsdrOpen(void) {
         return false;
     }
 
+#ifdef USE_BOUNCE_BUFFER
+    if (!(RTLSDR.bounce_buffer = malloc(MODES_RTL_BUF_SIZE))) {
+        fprintf(stderr, "rtlsdr: can't allocate bounce buffer\n");
+        rtlsdrClose();
+        return false;
+    }
+#endif
+
+    if (Modes.adaptive_range_target == 0)
+        Modes.adaptive_range_target = 30.0;
+    
     return true;
 }
 
-static struct timespec rtlsdr_thread_cpu;
-
-void rtlsdrCallback(unsigned char *buf, uint32_t len, void *ctx) {
-    struct mag_buf *outbuf;
-    struct mag_buf *lastbuf;
-    uint32_t slen;
-    unsigned next_free_buffer;
-    unsigned free_bufs;
-    unsigned block_duration;
-
-    static int dropping = 0;
+static void rtlsdrCallback(unsigned char *buf, uint32_t len, void *ctx)
+{
+    static unsigned dropped = 0;
     static uint64_t sampleCounter = 0;
 
     MODES_NOTUSED(ctx);
 
-    // Lock the data buffer variables before accessing them
-    pthread_mutex_lock(&Modes.data_mutex);
+    sdrMonitor();
+
     if (Modes.exit) {
         rtlsdr_cancel_async(RTLSDR.dev); // ask our caller to exit
-    }
-
-    next_free_buffer = (Modes.first_free_buffer + 1) % MODES_MAG_BUFFERS;
-    outbuf = &Modes.mag_buffers[Modes.first_free_buffer];
-    lastbuf = &Modes.mag_buffers[(Modes.first_free_buffer + MODES_MAG_BUFFERS - 1) % MODES_MAG_BUFFERS];
-    free_bufs = (Modes.first_filled_buffer - next_free_buffer + MODES_MAG_BUFFERS) % MODES_MAG_BUFFERS;
-
-    // Paranoia! Unlikely, but let's go for belt and suspenders here
-
-    if (len != MODES_RTL_BUF_SIZE) {
-        fprintf(stderr, "weirdness: rtlsdr gave us a block with an unusual size (got %u bytes, expected %u bytes)\n",
-                (unsigned)len, (unsigned)MODES_RTL_BUF_SIZE);
-
-        if (len > MODES_RTL_BUF_SIZE) {
-            // wat?! Discard the start.
-            unsigned discard = (len - MODES_RTL_BUF_SIZE + 1) / 2;
-            outbuf->dropped += discard;
-            buf += discard*2;
-            len -= discard*2;
-        }
-    }
-
-    slen = len/2; // Drops any trailing odd sample, that's OK
-
-    if (free_bufs == 0 || (dropping && free_bufs < MODES_MAG_BUFFERS/2)) {
-        // FIFO is full. Drop this block.
-        dropping = 1;
-        outbuf->dropped += slen;
-        sampleCounter += slen;
-        pthread_mutex_unlock(&Modes.data_mutex);
         return;
     }
 
-    dropping = 0;
-    pthread_mutex_unlock(&Modes.data_mutex);
+    unsigned samples_read = len/2; // Drops any trailing odd sample, not much else we can do there
+    if (!samples_read)
+        return; // that wasn't useful
+
+    struct mag_buf *outbuf = fifo_acquire(0 /* don't wait */);
+    if (!outbuf) {
+        // FIFO is full. Drop this block.
+        dropped += samples_read;
+        sampleCounter += samples_read;
+        return;
+    }
+
+    outbuf->flags = 0;
+
+    if (dropped) {
+        // We previously dropped some samples due to no buffers being available
+        outbuf->flags |= MAGBUF_DISCONTINUOUS;
+        outbuf->dropped = dropped;
+    }
+
+    dropped = 0;
 
     // Compute the sample timestamp and system timestamp for the start of the block
     outbuf->sampleTimestamp = sampleCounter * 12e6 / Modes.sample_rate;
-    sampleCounter += slen;
+    sampleCounter += samples_read;
 
     // Get the approx system time for the start of this block
-    block_duration = 1e3 * slen / Modes.sample_rate;
+    uint64_t block_duration = 1e3 * samples_read / Modes.sample_rate;
     outbuf->sysTimestamp = mstime() - block_duration;
 
-    // Copy trailing data from last block (or reset if not valid)
-    if (outbuf->dropped == 0) {
-        memcpy(outbuf->data, lastbuf->data + lastbuf->length, Modes.trailing_samples * sizeof(uint16_t));
-    } else {
-        memset(outbuf->data, 0, Modes.trailing_samples * sizeof(uint16_t));
+    // Convert the new data
+    unsigned to_convert = samples_read;
+    if (to_convert + outbuf->overlap > outbuf->totalLength) {
+        // how did that happen?
+        to_convert = outbuf->totalLength - outbuf->overlap;
+        dropped = samples_read - to_convert;
     }
 
-    // Convert the new data
-    outbuf->length = slen;
-    RTLSDR.converter(buf, &outbuf->data[Modes.trailing_samples], slen, RTLSDR.converter_state, &outbuf->mean_level, &outbuf->mean_power);
+#ifdef USE_BOUNCE_BUFFER
+    // Work around zero-copy slowness on Pis with 5.x kernels
+    memcpy(RTLSDR.bounce_buffer, buf, to_convert * 2);
+    buf = RTLSDR.bounce_buffer;
+#endif
 
-    // Push the new data to the demodulation thread
-    pthread_mutex_lock(&Modes.data_mutex);
+    RTLSDR.converter(buf, &outbuf->data[outbuf->overlap], to_convert, RTLSDR.converter_state, &outbuf->mean_level, &outbuf->mean_power);
+    outbuf->validLength = outbuf->overlap + to_convert;
 
-    Modes.mag_buffers[next_free_buffer].dropped = 0;
-    Modes.mag_buffers[next_free_buffer].length = 0;  // just in case
-    Modes.first_free_buffer = next_free_buffer;
-
-    // accumulate CPU while holding the mutex, and restart measurement
-    end_cpu_timing(&rtlsdr_thread_cpu, &Modes.reader_cpu_accumulator);
-    start_cpu_timing(&rtlsdr_thread_cpu);
-
-    pthread_cond_signal(&Modes.data_cond);
-    pthread_mutex_unlock(&Modes.data_mutex);
+    // Push to the demodulation thread
+    fifo_enqueue(outbuf);
 }
 
 void rtlsdrRun()
@@ -360,14 +375,21 @@ void rtlsdrRun()
         return;
     }
 
-    start_cpu_timing(&rtlsdr_thread_cpu);
-
     rtlsdr_read_async(RTLSDR.dev, rtlsdrCallback, NULL,
                       /* MODES_RTL_BUFFERS */ 4,
                       MODES_RTL_BUF_SIZE);
     if (!Modes.exit) {
         fprintf(stderr, "rtlsdr: rtlsdr_read_async returned unexpectedly, probably lost the USB device, bailing out\n");
     }
+}
+
+void rtlsdrStop()
+{
+    if (!RTLSDR.dev) {
+        return;
+    }
+
+    rtlsdr_cancel_async(RTLSDR.dev);
 }
 
 void rtlsdrClose()
@@ -382,4 +404,68 @@ void rtlsdrClose()
         RTLSDR.converter = NULL;
         RTLSDR.converter_state = NULL;
     }
+
+    free(RTLSDR.bounce_buffer);
+    RTLSDR.bounce_buffer = NULL;
+
+    free(RTLSDR.gains);
+    RTLSDR.gains = NULL;
 }
+
+int rtlsdrGetGain()
+{
+    return RTLSDR.current_gain;
+}
+
+int rtlsdrGetMaxGain()
+{
+    return RTLSDR.gain_steps - 1;
+}
+
+double rtlsdrGetGainDb(int step)
+{
+    if (!RTLSDR.gains)
+        return 0.0;
+
+    if (step < 0)
+        step = 0;
+    if (step >= RTLSDR.gain_steps)
+        step = RTLSDR.gain_steps - 1;
+    return RTLSDR.gains[step] / 10.0;
+}
+
+int rtlsdrSetGain(int step)
+{
+    if (!RTLSDR.gains)
+        return -1;
+
+    if (step < 0)
+        step = 0;
+    if (step >= RTLSDR.gain_steps)
+        step = RTLSDR.gain_steps - 1;
+
+    if (step == RTLSDR.gain_steps - 1) {
+        if (rtlsdr_set_tuner_gain_mode(RTLSDR.dev, 0) < 0) {
+            fprintf(stderr, "rtlsdr: failed to enable tuner AGC\n");
+            return RTLSDR.current_gain;
+        }            
+
+        fprintf(stderr, "rtlsdr: tuner gain set to about %.1f dB (gain step %d) (tuner AGC enabled)\n", RTLSDR.gains[step] / 10.0, step);
+    } else {
+        if (rtlsdr_set_tuner_gain_mode(RTLSDR.dev, 1) < 0) {
+            fprintf(stderr, "rtlsdr: failed to disable tuner AGC\n");
+            return RTLSDR.current_gain;
+        }
+
+        if (rtlsdr_set_tuner_gain(RTLSDR.dev, RTLSDR.gains[step]) < 0) {
+            fprintf(stderr, "rtlsdr: failed to set tuner gain to %.1fdB\n", RTLSDR.gains[step] / 10.0);
+            return RTLSDR.current_gain;
+        }
+
+        fprintf(stderr, "rtlsdr: tuner gain set to %.1f dB (gain step %d)\n", RTLSDR.gains[step] / 10.0, step);
+    }
+
+    RTLSDR.current_gain = step;
+    return step;
+}
+

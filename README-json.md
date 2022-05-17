@@ -7,15 +7,15 @@ about dump1090's operation to collectd for later graphing.
 
 ## Reading the json files
 
-There are two ways to obtain the json files:
+dump1090-fa writes json files periodically to the location specified by the `--write-json` command line option.
+These json files can then be exposed via a separate standalone webserver e.g. lighttpd.
 
- * By HTTP from dump1090's internal webserver, which defaults to running on port 8080. The json is served from the data/ path, e.g. http://somehost:8080/data/aircraft.json
- * As a file in the directory specified by --write-json on dump1090's command line. These can be exposed via a
-   separate webserver.
+The files are written periodically; for aircraft, typically once a second, for stats, once a minute.
+The interval between file updates can be controlled by the `--write-json-every` and `--json-stats-every` options.
+As these files are frequently updated, it's a good idea to put them in RAM rather than on disk. Package installs
+default to putting the file under `/run`, which is in RAM.
 
-The HTTP versions are always up to date.
-The file versions are written periodically; for aircraft, typically once a second, for stats, once a minute.
-The file versions are updated to a temporary file, then atomically renamed to the right path, so you should never see partial copies.
+New versions of each file are written to a temporary file, then atomically renamed to the right path, so you should never see partial copies.
 
 Each file contains a single JSON object. The file formats are:
 
@@ -81,6 +81,8 @@ This file contains dump1090's list of recently seen aircraft. The keys are:
    * sil_type: interpretation of SIL: unknown, perhour, persample
    * gva: Geometric Vertical Accuracy  (2.2.3.2.7.2.8)
    * sda: System Design Assurance (2.2.3.2.7.2.4.6)
+   * modea: true if we seem to be also receiving Mode A responses from this aircraft
+   * modec: true if we seem to be also receiving Mode C responses from this aircraft
    * mlat: list of fields derived from MLAT data
    * tisb: list of fields derived from TIS-B data
    * messages: total number of Mode S messages received from this aircraft
@@ -162,3 +164,4 @@ Each period has the following subkeys:
    * all: total tracks created
    * single_message: tracks consisting of only a single message. These are usually due to message decoding errors that produce a bad aircraft address.
  * messages: total number of messages accepted by dump1090 from any source
+ * messages_by_df: an array of integers where entry N (0..31) is the total number of messages accepted with downlink format (DF) = N.

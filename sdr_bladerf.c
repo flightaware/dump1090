@@ -23,8 +23,12 @@
 #include <libbladeRF.h>
 #include <inttypes.h>
 
+#if !defined(LIBBLADERF_API_VERSION) || (LIBBLADERF_API_VERSION < 0x01060100)
+#error This libbladeRF is too old, upgrade or disable bladerf support
+#endif
+
 // Polyfill for the older bladerf API
-#if defined(LIBBLADERF_API_VERSION) && (LIBBLADERF_API_VERSION < 0x02000000)
+#if LIBBLADERF_API_VERSION < 0x02000000
 typedef unsigned int bladerf_frequency;
 #endif
 
@@ -250,7 +254,7 @@ bool bladeRFOpen()
         goto error;
     }
 
-    if ((status = bladerf_set_gain(BladeRF.device, BLADERF_MODULE_RX, Modes.gain / 10.0)) < 0) {
+    if ((status = bladerf_set_gain(BladeRF.device, BLADERF_MODULE_RX, Modes.gain)) < 0) {
         fprintf(stderr, "bladerf_set_gain(RX) failed: %s\n", bladerf_strerror(status));
         goto error;
     }
@@ -296,7 +300,6 @@ bool bladeRFOpen()
     return false;
 }
 
-static struct timespec thread_cpu;
 static unsigned timeouts = 0;
 
 static void *handle_bladerf_samples(struct bladerf *dev,
@@ -306,57 +309,33 @@ static void *handle_bladerf_samples(struct bladerf *dev,
                                     size_t num_samples,
                                     void *user_data)
 {
-    static uint64_t nextTimestamp = 0;
-    static bool dropping = false;
+    static uint64_t nextTimestamp = 0;  // what's the next timestamp we expect to see?
+    static bool overrun = false;        // do we have a pending overrun to report?
+    static bool dropped = 0;            // do we have some dropped samples to report?
+    static bool first_buffer = true;    // is this the very first callback?
 
     MODES_NOTUSED(dev);
     MODES_NOTUSED(stream);
     MODES_NOTUSED(meta);
     MODES_NOTUSED(user_data);
-    MODES_NOTUSED(num_samples);
 
     // record initial time for later sys timestamp calculation
     uint64_t entryTimestamp = mstime();
 
-    pthread_mutex_lock(&Modes.data_mutex);
+    sdrMonitor();
+
     if (Modes.exit) {
-        pthread_mutex_unlock(&Modes.data_mutex);
+        // ask our caller to return
         return BLADERF_STREAM_SHUTDOWN;
     }
 
-    unsigned next_free_buffer = (Modes.first_free_buffer + 1) % MODES_MAG_BUFFERS;
-    struct mag_buf *outbuf = &Modes.mag_buffers[Modes.first_free_buffer];
-    struct mag_buf *lastbuf = &Modes.mag_buffers[(Modes.first_free_buffer + MODES_MAG_BUFFERS - 1) % MODES_MAG_BUFFERS];
-    unsigned free_bufs = (Modes.first_filled_buffer - next_free_buffer + MODES_MAG_BUFFERS) % MODES_MAG_BUFFERS;
-
-    if (free_bufs == 0 || (dropping && free_bufs < MODES_MAG_BUFFERS/2)) {
-        // FIFO is full. Drop this block.
-        dropping = true;
-        pthread_mutex_unlock(&Modes.data_mutex);
-        return samples;
-    }
-
-    dropping = false;
-    pthread_mutex_unlock(&Modes.data_mutex);
-
-    // Copy trailing data from last block (or reset if not valid)
-    if (outbuf->dropped == 0) {
-        memcpy(outbuf->data, lastbuf->data + lastbuf->length, Modes.trailing_samples * sizeof(uint16_t));
-    } else {
-        memset(outbuf->data, 0, Modes.trailing_samples * sizeof(uint16_t));
-    }
+    timeouts = 0;
 
     // start handling metadata blocks
-    outbuf->dropped = 0;
-    outbuf->length = 0;
-    outbuf->mean_level = outbuf->mean_power = 0;
-
-    unsigned blocks_processed = 0;
     unsigned samples_per_block = (BladeRF.block_size - 16) / 4;
+    struct mag_buf *outbuf = NULL;
 
-    static bool overrun = true; // ignore initial overruns as we get up to speed
-    static bool first_buffer = true;
-    for (unsigned offset = 0; offset < MODES_MAG_BUF_SAMPLES * 4; offset += BladeRF.block_size) {
+    for (unsigned offset = 0; offset < num_samples * 4; offset += BladeRF.block_size) {
         // read the next metadata header
         uint8_t *header = ((uint8_t*)samples) + offset;
         uint64_t metadata_magic = le32toh(*(uint32_t*)(header));
@@ -372,72 +351,64 @@ static void *handle_bladerf_samples(struct bladerf *dev,
             break;
         }
 
-        if (metadata_flags & BLADERF_META_STATUS_OVERRUN) {
-            if (!overrun) {
-                fprintf(stderr, "bladeRF: receive overrun\n");
-            }
+        if (metadata_flags & BLADERF_META_STATUS_OVERRUN)
             overrun = true;
-        } else {
-            overrun = false;
-        }
 
-#ifndef BROKEN_FPGA_METADATA
-        // this needs a fixed decimating FPGA image that handles the timestamp correctly
         if (nextTimestamp && nextTimestamp != metadata_timestamp) {
-            // dropped data or lost sync. start again.
+            // dropped data or lost sync
+            overrun = true;
             if (metadata_timestamp > nextTimestamp)
-                outbuf->dropped += (metadata_timestamp - nextTimestamp);
-            outbuf->dropped += outbuf->length;
-            outbuf->length = 0;
-            blocks_processed = 0;
-            outbuf->mean_level = outbuf->mean_power = 0;
-            nextTimestamp = metadata_timestamp;
-        }
-#else
-        MODES_NOTUSED(metadata_timestamp);
-#endif
-
-        if (!blocks_processed) {
-            // Compute the sample timestamp for the start of the block
-            outbuf->sampleTimestamp = nextTimestamp * 12e6 / Modes.sample_rate / BladeRF.decimation;
+                dropped = (metadata_timestamp - nextTimestamp);
+            else
+                dropped = 0;
         }
 
-        // Convert a block of data
+        if (outbuf && (overrun || (outbuf->validLength + samples_per_block > outbuf->totalLength))) {
+            // discontinuity or buffer is full. Push the current buffer and get a new one
+            fifo_enqueue(outbuf);
+            outbuf = NULL;
+        }
+
+        if (!outbuf) {
+            // need a new buffer
+            outbuf = fifo_acquire(/* don't wait */ 0);
+            if (!outbuf) {
+                // we have nowhere to put this data, drop it. nb: don't update nextTimestamp
+                overrun = true;
+                continue;
+            }
+
+            // set metadata on the new buffer
+            outbuf->flags = 0;
+            if (overrun) {
+                outbuf->flags |= MAGBUF_DISCONTINUOUS;
+            }
+            outbuf->dropped = dropped;
+            outbuf->validLength = outbuf->overlap;
+            outbuf->sampleTimestamp = metadata_timestamp * 12e6 / Modes.sample_rate / BladeRF.decimation;
+            outbuf->sysTimestamp = entryTimestamp + (num_samples - offset / 4) * 1000 / Modes.sample_rate / BladeRF.decimation;
+            outbuf->mean_level = 0;
+            outbuf->mean_power = 0;
+
+            overrun = false;
+            dropped = 0;
+        }
+
+        // Convert one block of sample data
         double mean_level, mean_power;
-        BladeRF.converter(sample_data, &outbuf->data[Modes.trailing_samples + outbuf->length], samples_per_block, BladeRF.converter_state, &mean_level, &mean_power);
-        outbuf->length += samples_per_block;
+        BladeRF.converter(sample_data, &outbuf->data[outbuf->validLength], samples_per_block, BladeRF.converter_state, &mean_level, &mean_power);
+        outbuf->validLength += samples_per_block;
         outbuf->mean_level += mean_level;
         outbuf->mean_power += mean_power;
-        nextTimestamp += samples_per_block * BladeRF.decimation;
-        ++blocks_processed;
-        timeouts = 0;
+        nextTimestamp = metadata_timestamp + samples_per_block * BladeRF.decimation;
+    }
+
+    // push the final buffer, if any
+    if (outbuf) {
+        fifo_enqueue(outbuf);
     }
 
     first_buffer = false;
-
-    if (blocks_processed) {
-        // Get the approx system time for the start of this block
-        unsigned block_duration = 1e3 * outbuf->length / Modes.sample_rate;
-        outbuf->sysTimestamp = entryTimestamp - block_duration;
-
-        outbuf->mean_level /= blocks_processed;
-        outbuf->mean_power /= blocks_processed;
-
-        // Push the new data to the demodulation thread
-        pthread_mutex_lock(&Modes.data_mutex);
-
-        // accumulate CPU while holding the mutex, and restart measurement
-        end_cpu_timing(&thread_cpu, &Modes.reader_cpu_accumulator);
-        start_cpu_timing(&thread_cpu);
-
-        Modes.mag_buffers[next_free_buffer].dropped = 0;
-        Modes.mag_buffers[next_free_buffer].length = 0;  // just in case
-        Modes.first_free_buffer = next_free_buffer;
-
-        pthread_cond_signal(&Modes.data_cond);
-        pthread_mutex_unlock(&Modes.data_mutex);
-    }
-
     return samples;
 }
 
@@ -477,8 +448,6 @@ void bladeRFRun()
         fprintf(stderr, "bladerf_enable_module(RX, true) failed: %s\n", bladerf_strerror(status));
         goto out;
     }
-
-    start_cpu_timing(&thread_cpu);
 
     timeouts = 0; // reset to zero when we get a callback with some data
  retry:

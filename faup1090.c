@@ -49,6 +49,8 @@
 
 #include "dump1090.h"
 
+struct _Modes Modes;
+
 #include <stdarg.h>
 
 void receiverPositionChanged(float lat, float lon, float alt)
@@ -69,12 +71,14 @@ static void faupInitConfig(void) {
     // Now initialise things that should not be 0/NULL to their defaults
     Modes.nfix_crc                = 1;
     Modes.check_crc               = 1;
+    Modes.fix_df                  = 1;
     Modes.net                     = 1;
     Modes.net_heartbeat_interval  = MODES_NET_HEARTBEAT_INTERVAL;
     Modes.maxRange                = 1852 * 360; // 360NM default max range; this also disables receiver-relative positions
     Modes.quiet                   = 1;
     Modes.net_output_flush_size   = MODES_OUT_FLUSH_SIZE;
     Modes.net_output_flush_interval = 200; // milliseconds
+    Modes.faup_rate_multiplier    = FAUP_DEFAULT_RATE_MULTIPLIER;
 }
 
 //
@@ -147,7 +151,7 @@ int main(int argc, char **argv) {
     char *bo_connect_ipaddr = "127.0.0.1";
     int bo_connect_port = 30005;
     struct client *c;
-    struct net_service *beast_input, *fatsv_output;
+    struct net_service *beast_input, *fatsv_output, *fa_cmd_input;
 
     // Set sane defaults
     faupInitConfig();
@@ -199,16 +203,20 @@ int main(int argc, char **argv) {
         exit (1);
     }
 
-    sendBeastSettings(c, "Cdfj"); // Beast binary, no filters, CRC checks on, no mode A/C
+    sendBeastSettings(c, "CdfjV"); // Beast binary, no filters, CRC checks on, no mode A/C, verbatim mode on
 
     // Set up output connection on stdout
     fatsv_output = makeFatsvOutputService();
     createGenericClient(fatsv_output, STDOUT_FILENO);
 
+    fa_cmd_input = makeFaCmdInputService();
+    createGenericClient(fa_cmd_input, STDIN_FILENO);
+
     // Run it until we've lost either connection
     while (!Modes.exit && beast_input->connections && fatsv_output->connections) {
+        struct timespec r = { 0, 100 * 1000 * 1000};
         backgroundTasks();
-        usleep(100000);
+        nanosleep(&r, NULL);
     }
 
     return 0;

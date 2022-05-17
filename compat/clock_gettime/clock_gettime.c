@@ -58,8 +58,8 @@
  *
  */
 
-
-#include "clock_gettime.h"
+#include "../compat.h"
+#include <mach/mach_time.h>
 #include <mach/clock.h>             // for clock_get_time
 #include <mach/clock_types.h>       // for mach_timespec_t, CALENDAR_CLOCK, etc
 #include <mach/kern_return.h>       // for KERN_SUCCESS, kern_return_t
@@ -69,6 +69,8 @@
 #include <sched.h>                  // for sched_yield
 #include <errno.h>                  // for EINVAL, errno
 #include <unistd.h>                 // for getpid
+
+static mach_timebase_info_data_t __clock_gettime_inf;
 
 int clock_gettime(clockid_t clk_id, struct timespec *tp)
 {

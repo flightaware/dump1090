@@ -1,5 +1,0 @@
-# This system has dump1090-fa installed, which wants to use RTL2832-based
-# digital video dongles in SDR mode via librtlsdr. This file prevents the kernel
-# video4linux drivers from loading.
-blacklist dvb_usb_rtl28xxu
-blacklist rtl2832

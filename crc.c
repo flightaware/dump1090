@@ -62,7 +62,7 @@ static void initLookupTables()
     }
 }
 
-uint32_t modesChecksum(uint8_t *message, int bits)
+uint32_t modesChecksum(const uint8_t *message, int bits)
 {
     uint32_t rem = 0;
     int i;
@@ -197,7 +197,7 @@ static struct errorinfo *prepareErrorTable(int bits, int max_correct, int max_de
 
     maxsize = 0;
     for (i = 1; i <= max_correct; ++i) {
-        maxsize += combinations(bits - 5, i); // space needed for all i-bit errors
+        maxsize += combinations(bits, i); // space needed for all i-bit errors
     }
 
 #ifdef CRCDEBUG
@@ -210,8 +210,7 @@ static struct errorinfo *prepareErrorTable(int bits, int max_correct, int max_de
     for (i = 0; i < MODES_MAX_BITERRORS; ++i)
         base_entry.bit[i] = -1;
 
-    // ignore the first 5 bits (DF type)
-    usedsize = prepareSubtable(table, 0, maxsize, 112 - bits, 5, bits, &base_entry, 0, max_correct);
+    usedsize = prepareSubtable(table, 0, maxsize, 112 - bits, 0, bits, &base_entry, 0, max_correct);
 
 #ifdef CRCDEBUG
     fprintf(stderr, "%d syndromes (expected %d).\n", usedsize, maxsize);
@@ -273,7 +272,7 @@ static struct errorinfo *prepareErrorTable(int bits, int max_correct, int max_de
         fprintf(stderr, "Flagging collisions between %d - %d bits..\n", max_correct+1, max_detect);
 #endif
 
-        flagged = flagCollisions(table, usedsize, 112 - bits, 5, bits, 0, 1, max_correct+1, max_detect);
+        flagged = flagCollisions(table, usedsize, 112 - bits, 0, bits, 0, 1, max_correct+1, max_detect);
 
 #ifdef CRCDEBUG
         fprintf(stderr, "Flagged %d collisions for removal.\n", flagged);
@@ -341,7 +340,7 @@ static struct errorinfo *prepareErrorTable(int bits, int max_correct, int max_de
                 if (table[j].errors == i)
                     ++count;
 
-            possible = combinations(bits-5, i);
+            possible = combinations(bits, i);
             fprintf(stderr, "  %d entries for %d-bit errors (%d possible, %d%% coverage)\n", count, i, possible, 100 * count / possible);
         }
 

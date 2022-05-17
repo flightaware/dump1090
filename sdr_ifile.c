@@ -58,7 +58,8 @@ static struct {
 
     int fd;
     unsigned bytes_per_sample;
-    void *readbuf;
+    unsigned bufsize;
+    char *readbuf;
     iq_convert_fn converter;
     struct converter_state *converter_state;
 } ifile;
@@ -70,6 +71,7 @@ void ifileInitConfig(void)
     ifile.throttle = false;
     ifile.fd = -1;
     ifile.bytes_per_sample = 0;
+    ifile.bufsize = 0;
     ifile.readbuf = NULL;
     ifile.converter = NULL;
     ifile.converter_state = NULL;
@@ -152,7 +154,9 @@ bool ifileOpen(void)
         return false;
     }
 
-    if (!(ifile.readbuf = malloc(MODES_MAG_BUF_SAMPLES * ifile.bytes_per_sample))) {
+    ifile.bufsize = ifile.bytes_per_sample * MODES_MAG_BUF_SAMPLES; /* ~1M samples, about half a second's worth */
+
+    if (!(ifile.readbuf = malloc(ifile.bufsize))) {
         fprintf(stderr, "ifile: failed to allocate read buffer\n");
         ifileClose();
         return false;
@@ -176,94 +180,68 @@ void ifileRun()
     if (ifile.fd < 0)
         return;
 
-    int eof = 0;
     struct timespec next_buffer_delivery;
-
-    struct timespec thread_cpu;
-    start_cpu_timing(&thread_cpu);
-
-    uint64_t sampleCounter = 0;
-
     clock_gettime(CLOCK_MONOTONIC, &next_buffer_delivery);
 
-    pthread_mutex_lock(&Modes.data_mutex);
-    while (!Modes.exit && !eof) {
-        ssize_t nread, toread;
-        void *r;
-        struct mag_buf *outbuf, *lastbuf;
-        unsigned next_free_buffer;
-        unsigned slen;
+    bool eof = false;
+    uint64_t sampleCounter = 0;
 
-        next_free_buffer = (Modes.first_free_buffer + 1) % MODES_MAG_BUFFERS;
-        if (next_free_buffer == Modes.first_filled_buffer) {
-            // no space for output yet
-            pthread_cond_wait(&Modes.data_cond, &Modes.data_mutex);
+    while (!Modes.exit && !eof) {
+        sdrMonitor();
+
+        /* wait for up to 1000ms for a buffer */
+        struct mag_buf *outbuf = fifo_acquire(100 /* milliseconds */);
+        if (!outbuf) {
+            // maybe we're slow, maybe we halted
             continue;
         }
 
-        outbuf = &Modes.mag_buffers[Modes.first_free_buffer];
-        lastbuf = &Modes.mag_buffers[(Modes.first_free_buffer + MODES_MAG_BUFFERS - 1) % MODES_MAG_BUFFERS];
-        pthread_mutex_unlock(&Modes.data_mutex);
-
-        // Compute the sample timestamp for the start of the block
+        // Compute the sample timestamp and system time for the start of the block
         outbuf->sampleTimestamp = sampleCounter * 12e6 / Modes.sample_rate;
-        sampleCounter += MODES_MAG_BUF_SAMPLES;
-
-        // Copy trailing data from last block (or reset if not valid)
-        if (lastbuf->length >= Modes.trailing_samples) {
-            memcpy(outbuf->data, lastbuf->data + lastbuf->length, Modes.trailing_samples * sizeof(uint16_t));
-        } else {
-            memset(outbuf->data, 0, Modes.trailing_samples * sizeof(uint16_t));
-        }
-
-        // Get the system time for the start of this block
         outbuf->sysTimestamp = mstime();
 
-        toread = MODES_MAG_BUF_SAMPLES * ifile.bytes_per_sample;
-        r = ifile.readbuf;
-        while (toread) {
-            nread = read(ifile.fd, r, toread);
+        unsigned bytes_wanted = (outbuf->totalLength - outbuf->overlap) * ifile.bytes_per_sample;
+        if (bytes_wanted > ifile.bufsize)
+            bytes_wanted = ifile.bufsize;
+
+        unsigned bytes_read = 0;
+        while (bytes_read < bytes_wanted) {
+            ssize_t nread = read(ifile.fd, ifile.readbuf + bytes_read, bytes_wanted - bytes_read);
             if (nread <= 0) {
                 if (nread < 0) {
                     fprintf(stderr, "ifile: error reading input file: %s\n", strerror(errno));
                 }
                 // Done.
-                eof = 1;
+                eof = true;
                 break;
             }
-            r += nread;
-            toread -= nread;
+            bytes_read += nread;
         }
 
-        slen = outbuf->length = MODES_MAG_BUF_SAMPLES - toread / ifile.bytes_per_sample;
+        unsigned samples_read = bytes_read / ifile.bytes_per_sample;
 
         // Convert the new data
-        ifile.converter(ifile.readbuf, &outbuf->data[Modes.trailing_samples], slen, ifile.converter_state, &outbuf->mean_level, &outbuf->mean_power);
+        ifile.converter(ifile.readbuf, &outbuf->data[outbuf->overlap], samples_read, ifile.converter_state, &outbuf->mean_level, &outbuf->mean_power);
+        outbuf->validLength = outbuf->overlap + samples_read;
+        outbuf->flags = 0;
 
         if (ifile.throttle || Modes.interactive) {
-            // Wait until we are allowed to release this buffer to the main thread
+            // Wait until we are allowed to release this buffer to the FIFO
             while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next_buffer_delivery, NULL) == EINTR)
                 ;
 
             // compute the time we can deliver the next buffer.
-            next_buffer_delivery.tv_nsec += outbuf->length * 1e9 / Modes.sample_rate;
+            next_buffer_delivery.tv_nsec += samples_read * 1e9 / Modes.sample_rate;
             normalize_timespec(&next_buffer_delivery);
         }
 
-        // Push the new data to the main thread
-        pthread_mutex_lock(&Modes.data_mutex);
-        Modes.first_free_buffer = next_free_buffer;
-        // accumulate CPU while holding the mutex, and restart measurement
-        end_cpu_timing(&thread_cpu, &Modes.reader_cpu_accumulator);
-        start_cpu_timing(&thread_cpu);
-        pthread_cond_signal(&Modes.data_cond);
+        // Push the new data to the FIFO
+        fifo_enqueue(outbuf);
+        sampleCounter += samples_read;
     }
 
-    // Wait for the main thread to consume all data
-    while (!Modes.exit && Modes.first_filled_buffer != Modes.first_free_buffer)
-        pthread_cond_wait(&Modes.data_cond, &Modes.data_mutex);
-
-    pthread_mutex_unlock(&Modes.data_mutex);
+    // Wait for the FIFO to drain so we don't throw away trailing data
+    fifo_drain();
 }
 
 void ifileClose()

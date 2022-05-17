@@ -1,30 +1,22 @@
 Source: dump1090-fa
 Section: embedded
 Priority: extra
-Maintainer: Oliver Jowett <oliver@mutability.co.uk>
-Build-Depends: debhelper(>=9), librtlsdr-dev, libusb-1.0-0-dev, pkg-config, dh-systemd, libncurses5-dev, libbladerf-dev
+Maintainer: Oliver Jowett <oliver.jowett@flightaware.com>
+Build-Depends: debhelper(>=10),
+  librtlsdr-dev <!custom> <rtlsdr>,
+  libbladerf-dev <!custom> <bladerf>,
+  libhackrf-dev <!custom> <hackrf>,
+  liblimesuite-dev <!custom> <limesdr>,
+  libusb-1.0-0-dev <!custom> <rtlsdr> <bladerf> <hackrf> <limesdr>,
+  pkg-config, libncurses5-dev
 Standards-Version: 3.9.3
 Homepage: http://www.flightaware.com/
 Vcs-Git: https://github.com/flightaware/dump1090.git
 
-Package: dump1090
-Architecture: all
-Depends: dump1090-fa, ${misc:Depends}
-Priority: extra
-Section: oldlibs
-Description: transitional dummy package for dump1090
-  This is a transitional dummy package to handle upgrades from
-  the old package name of "dump1090" to the new package name of
-  "dump1090-fa". It can safely be removed.
-
 Package: dump1090-fa
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libbladerf1 (>= 0.2016.06), adduser, lighttpd
-Replaces: dump1090 (<< 3.0)
-Breaks: dump1090 (<< 3.0)
-Description: ADS-B Ground Station System for RTL-SDR
- Networked Aviation Mode S / ADS-B decoder/translator with RTL-SDR software
- defined radio USB device support.
- .
- This is FlightAware's fork of dump1090-mutability, customized for use
- in the PiAware sdcard images.
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, lighttpd
+Description: FlightAware ADS-B Ground Station System for SDRs
+ Networked Aviation Mode S / ADS-B decoder/translator with support
+ for RTL-SDR, BladeRF, HackRF, and LimeSDR software defined radio USB
+ device support.

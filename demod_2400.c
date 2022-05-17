@@ -58,6 +58,40 @@ static inline int slice_phase4(uint16_t *m) {
     return m[0] + 5 * m[1] - 5 * m[2] - m[3];
 }
 
+static uint32_t valid_df_short_bitset;        // set of acceptable DF values for short messages
+static uint32_t valid_df_long_bitset;         // set of acceptable DF values for long messages
+
+static uint32_t generate_damage_set(uint8_t df, unsigned damage_bits)
+{
+    uint32_t result = (1 << df);
+    if (!damage_bits)
+        return result;
+
+    for (unsigned bit = 0; bit < 5; ++bit) {
+        unsigned damaged_df = df ^ (1 << bit);
+        result |= generate_damage_set(damaged_df, damage_bits - 1);
+    }
+
+    return result;
+}
+
+static void init_bitsets()
+{
+    // DFs that we directly understand without correction
+    valid_df_short_bitset = (1 << 0) | (1 << 4) | (1 << 5) | (1 << 11);
+    valid_df_long_bitset = (1 << 16) | (1 << 17) | (1 << 18) | (1 << 20) | (1 << 21);
+
+    if (Modes.enable_df24)
+        valid_df_long_bitset |= (1 << 24) | (1 << 25) | (1 << 26) | (1 << 27) | (1 << 28) | (1 << 29) | (1 << 30) | (1 << 31);
+
+    // if we can also repair DF damage, include those corrections
+    if (Modes.fix_df && Modes.nfix_crc) {
+        valid_df_short_bitset |= generate_damage_set(11, 1);
+        valid_df_long_bitset |= generate_damage_set(17, Modes.nfix_crc);
+        valid_df_long_bitset |= generate_damage_set(18, Modes.nfix_crc);
+    }
+}
+
 //
 // Given 'mlen' magnitude samples in 'm', sampled at 2.4MHz,
 // try to demodulate some Mode S messages.
@@ -69,17 +103,35 @@ void demodulate2400(struct mag_buf *mag)
     unsigned char msg1[MODES_LONG_MSG_BYTES], msg2[MODES_LONG_MSG_BYTES], *msg;
     uint32_t j;
 
+    static unsigned last_message_end = 0;
+
+    // initialize bitsets on first call
+    if (!valid_df_short_bitset)
+        init_bitsets();
+
+    if (mag->flags & MAGBUF_DISCONTINUOUS) {
+        // gap, start from the very beginning
+        last_message_end = 0;
+    }
+
     unsigned char *bestmsg;
     int bestscore, bestphase;
 
+    // maximum lookahead we use
+    assert(mag->overlap >= 19 + 1 + 269);
+
     uint16_t *m = mag->data;
-    uint32_t mlen = mag->length;
+    uint32_t mlen = mag->validLength - mag->overlap;
 
     uint64_t sum_scaled_signal_power = 0;
 
     msg = msg1;
 
-    for (j = 0; j < mlen; j++) {
+    // sanity check
+    if (last_message_end > mlen)
+        last_message_end = mlen;
+
+    for (j = last_message_end; j < mlen; j++) {
         uint16_t *preamble = &m[j];
         int high;
         uint32_t base_signal, base_noise;
@@ -167,10 +219,10 @@ void demodulate2400(struct mag_buf *mag)
 
         // try all phases
         Modes.stats_current.demod_preambles++;
-        bestmsg = NULL; bestscore = -2; bestphase = -1;
+        bestmsg = NULL; bestscore = SR_NOT_SET; bestphase = -1;
         for (try_phase = 4; try_phase <= 8; ++try_phase) {
             uint16_t *pPtr;
-            int phase, i, score, bytelen;
+            int phase, score;
 
             // Decode all the next 112 bits, regardless of the actual message
             // size. We'll check the actual message type later
@@ -178,8 +230,8 @@ void demodulate2400(struct mag_buf *mag)
             pPtr = &m[j+19] + (try_phase/5);
             phase = try_phase % 5;
 
-            bytelen = MODES_LONG_MSG_BYTES;
-            for (i = 0; i < bytelen; ++i) {
+            unsigned bytelen = 1;
+            for (unsigned i = 0; i < bytelen; ++i) {
                 uint8_t theByte = 0;
 
                 switch (phase) {
@@ -261,23 +313,26 @@ void demodulate2400(struct mag_buf *mag)
                 }
 
                 msg[i] = theByte;
+
                 if (i == 0) {
-                    switch (msg[0] >> 3) {
-                    case 0: case 4: case 5: case 11:
-                        bytelen = MODES_SHORT_MSG_BYTES; break;
-
-                    case 16: case 17: case 18: case 20: case 21: case 24:
-                        break;
-
-                    default:
-                        bytelen = 1; // unknown DF, give up immediately
-                        break;
-                    }
+                    // inspect DF field early, only continue processing
+                    // messages where the DF appears valid
+                    unsigned df = theByte >> 3;
+                    if (valid_df_long_bitset & (1 << df))
+                        bytelen = MODES_LONG_MSG_BYTES;
+                    else if (valid_df_short_bitset & (1 << df))
+                        bytelen = MODES_SHORT_MSG_BYTES;
                 }
             }
 
+            if (bytelen == 1) {
+                // rejected early by the DF filter
+                Modes.stats_current.demod_rejected_bad++;
+                continue;
+            }
+
             // Score the mode S message and see if it's any good.
-            score = scoreModesMessage(msg, i*8);
+            score = scoreModesMessage(msg);
             if (score > bestscore) {
                 // new high score!
                 bestmsg = msg;
@@ -292,8 +347,8 @@ void demodulate2400(struct mag_buf *mag)
         }
 
         // Do we have a candidate?
-        if (bestscore < 0) {
-            if (bestscore == -1)
+        if (bestscore < SR_ACCEPT_THRESHOLD) {
+            if (bestscore >= SR_UNKNOWN_THRESHOLD)
                 Modes.stats_current.demod_rejected_unknown_icao++;
             else
                 Modes.stats_current.demod_rejected_bad++;
@@ -316,17 +371,11 @@ void demodulate2400(struct mag_buf *mag)
         mm.score = bestscore;
 
         // Decode the received message
-        {
-            int result = decodeModesMessage(&mm, bestmsg);
-            if (result < 0) {
-                if (result == -1)
-                    Modes.stats_current.demod_rejected_unknown_icao++;
-                else
-                    Modes.stats_current.demod_rejected_bad++;
-                continue;
-            } else {
-                Modes.stats_current.demod_accepted[mm.correctedbits]++;
-            }
+        if (decodeModesMessage(&mm, bestmsg) < 0) {
+            Modes.stats_current.demod_rejected_bad++;
+            continue;
+        } else {
+            Modes.stats_current.demod_accepted[mm.correctedbits]++;
         }
 
         // measure signal power
@@ -353,13 +402,21 @@ void demodulate2400(struct mag_buf *mag)
                 Modes.stats_current.strong_signal_count++; // signal power above -3dBFS
         }
 
+        // Feed "empty" sample to adaptive gain logic
+        if (j > last_message_end)
+            adaptive_update(&m[last_message_end], j - last_message_end, NULL);
+
+        // Feed message samples to adaptive gain logic, update end pointer
+        last_message_end = j + (msglen + 8) * 12/5;
+        adaptive_update(&m[j], last_message_end - j, &mm);
+
         // Skip over the message:
         // (we actually skip to 8 bits before the end of the message,
         //  because we can often decode two messages that *almost* collide,
         //  where the preamble of the second message clobbered the last
         //  few bits of the first message, but the message bits didn't
         //  overlap)
-        j += msglen*12/5;
+        j = last_message_end - 8*12/5;
 
         // Pass data to the next layer
         useModesMessage(&mm);
@@ -368,11 +425,23 @@ void demodulate2400(struct mag_buf *mag)
     /* update noise power */
     {
         double sum_signal_power = sum_scaled_signal_power / 65535.0 / 65535.0;
-        Modes.stats_current.noise_power_sum += (mag->mean_power * mag->length - sum_signal_power);
-        Modes.stats_current.noise_power_count += mag->length;
+        Modes.stats_current.noise_power_sum += (mag->mean_power * mlen - sum_signal_power);
+        Modes.stats_current.noise_power_count += mlen;
+    }
+
+    // feed trailing empty samples to adaptive gain logic
+    if (last_message_end < mlen) {
+        // trailing data from end of last message to start of overlap;
+        // on the next pass, start from the start of the overlap
+        adaptive_update(&m[last_message_end], mlen - last_message_end, NULL);
+        last_message_end = 0;
+    } else {
+        // last decoded message runs into the overlap region;
+        // on the next pass, start at the right place in the overlap;
+        // no trailing data to pass this time
+        last_message_end -= mlen;
     }
 }
-
 
 #ifdef MODEAC_DEBUG
 
@@ -471,7 +540,7 @@ void demodulate2400AC(struct mag_buf *mag)
 {
     struct modesMessage mm;
     uint16_t *m = mag->data;
-    uint32_t mlen = mag->length;
+    uint32_t mlen = mag->validLength - mag->overlap;
     unsigned f1_sample;
 
     memset(&mm, 0, sizeof(mm));
@@ -552,7 +621,7 @@ void demodulate2400AC(struct mag_buf *mag)
         // F2 is 20.3us / 14 bit periods after F1
         unsigned f2_clock = f1_clock + (87 * 14);
         unsigned f2_sample = f2_clock / 25;
-        assert(f2_sample < mlen + Modes.trailing_samples);
+        assert(f2_sample < mlen + mag->overlap);
 
         if (!(m[f2_sample-1] < m[f2_sample+0]))
             continue;
