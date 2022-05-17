@@ -12,7 +12,8 @@ var UnitLabels = {
 	'altitude': { metric: "m", imperial: "ft", nautical: "ft"},
 	'speed': { metric: "km/h", imperial: "mph", nautical: "kt" },
 	'distance': { metric: "km", imperial: "mi", nautical: "NM" },
-	'verticalRate': { metric: "m/s", imperial: "ft/min", nautical: "ft/min" }
+	'verticalRate': { metric: "m/s", imperial: "ft/min", nautical: "ft/min" },
+	'distanceShort': {metric: "m", imperial: "ft", nautical: "m"}
 };
 
 // formatting helpers
@@ -91,6 +92,17 @@ function format_altitude_long(alt, vr, displayUnits) {
 	}
 }
 
+// alt ground/airborne
+function format_onground (alt) {
+	if (alt === null) {
+		return "n/a";
+	} else if (alt === "ground") {
+		return "on ground";
+	} else {
+		return "airborne";
+	}
+}
+
 // alt in feet
 function convert_altitude(alt, displayUnits) {
 	if (displayUnits === "metric") {
@@ -156,6 +168,16 @@ function format_distance_long(dist, displayUnits, fixed) {
 	return dist_text;
 }
 
+function format_distance_short (dist, displayUnits) {
+	if (dist === null) {
+		return "n/a";
+	}
+
+	var dist_text = Math.round(convert_distance_short(dist, displayUnits)) + NBSP + get_unit_label("distanceShort", displayUnits);
+
+	return dist_text;
+}
+
 // dist in meters
 function convert_distance(dist, displayUnits) {
 	if (displayUnits === "metric") {
@@ -165,6 +187,15 @@ function convert_distance(dist, displayUnits) {
 		return (dist / 1609); // meters to miles
 	}
 	return (dist / 1852); // meters to nautical miles
+}
+
+// dist in meters
+// converts meters to feet or just returns meters
+function convert_distance_short(dist, displayUnits) {
+	if (displayUnits === "imperial") {
+		return (dist / 0.3048); // meters to feet
+	}
+	return dist; // just meters
 }
 
 // rate in ft/min
@@ -224,4 +255,53 @@ function format_data_source(source) {
 	}
 
 	return "";
+}
+
+function format_nac_p (value) {
+	switch (value) {
+		case 0:
+			return "EPU ≥ 18.52 km";
+		case 1:
+			return "EPU < 18.52 km";
+		case 2:
+			return "EPU < 7.408 km";
+		case 3:
+			return "EPU < 3.704 km";
+		case 4:
+			return "EPU < 1852 m";
+		case 5:
+			return "EPU < 926 m";
+		case 6:
+			return "EPU < 555.6 m";
+		case 7:
+			return "EPU < 185.2 m";
+		case 8:
+			return "EPU < 92.6 m";
+		case 9:
+			return "EPU < 30 m";
+		case 10:
+			return "EPU < 10 m";
+		case 11:
+			return "EPU < 3 m";
+		default:
+			return "n/a";
+
+	}
+}
+
+function format_nac_v (value) {
+	switch (value) {
+		case 0:
+			return "Unknown or  10 m/s";
+		case 1:
+			return "< 10 m/s";
+		case 2:
+			return "< 3 m/s";
+		case 3:
+			return "< 1 m/s";
+		case 4:
+			return "< 0.3 m/s";
+		default:
+			return "n/a";
+	}
 }

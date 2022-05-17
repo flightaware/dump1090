@@ -87,8 +87,6 @@ void modesInitNet(void);
 void modesQueueOutput(struct modesMessage *mm, struct aircraft *a);
 void modesNetPeriodicWork(void);
 
-void writeFATSVHeader();
-
 // TODO: move these somewhere else
 char *generateAircraftJson(const char *url_path, int *len);
 char *generateStatsJson(const char *url_path, int *len);

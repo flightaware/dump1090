@@ -1,0 +1,126 @@
+Determining if the function reallocf exists failed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_30384/fast"
+/usr/bin/make -f CMakeFiles/cmTC_30384.dir/build.make CMakeFiles/cmTC_30384.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_30384.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=reallocf   -o CMakeFiles/cmTC_30384.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.10/Modules/CheckFunctionExists.c
+Linking C executable cmTC_30384
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_30384.dir/link.txt --verbose=1
+/usr/bin/cc  -DCHECK_FUNCTION_EXISTS=reallocf    -rdynamic CMakeFiles/cmTC_30384.dir/CheckFunctionExists.c.o  -o cmTC_30384 /usr/lib/x86_64-linux-gnu/librt.so 
+CMakeFiles/cmTC_30384.dir/CheckFunctionExists.c.o: In function `main':
+CheckFunctionExists.c:(.text+0x10): undefined reference to `reallocf'
+collect2: error: ld returned 1 exit status
+CMakeFiles/cmTC_30384.dir/build.make:98: recipe for target 'cmTC_30384' failed
+make[1]: *** [cmTC_30384] Error 1
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_30384/fast' failed
+make: *** [cmTC_30384/fast] Error 2
+
+
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_b8719/fast"
+/usr/bin/make -f CMakeFiles/cmTC_b8719.dir/build.make CMakeFiles/cmTC_b8719.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_b8719.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_b8719.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_b8719
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b8719.dir/link.txt --verbose=1
+/usr/bin/cc      -rdynamic CMakeFiles/cmTC_b8719.dir/CheckSymbolExists.c.o  -o cmTC_b8719 /usr/lib/x86_64-linux-gnu/librt.so 
+CMakeFiles/cmTC_b8719.dir/CheckSymbolExists.c.o: In function `main':
+CheckSymbolExists.c:(.text+0x1b): undefined reference to `pthread_create'
+collect2: error: ld returned 1 exit status
+CMakeFiles/cmTC_b8719.dir/build.make:98: recipe for target 'cmTC_b8719' failed
+make[1]: *** [cmTC_b8719] Error 1
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_b8719/fast' failed
+make: *** [cmTC_b8719/fast] Error 2
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the res_ndestroy exist failed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_70f1f/fast"
+/usr/bin/make -f CMakeFiles/cmTC_70f1f.dir/build.make CMakeFiles/cmTC_70f1f.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_70f1f.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_70f1f.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c: In function ‘main’:
+/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: error: ‘res_ndestroy’ undeclared (first use in this function); did you mean ‘res_nsearch’?
+   return ((int*)(&res_ndestroy))[argc];
+                   ^~~~~~~~~~~~
+                   res_nsearch
+/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: note: each undeclared identifier is reported only once for each function it appears in
+CMakeFiles/cmTC_70f1f.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_70f1f.dir/CheckSymbolExists.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_70f1f.dir/CheckSymbolExists.c.o] Error 1
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_70f1f/fast' failed
+make: *** [cmTC_70f1f/fast] Error 2
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <resolv.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef res_ndestroy
+  return ((int*)(&res_ndestroy))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the sched_getcpu exist failed with the following output:
+Change Dir: /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_93128/fast"
+/usr/bin/make -f CMakeFiles/cmTC_93128.dir/build.make CMakeFiles/cmTC_93128.dir/build
+make[1]: Wejście do katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_93128.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_93128.dir/CheckSymbolExists.c.o   -c /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c: In function ‘main’:
+/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: error: ‘sched_getcpu’ undeclared (first use in this function); did you mean ‘sched_getparam’?
+   return ((int*)(&sched_getcpu))[argc];
+                   ^~~~~~~~~~~~
+                   sched_getparam
+/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: note: each undeclared identifier is reported only once for each function it appears in
+CMakeFiles/cmTC_93128.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_93128.dir/CheckSymbolExists.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_93128.dir/CheckSymbolExists.c.o] Error 1
+make[1]: Opuszczenie katalogu '/home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_93128/fast' failed
+make: *** [cmTC_93128/fast] Error 2
+
+File /home/pps/src/misc/dump1090-ifd-clean/mongo-c-driver-1.15.1/cmake-build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sched.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef sched_getcpu
+  return ((int*)(&sched_getcpu))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+

@@ -99,7 +99,7 @@ SiteCircles = true; // true to show circles (only shown if the center marker is 
 SiteCirclesDistances = new Array(100,150,200);
 
 // Controls page title, righthand pane when nothing is selected
-PageName = "PiAware Skyview";
+PageName = "PiAware SkyAware";
 
 // Show country flags by ICAO addresses?
 ShowFlags = true;
@@ -119,11 +119,7 @@ ChartBundleLayers = false;
 //
 BingMapsAPIKey = null;
 
-// Provide a Mapzen API key here to enable the Mapzen vector tile layer.
-// You can obtain a free key at https://mapzen.com/developers/
-// (you need a "vector tiles" key)
-//
-// Be sure to quote your key:
-//   MapzenAPIKey = "your key here";
-//
-MapzenAPIKey = null;
+// Turn on display of extra Mode S EHS / ADS-B v1/v2 data
+// This is not polished yet (and so is disabled by default),
+// currently it's just a data dump of the new fields with no UX work.
+ExtendedData = false;

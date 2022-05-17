@@ -26,5 +26,5 @@ Description: ADS-B Ground Station System for RTL-SDR
  Networked Aviation Mode S / ADS-B decoder/translator with RTL-SDR software
  defined radio USB device support.
  .
- This is FlightAware's packaging of dump1090-mutability, customized for use
+ This is FlightAware's fork of dump1090-mutability, customized for use
  in the PiAware sdcard images.

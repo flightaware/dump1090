@@ -49,6 +49,20 @@ case "$1" in
             fi
         fi
 
+        # on upgrade, add an ENABLED line if it's not already present
+        if dpkg --compare-versions "$2" lt-nl "3.7.0"
+        then
+            if [ -f /etc/default/dump1090-fa ]
+            then
+                if ! grep -q -E '^ENABLED=' /etc/default/dump1090-fa
+                then
+                    echo "Setting ENABLED=yes in /etc/default/dump1090-fa.." >&2
+                    echo "# Automatically added by upgrade from $2" >>/etc/default/dump1090-fa
+                    echo "ENABLED=yes" >>/etc/default/dump1090-fa
+                fi
+            fi
+        fi
+
         echo "Restarting lighttpd.." >&2
         invoke-rc.d lighttpd restart || true
     ;;

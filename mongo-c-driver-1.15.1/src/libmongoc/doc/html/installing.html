@@ -1,0 +1,305 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /><link rel="canonical" href="http://mongoc.org/libbson/current/installing.html"/>
+    <title>Installing the MongoDB C Driver (libmongoc) and BSON library (libbson) &#8212; MongoDB C Driver 1.15.1</title>
+    <link rel="stylesheet" href="_static/mongoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorial" href="tutorial.html" />
+    <link rel="prev" title="MongoDB C Driver" href="index.html" />
+   
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head><body>  
+
+    <div class="document">
+  <div class="documentwrapper">
+    <div class="bodywrapper" id="installing">
+      <div class="body" role="main">
+        
+            <div class="related">
+              <ul>
+                <li class="nav-item nav-item-0"><a href="index.html">MongoDB C Driver 1.15.1</a> &#187;</li>
+                
+              </ul>
+            </div>
+          
+        
+  <div class="section" id="installing-the-mongodb-c-driver-libmongoc-and-bson-library-libbson">
+<h1>Installing the MongoDB C Driver (libmongoc) and BSON library (libbson)<a class="headerlink" href="#installing-the-mongodb-c-driver-libmongoc-and-bson-library-libbson" title="Permalink to this headline">¶</a></h1>
+<p>The following guide will step you through the process of downloading, building, and installing the current release of the MongoDB C Driver (libmongoc) and BSON library (libbson).</p>
+<div class="section" id="supported-platforms">
+<h2>Supported Platforms<a class="headerlink" href="#supported-platforms" title="Permalink to this headline">¶</a></h2>
+<p>The MongoDB C Driver is <a class="reference external" href="https://evergreen.mongodb.com/waterfall/mongo-c-driver">continuously tested</a> on variety of platforms including:</p>
+<ul class="simple">
+<li>Archlinux</li>
+<li>Debian 9.2</li>
+<li>macOS 10.12</li>
+<li>Microsoft Windows Server 2008</li>
+<li>RHEL 7.0, 7.1, 7.2</li>
+<li>Ubuntu 16.04, 18.04</li>
+<li>Clang 3.4, 3.5, 3.7, 3.8</li>
+<li>GCC 4.6, 4.8, 4.9, 5.4, 6.3</li>
+<li>MinGW-W64</li>
+<li>Visual Studio 2010, 2013, 2015</li>
+<li>x86, x86_64, ARM (aarch64), Power8 (ppc64le), zSeries (s390x)</li>
+</ul>
+</div>
+<div class="section" id="install-libmongoc-with-a-package-manager">
+<h2>Install libmongoc with a Package Manager<a class="headerlink" href="#install-libmongoc-with-a-package-manager" title="Permalink to this headline">¶</a></h2>
+<p>Several Linux distributions provide packages for libmongoc and its dependencies. One advantage of installing libmongoc with a package manager is that its dependencies (including libbson) will be installed automatically.</p>
+<p>The libmongoc package is available on recent versions of Debian and Ubuntu.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ apt-get install libmongoc-1.0-0
+</pre></div>
+</div>
+<p>On Fedora, a mongo-c-driver package is available in the default repositories and can be installed with:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ dnf install mongo-c-driver
+</pre></div>
+</div>
+<p>On recent Red Hat systems, such as CentOS and RHEL 7, a mongo-c-driver package is available in the <a class="reference external" href="https://fedoraproject.org/wiki/EPEL">EPEL</a> repository. To check which version is available, see <a class="reference external" href="https://apps.fedoraproject.org/packages/mongo-c-driver">https://apps.fedoraproject.org/packages/mongo-c-driver</a>. The package can be installed with:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ yum install mongo-c-driver
+</pre></div>
+</div>
+</div>
+<div class="section" id="install-libbson-with-a-package-manager">
+<h2>Install libbson with a Package Manager<a class="headerlink" href="#install-libbson-with-a-package-manager" title="Permalink to this headline">¶</a></h2>
+<p>The libbson package is available on recent versions of Debian and Ubuntu. If you have installed libmongoc, then libbson will have already been installed as a dependency. It is also possible to install libbson without libmongoc.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ apt-get install libbson-1.0
+</pre></div>
+</div>
+<p>On Fedora, a libbson package is available in the default repositories and can be installed with:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ dnf install libbson
+</pre></div>
+</div>
+<p>On recent Red Hat systems, such as CentOS and RHEL 7, a libbson package
+is available in the <a class="reference external" href="https://fedoraproject.org/wiki/EPEL">EPEL</a> repository. To check
+which version is available, see <a class="reference external" href="https://apps.fedoraproject.org/packages/libbson">https://apps.fedoraproject.org/packages/libbson</a>.
+The package can be installed with:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ yum install libbson
+</pre></div>
+</div>
+</div>
+<div class="section" id="building-on-unix">
+<h2>Building on Unix<a class="headerlink" href="#building-on-unix" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="prerequisites-for-libmongoc">
+<h3>Prerequisites for libmongoc<a class="headerlink" href="#prerequisites-for-libmongoc" title="Permalink to this headline">¶</a></h3>
+<p>OpenSSL is required for authentication or for SSL connections to MongoDB. Kerberos or LDAP support requires Cyrus SASL.</p>
+<p>To install all optional dependencies on RedHat / Fedora:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sudo yum install cmake openssl-devel cyrus-sasl-devel
+</pre></div>
+</div>
+<p>On Debian / Ubuntu:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sudo apt-get install cmake libssl-dev libsasl2-dev
+</pre></div>
+</div>
+<p>On FreeBSD:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ su -c &#39;pkg install cmake openssl cyrus-sasl&#39;
+</pre></div>
+</div>
+</div>
+<div class="section" id="prerequisites-for-libbson">
+<h3>Prerequisites for libbson<a class="headerlink" href="#prerequisites-for-libbson" title="Permalink to this headline">¶</a></h3>
+<p>The only prerequisite for building libbson is <code class="docutils literal notranslate"><span class="pre">cmake</span></code>. The command lines above can be adjusted to install only <code class="docutils literal notranslate"><span class="pre">cmake</span></code>.</p>
+</div>
+<div class="section" id="building-from-a-release-tarball">
+<h3>Building from a release tarball<a class="headerlink" href="#building-from-a-release-tarball" title="Permalink to this headline">¶</a></h3>
+<p>Unless you intend to contribute to mongo-c-driver and/or libbson, you will want to build from a release tarball.</p>
+<p>The most recent release of libmongoc and libbson, both of which are included in mongo-c-driver, can be <a class="reference external" href="https://github.com/mongodb/mongo-c-driver/releases/latest">downloaded here</a>. The instructions in this document utilize <code class="docutils literal notranslate"><span class="pre">cmake</span></code>’s out-of-source build feature to keep build artifacts separate from source files.</p>
+<p>The following snippet will download and extract the driver, and configure it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ wget https://github.com/mongodb/mongo-c-driver/releases/download/x.y.z/mongo-c-driver-x.y.z.tar.gz
+$ tar xzf mongo-c-driver-x.y.z.tar.gz
+$ cd mongo-c-driver-x.y.z
+$ mkdir cmake-build
+$ cd cmake-build
+$ cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF ..
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">-DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF</span></code> option is recommended, see <a class="reference internal" href="init-cleanup.html"><span class="doc">Initialization and cleanup</span></a>. Another useful <code class="docutils literal notranslate"><span class="pre">cmake</span></code> option is <code class="docutils literal notranslate"><span class="pre">-DCMAKE_BUILD_TYPE=Release</span></code> for a release optimized build and <code class="docutils literal notranslate"><span class="pre">-DCMAKE_BUILD_TYPE=Debug</span></code> for a debug build. For a list of all configure options, run <code class="docutils literal notranslate"><span class="pre">cmake</span> <span class="pre">-L</span> <span class="pre">..</span></code>.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">cmake</span></code> completed successfully, you will see a considerable amount of output describing your build configuration. The final line of output should look something like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">--</span> <span class="n">Build</span> <span class="n">files</span> <span class="n">have</span> <span class="n">been</span> <span class="n">written</span> <span class="n">to</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">user</span><span class="o">/</span><span class="n">mongo</span><span class="o">-</span><span class="n">c</span><span class="o">-</span><span class="n">driver</span><span class="o">-</span><span class="n">x</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">z</span><span class="o">/</span><span class="n">cmake</span><span class="o">-</span><span class="n">build</span>
+</pre></div>
+</div>
+<p>If <code class="docutils literal notranslate"><span class="pre">cmake</span></code> concludes with anything different, then there is likely an error or some other problem with the build. Review the output to identify and correct the problem.</p>
+<p>mongo-c-driver contains a copy of libbson, in case your system does not already have libbson installed. The build will detect if libbson is not installed and use the bundled libbson.</p>
+<p>Additionally, it is possible to build only libbson by setting the <code class="docutils literal notranslate"><span class="pre">-DENABLE_MONGOC=OFF</span></code> option:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF -DENABLE_MONGOC=OFF ..
+</pre></div>
+</div>
+<p>A build configuration description similar to the one above will be displayed, though with fewer entries. Once the configuration is complete, the selected items can be built and installed with these commands:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ make
+$ sudo make install
+</pre></div>
+</div>
+<p>There are two ways to uninstall the components that have been installed.  The first is to invoke the uninstall program directly.  On Linux/Unix:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sudo /usr/local/share/mongo-c-driver/uninstall.sh
+</pre></div>
+</div>
+<p>On Windows:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>C:\Users\user&gt; C:\mongo-c-driver\share\mongo-c-driver\uninstall.bat
+</pre></div>
+</div>
+<p>The second way to uninstall is from within the build directory, assuming that it is in the exact same state as when the install command was invoked:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sudo make uninstall
+</pre></div>
+</div>
+<p>The second approach simply invokes the uninstall program referenced in the first approach.</p>
+</div>
+<div class="section" id="building-from-git">
+<h3>Building from git<a class="headerlink" href="#building-from-git" title="Permalink to this headline">¶</a></h3>
+<p>Clone the repository and build the current master or a particular release tag:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ git clone https://github.com/mongodb/mongo-c-driver.git
+$ cd mongo-c-driver
+$ git checkout x.y.z  # To build a particular release
+$ python build/calc_release_version.py &gt; VERSION_CURRENT
+$ mkdir cmake-build
+$ cd cmake-build
+$ cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF ..
+$ make
+$ sudo make install
+</pre></div>
+</div>
+</div>
+<div class="section" id="generating-the-documentation">
+<h3>Generating the documentation<a class="headerlink" href="#generating-the-documentation" title="Permalink to this headline">¶</a></h3>
+<p>Install <a class="reference external" href="http://www.sphinx-doc.org/">Sphinx</a>, then:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ cmake -DENABLE_MAN_PAGES=ON -DENABLE_HTML_DOCS=ON ..
+$ make mongoc-doc
+</pre></div>
+</div>
+<p>To build only the libbson documentation:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ cmake -DENABLE_MAN_PAGES=ON -DENABLE_HTML_DOCS=ON ..
+$ make bson-doc
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">-DENABLE_MAN_PAGES=ON</span></code> and <code class="docutils literal notranslate"><span class="pre">-DENABLE_HTML_DOCS=ON</span></code> can also be added as options to a normal build from a release tarball or from git so that the documentation is built at the same time as other components.</p>
+</div>
+</div>
+<div class="section" id="building-on-macos">
+<h2>Building on macOS<a class="headerlink" href="#building-on-macos" title="Permalink to this headline">¶</a></h2>
+<p>Install the XCode Command Line Tools:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ xcode-select --install
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">cmake</span></code> utility is also required. First <a class="reference external" href="https://brew.sh/">install Homebrew according to its instructions</a>, then:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ brew install cmake
+</pre></div>
+</div>
+<p>Download the latest release tarball:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ curl -LO https://github.com/mongodb/mongo-c-driver/releases/download/x.y.z/mongo-c-driver-x.y.z.tar.gz
+$ tar xzf mongo-c-driver-x.y.z.tar.gz
+$ cd mongo-c-driver-x.y.z
+</pre></div>
+</div>
+<p>Build and install the driver:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ mkdir cmake-build
+$ cd cmake-build
+$ cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF ..
+</pre></div>
+</div>
+<p>All of the same variations described above (e.g., building only libbson, building documentation, etc.) are available when building on macOS.</p>
+</div>
+<div class="section" id="building-on-windows-with-visual-studio">
+<span id="build-on-windows"></span><h2>Building on Windows with Visual Studio<a class="headerlink" href="#building-on-windows-with-visual-studio" title="Permalink to this headline">¶</a></h2>
+<p>Building on Windows requires Windows Vista or newer and Visual Studio 2010 or newer. Additionally, <code class="docutils literal notranslate"><span class="pre">cmake</span></code> is required to generate Visual Studio project files.</p>
+<p>Let’s start by generating Visual Studio project files. The following assumes we are compiling for 64-bit Windows using Visual Studio 2015 Express, which can be freely downloaded from Microsoft. We will be utilizing <code class="docutils literal notranslate"><span class="pre">cmake</span></code>’s out-of-source build feature to keep build artifacts separate from source files.</p>
+<pre class="literal-block">
+cd mongo-c-driver-x.y.z
+mkdir cmake-build
+cd cmake-build
+cmake -G &quot;Visual Studio 14 2015 Win64&quot; \
+  &quot;-DCMAKE_INSTALL_PREFIX=C:\mongo-c-driver&quot; \
+  &quot;-DCMAKE_PREFIX_PATH=C:\mongo-c-driver&quot; \
+  ..
+</pre>
+<p>(Run <code class="docutils literal notranslate"><span class="pre">cmake</span> <span class="pre">-LH</span> <span class="pre">..</span></code> for a list of other options.)</p>
+<p>Now that we have project files generated, we can either open the project in Visual Studio or compile from the command line. Let’s build using the command line program <code class="docutils literal notranslate"><span class="pre">msbuild.exe</span></code>:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>msbuild.exe /p:Configuration=RelWithDebInfo ALL_BUILD.vcxproj
+</pre></div>
+</div>
+<p>Visual Studio’s default build type is <code class="docutils literal notranslate"><span class="pre">Debug</span></code>, but we recommend a release build with debug info for production use. Now that libmongoc and libbson are compiled, let’s install them using msbuild. It will be installed to the path specified by <code class="docutils literal notranslate"><span class="pre">CMAKE_INSTALL_PREFIX</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>msbuild.exe INSTALL.vcxproj
+</pre></div>
+</div>
+<p>You should now see libmongoc and libbson installed in <code class="docutils literal notranslate"><span class="pre">C:\mongo-c-driver</span></code></p>
+<p>To use the driver libraries in your program, see <a class="reference internal" href="visual-studio-guide.html"><span class="doc">Using libmongoc in a Microsoft Visual Studio project</span></a>.</p>
+</div>
+<div class="section" id="building-on-windows-with-mingw-w64-and-msys2">
+<h2>Building on Windows with MinGW-W64 and MSYS2<a class="headerlink" href="#building-on-windows-with-mingw-w64-and-msys2" title="Permalink to this headline">¶</a></h2>
+<p>Install MSYS2 from <a class="reference external" href="http://msys2.github.io">msys2.github.io</a>. Choose the x86_64 version, not i686.</p>
+<p>Open the MingGW shell with <code class="docutils literal notranslate"><span class="pre">c:\msys64\ming64.exe</span></code> (not the msys2_shell). Install dependencies:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>pacman --noconfirm -Syu
+pacman --noconfirm -S mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake
+pacman --noconfirm -S mingw-w64-x86_64-extra-cmake-modules make tar
+pacman --noconfirm -S mingw64/mingw-w64-x86_64-cyrus-sasl
+</pre></div>
+</div>
+<p>Download and untar the latest tarball, enter its directory, and build with CMake:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>mkdir cmake-build
+cd cmake-build
+CC=/mingw64/bin/gcc.exe /mingw64/bin/cmake -G &quot;MSYS Makefiles&quot; -DCMAKE_INSTALL_PREFIX=&quot;C:/mongo-c-driver&quot; -DCMAKE_C_FLAGS=&quot;-D__USE_MINGW_ANSI_STDIO=1&quot; ..
+make
+</pre></div>
+</div>
+</div>
+</div>
+
+
+      </div>
+      <div class="footer">
+        <div class="footer-nav">
+          <a class="footer-nav-button footer-nav-button-prev" title="MongoDB C Driver" href="index.html">&laquo; Previous: MongoDB C Driver</a>
+          <a class="footer-nav-button footer-nav-button-next" title="Tutorial" href="tutorial.html">Next: Tutorial &raquo;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><h3><a href="index.html">MongoDB C Driver 1.15.1</a></h3>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installing the MongoDB C Driver (libmongoc) and BSON library (libbson)</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="authentication.html">Authentication</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="basic-troubleshooting.html">Basic Troubleshooting</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="guides.html">Guides</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="application-performance-monitoring.html">Application Performance Monitoring (APM)</a></li>
+</ul>
+
+<ul>
+  <li class="toctree-l1 ">
+    <a href="full_index.html">Index</a>
+  </li>
+</ul>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="colophon">
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5, based on <a href="https://sphinx-readable-theme.readthedocs.io/en/latest/">Sphinx Readable Theme</a>.
+  </div>
+
+  </body>
+</html>

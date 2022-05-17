@@ -13,4 +13,5 @@ faup1090
 package-wheezy
 build
 .idea
-data
+oneoff/convert_benchmark
+oneoff/decode_comm_b

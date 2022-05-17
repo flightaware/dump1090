@@ -1,0 +1,10 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${exec_prefix}/include
+
+Name: libbson static archive
+Description: The libbson BSON serialization library.
+Version: 1.15.1
+Libs: -L${libdir} -lbson-static-1.0  /usr/lib/x86_64-linux-gnu/librt.so /usr/lib/x86_64-linux-gnu/libm.so -pthread
+Cflags: -I${includedir}/libbson-1.0 -DBSON_STATIC

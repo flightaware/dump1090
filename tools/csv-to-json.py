@@ -37,6 +37,16 @@ def readcsv(name, infile, blocks):
 
     print >>sys.stderr, 'Read', ac_count, 'aircraft from', name
 
+def cleandb(blocks):
+    for blockdata in blocks.values():
+        for dkey in list(blockdata.keys()):
+            block = blockdata[dkey]
+            for key in list(block.keys()):
+                if block[key] == '-COMPUTED-':
+                    del block[key]
+            if len(block) == 0:
+                del blockdata[dkey]
+
 def writedb(blocks, todir, blocklimit, debug):
     block_count = 0
 
@@ -110,5 +120,6 @@ if __name__ == '__main__':
             with closing(open(filename, 'r')) as infile:
                 readcsv(filename, infile, blocks)
 
+    cleandb(blocks)
     writedb(blocks, sys.argv[-1], 2500, False)
     sys.exit(0)

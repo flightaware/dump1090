@@ -116,7 +116,9 @@ struct aircraft *trackCreateAircraft(struct modesMessage *mm) {
     F(squawk,          15, 70);  // ADS-B or Mode S
     F(airground,       15, 70);  // ADS-B or Mode S
     F(nav_qnh,         60, 70);  // Comm-B only
-    F(nav_altitude,    60, 70);  // ADS-B or Comm-B
+    F(nav_altitude_mcp, 60, 70);  // ADS-B or Comm-B
+    F(nav_altitude_fms, 60, 70);  // ADS-B or Comm-B
+    F(nav_altitude_src, 60, 70); // ADS-B or Comm-B
     F(nav_heading,     60, 70);  // ADS-B or Comm-B
     F(nav_modes,       60, 70);  // ADS-B or Comm-B
     F(cpr_odd,         60, 70);  // ADS-B only
@@ -302,6 +304,18 @@ static int speed_check(struct aircraft *a, double lat, double lon, int surface)
     return inrange;
 }
 
+// return 1 if left_rc is worse (less accurate) than right_rc
+static int rcIsWorse(int left_rc, int right_rc)
+{
+    if (left_rc == 0 && right_rc == 0) // both unknown
+        return 0;
+    if (left_rc == 0)
+        return 1; // left unknown < right known
+    if (right_rc == 0)
+        return 0; // left known > right unknown
+    return (left_rc > right_rc);
+}
+
 static int doGlobalCPR(struct aircraft *a, struct modesMessage *mm, double *lat, double *lon, unsigned *nic, unsigned *rc)
 {
     int result;
@@ -309,9 +323,9 @@ static int doGlobalCPR(struct aircraft *a, struct modesMessage *mm, double *lat,
     int surface = (mm->cpr_type == CPR_SURFACE);
 
     // derive NIC, Rc from the worse of the two position
-    // smaller NIC is worse; larger Rc is worse
+    // smaller NIC is worse
     *nic = (a->cpr_even_nic < a->cpr_odd_nic ? a->cpr_even_nic : a->cpr_odd_nic);
-    *rc = (a->cpr_even_rc > a->cpr_odd_rc ? a->cpr_even_rc : a->cpr_odd_rc);
+    *rc = (rcIsWorse(a->cpr_even_rc, a->cpr_odd_rc) ? a->cpr_even_rc : a->cpr_odd_rc);
 
     if (surface) {
         // surface global CPR
@@ -372,7 +386,7 @@ static int doGlobalCPR(struct aircraft *a, struct modesMessage *mm, double *lat,
         return result;
 
     // check speed limit
-    if (trackDataValid(&a->position_valid) && a->pos_nic >= *nic && a->pos_rc <= *rc && !speed_check(a, *lat, *lon, surface)) {
+    if (trackDataValid(&a->position_valid) && a->pos_nic >= *nic && !rcIsWorse(a->pos_rc, *rc) && !speed_check(a, *lat, *lon, surface)) {
         Modes.stats_current.cpr_global_speed_checks++;
         return -2;
     }
@@ -404,7 +418,7 @@ static int doLocalCPR(struct aircraft *a, struct modesMessage *mm, double *lat, 
 
         if (a->pos_nic < *nic)
             *nic = a->pos_nic;
-        if (a->pos_rc < *rc)
+        if (rcIsWorse(a->pos_rc, *rc))
             *rc = a->pos_rc;
 
         range_limit = 50e3;
@@ -454,7 +468,7 @@ static int doLocalCPR(struct aircraft *a, struct modesMessage *mm, double *lat, 
     }
 
     // check speed limit
-    if (trackDataValid(&a->position_valid) && a->pos_nic >= *nic && a->pos_rc <= *rc && !speed_check(a, *lat, *lon, surface)) {
+    if (trackDataValid(&a->position_valid) && a->pos_nic >= *nic && !rcIsWorse(a->pos_rc, *rc) && !speed_check(a, *lat, *lon, surface)) {
 #ifdef DEBUG_CPR_CHECKS
         fprintf(stderr, "Speed check for %06X with local decoding failed\n", a->addr);
 #endif
@@ -661,6 +675,8 @@ static unsigned compute_nic(unsigned metype, unsigned version, unsigned nic_a, u
 
 static unsigned compute_rc(unsigned metype, unsigned version, unsigned nic_a, unsigned nic_b, unsigned nic_c)
 {
+    // ED-102 Table 2-14, Table N-4, Table N-11
+
     switch (metype) {
     case 5: // surface
     case 9: // airborne
@@ -696,7 +712,7 @@ static unsigned compute_rc(unsigned metype, unsigned version, unsigned nic_a, un
             } else if (nic_a && !nic_c) {
                 return 556; // 555.6m, 0.3NM
             } else if (!nic_a && nic_c) {
-                return 926; // 926m, 0.5NM
+                return 1111; // 1111m, 0.6NM
             } else {
                 return RC_UNKNOWN;
             }
@@ -709,16 +725,16 @@ static unsigned compute_rc(unsigned metype, unsigned version, unsigned nic_a, un
             if (nic_a && nic_b) {
                 return 75;
             } else {
-                return 186; // 370.4m, 0.2NM
+                return 186; // 185.2m, 0.1NM
             }
         } else if (version == 1) {
             if (nic_a) {
                 return 75;
             } else {
-                return 186; // 370.4m, 0.2NM
+                return 186; // 185.2m, 0.1NM
             }
         } else {
-            return 186; // 370.4m, 0.2NM
+            return 186; // 185.2m, 0.1NM
         }
 
     case 12: // airborne
@@ -733,7 +749,7 @@ static unsigned compute_rc(unsigned metype, unsigned version, unsigned nic_a, un
             } else if (nic_a && nic_b) {
                 return 1112; // 1111.2m, 0.6NM
             } else {
-                return 1112; // bad combination, assume worst Rc
+                return RC_UNKNOWN; // bad combination
             }
         } else if (version == 1) {
             if (nic_a) {
@@ -765,7 +781,7 @@ static unsigned compute_rc(unsigned metype, unsigned version, unsigned nic_a, un
                 return 14816; // 8NM
             }
         } else {
-            return 18510; // 10NM
+            return 18520; // 10NM
         }
 
     case 17: // airborne
@@ -773,6 +789,81 @@ static unsigned compute_rc(unsigned metype, unsigned version, unsigned nic_a, un
 
     default:
         return RC_UNKNOWN;
+    }
+}
+
+// Map ADS-B v0 position message type to NACp value
+// returned computed NACp, or -1 if not a suitable message type
+static int compute_v0_nacp(struct modesMessage *mm)
+{
+    if (mm->msgtype != 17 && mm->msgtype != 18) {
+        return -1;
+    }
+
+    // ED-102A Table N-7
+    switch (mm->metype) {
+    case 0: return 0;
+    case 5: return 11;
+    case 6: return 10;
+    case 7: return 8;
+    case 8: return 0;
+    case 9: return 11;
+    case 10: return 10;
+    case 11: return 8;
+    case 12: return 7;
+    case 13: return 6;
+    case 14: return 5;
+    case 15: return 4;
+    case 16: return 1;
+    case 17: return 1;
+    case 18: return 0;
+    case 20: return 11;
+    case 21: return 10;
+    case 22: return 0;
+    default: return -1;
+    }
+}
+
+// Map ADS-B v0 position message type to SIL value
+// returned computed SIL, or -1 if not a suitable message type
+static int compute_v0_sil(struct modesMessage *mm)
+{
+    if (mm->msgtype != 17 && mm->msgtype != 18) {
+        return -1;
+    }
+
+    // ED-102A Table N-8
+    switch (mm->metype) {
+    case 0:
+        return 0;
+
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+    case 12:
+    case 13:
+    case 14:
+    case 15:
+    case 16:
+    case 17:
+        return 2;
+
+    case 18:
+        return 0;
+
+    case 20:
+    case 21:
+        return 2;
+
+    case 22:
+        return 0;
+
+    default:
+        return -1;
     }
 }
 
@@ -861,6 +952,23 @@ struct aircraft *trackUpdateFromMessage(struct modesMessage *mm)
         }
     }
 
+    // fill in ADS-B v0 NACp, SIL from position message type
+    if (a->adsb_version == 0 && !mm->accuracy.nac_p_valid) {
+        int computed_nacp = compute_v0_nacp(mm);
+        if (computed_nacp != -1) {
+            mm->accuracy.nac_p_valid = 1;
+            mm->accuracy.nac_p = computed_nacp;
+        }
+    }
+
+    if (a->adsb_version == 0 && mm->accuracy.sil_type == SIL_INVALID) {
+        int computed_sil = compute_v0_sil(mm);
+        if (computed_sil != -1) {
+            mm->accuracy.sil_type = SIL_UNKNOWN;
+            mm->accuracy.sil = computed_sil;
+        }
+    }
+
     if (mm->altitude_baro_valid && accept_data(&a->altitude_baro_valid, mm->source)) {
         int alt = altitude_to_feet(mm->altitude_baro, mm->altitude_baro_unit);
         if (a->modeC_hit) {
@@ -880,6 +988,7 @@ struct aircraft *trackUpdateFromMessage(struct modesMessage *mm)
         }
         a->squawk = mm->squawk;
 
+#if 0   // Disabled for now as it obscures the origin of the data
         // Handle 7x00 without a corresponding emergency status
         if (!mm->emergency_valid) {
             emergency_t squawk_emergency;
@@ -902,6 +1011,7 @@ struct aircraft *trackUpdateFromMessage(struct modesMessage *mm)
                 a->emergency = squawk_emergency;
             }
         }
+#endif
     }
 
     if (mm->emergency_valid && accept_data(&a->emergency_valid, mm->source)) {
@@ -983,12 +1093,16 @@ struct aircraft *trackUpdateFromMessage(struct modesMessage *mm)
         memcpy(a->callsign, mm->callsign, sizeof(a->callsign));
     }
 
-    // prefer MCP over FMS
-    // unless the source says otherwise
-    if (mm->nav.mcp_altitude_valid && mm->nav.altitude_source != NAV_ALT_FMS && accept_data(&a->nav_altitude_valid, mm->source)) {
-        a->nav_altitude = mm->nav.mcp_altitude;
-    } else if (mm->nav.fms_altitude_valid && accept_data(&a->nav_altitude_valid, mm->source)) {
-        a->nav_altitude = mm->nav.fms_altitude;
+    if (mm->nav.mcp_altitude_valid && accept_data(&a->nav_altitude_mcp_valid, mm->source)) {
+        a->nav_altitude_mcp = mm->nav.mcp_altitude;
+    }
+
+    if (mm->nav.fms_altitude_valid && accept_data(&a->nav_altitude_fms_valid, mm->source)) {
+        a->nav_altitude_fms = mm->nav.fms_altitude;
+    }
+
+    if (mm->nav.altitude_source != NAV_ALT_INVALID && accept_data(&a->nav_altitude_src_valid, mm->source)) {
+        a->nav_altitude_src = mm->nav.altitude_source;
     }
 
     if (mm->nav.heading_valid && accept_data(&a->nav_heading_valid, mm->source)) {
@@ -1029,6 +1143,10 @@ struct aircraft *trackUpdateFromMessage(struct modesMessage *mm)
 
     if (mm->accuracy.nic_c_valid && accept_data(&a->nic_c_valid, mm->source)) {
         a->nic_c = mm->accuracy.nic_c;
+    }
+
+    if (mm->accuracy.nic_baro_valid && accept_data(&a->nic_baro_valid, mm->source)) {
+        a->nic_baro = mm->accuracy.nic_baro;
     }
 
     if (mm->accuracy.nac_p_valid && accept_data(&a->nac_p_valid, mm->source)) {
@@ -1199,7 +1317,9 @@ static void trackRemoveStaleAircraft(uint64_t now)
             EXPIRE(squawk);
             EXPIRE(airground);
             EXPIRE(nav_qnh);
-            EXPIRE(nav_altitude);
+            EXPIRE(nav_altitude_mcp);
+            EXPIRE(nav_altitude_fms);
+            EXPIRE(nav_altitude_src);
             EXPIRE(nav_heading);
             EXPIRE(nav_modes);
             EXPIRE(cpr_odd);

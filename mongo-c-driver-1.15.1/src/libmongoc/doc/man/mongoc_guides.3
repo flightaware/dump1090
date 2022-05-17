@@ -1,0 +1,3077 @@
+.\" Man page generated from reStructuredText.
+.
+.TH "MONGOC_GUIDES" "3" "Aug 30, 2019" "1.15.1" "MongoDB C Driver"
+.SH NAME
+mongoc_guides \- Guides
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.SH COMMON TASKS
+.sp
+Drivers for some other languages provide helper functions to perform certain common tasks. In the C Driver we must explicitly build commands to send to the server.
+.SS Setup
+.sp
+First we\(aqll write some code to insert sample data:
+.sp
+doc\-common\-insert.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+/* Don\(aqt try to compile this file on its own. It\(aqs meant to be #included
+   by example code */
+
+/* Insert some sample data */
+bool
+insert_data (mongoc_collection_t *collection)
+{
+   mongoc_bulk_operation_t *bulk;
+   enum N { ndocs = 4 };
+   bson_t *docs[ndocs];
+   bson_error_t error;
+   int i = 0;
+   bool ret;
+
+   bulk = mongoc_collection_create_bulk_operation_with_opts (collection, NULL);
+
+   docs[0] = BCON_NEW ("x", BCON_DOUBLE (1.0), "tags", "[", "dog", "cat", "]");
+   docs[1] = BCON_NEW ("x", BCON_DOUBLE (2.0), "tags", "[", "cat", "]");
+   docs[2] = BCON_NEW (
+      "x", BCON_DOUBLE (2.0), "tags", "[", "mouse", "cat", "dog", "]");
+   docs[3] = BCON_NEW ("x", BCON_DOUBLE (3.0), "tags", "[", "]");
+
+   for (i = 0; i < ndocs; i++) {
+      mongoc_bulk_operation_insert (bulk, docs[i]);
+      bson_destroy (docs[i]);
+      docs[i] = NULL;
+   }
+
+   ret = mongoc_bulk_operation_execute (bulk, NULL, &error);
+
+   if (!ret) {
+      fprintf (stderr, "Error inserting data: %s\en", error.message);
+   }
+
+   mongoc_bulk_operation_destroy (bulk);
+   return ret;
+}
+
+/* A helper which we\(aqll use a lot later on */
+void
+print_res (const bson_t *reply)
+{
+   char *str;
+   BSON_ASSERT (reply);
+   str = bson_as_canonical_extended_json (reply, NULL);
+   printf ("%s\en", str);
+   bson_free (str);
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS "explain" Command
+.sp
+This is how to use the \fBexplain\fP command in MongoDB 3.2+:
+.sp
+explain.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+bool
+explain (mongoc_collection_t *collection)
+{
+   bson_t *command;
+   bson_t reply;
+   bson_error_t error;
+   bool res;
+
+   command = BCON_NEW ("explain",
+                       "{",
+                       "find",
+                       BCON_UTF8 (COLLECTION_NAME),
+                       "filter",
+                       "{",
+                       "x",
+                       BCON_INT32 (1),
+                       "}",
+                       "}");
+   res = mongoc_collection_command_simple (
+      collection, command, NULL, &reply, &error);
+   if (!res) {
+      fprintf (stderr, "Error with explain: %s\en", error.message);
+      goto cleanup;
+   }
+
+   /* Do something with the reply */
+   print_res (&reply);
+
+cleanup:
+   bson_destroy (&reply);
+   bson_destroy (command);
+   return res;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Running the Examples
+.sp
+common\-operations.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+/*
+ * Copyright 2016 MongoDB, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE\-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+
+
+const char *COLLECTION_NAME = "things";
+
+#include "../doc\-common\-insert.c"
+#include "explain.c"
+
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_database_t *database = NULL;
+   mongoc_client_t *client = NULL;
+   mongoc_collection_t *collection = NULL;
+   mongoc_uri_t *uri = NULL;
+   bson_error_t error;
+   char *host_and_port;
+   int res = 0;
+
+   if (argc < 2 || argc > 3) {
+      fprintf (stderr,
+               "usage: %s MONGOD\-1\-CONNECTION\-STRING "
+               "[MONGOD\-2\-HOST\-NAME:MONGOD\-2\-PORT]\en",
+               argv[0]);
+      fprintf (stderr,
+               "MONGOD\-1\-CONNECTION\-STRING can be "
+               "of the following forms:\en");
+      fprintf (stderr, "localhost\et\et\et\etlocal machine\en");
+      fprintf (stderr, "localhost:27018\et\et\et\etlocal machine on port 27018\en");
+      fprintf (stderr,
+               "mongodb://user:pass@localhost:27017\et"
+               "local machine on port 27017, and authenticate with username "
+               "user and password pass\en");
+      return EXIT_FAILURE;
+   }
+
+   mongoc_init ();
+
+   if (strncmp (argv[1], "mongodb://", 10) == 0) {
+      host_and_port = bson_strdup (argv[1]);
+   } else {
+      host_and_port = bson_strdup_printf ("mongodb://%s", argv[1]);
+   }
+
+   uri = mongoc_uri_new_with_error (host_and_port, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               host_and_port,
+               error.message);
+      res = EXIT_FAILURE;
+      goto cleanup;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      res = EXIT_FAILURE;
+      goto cleanup;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   database = mongoc_client_get_database (client, "test");
+   collection = mongoc_database_get_collection (database, COLLECTION_NAME);
+
+   printf ("Inserting data\en");
+   if (!insert_data (collection)) {
+      res = EXIT_FAILURE;
+      goto cleanup;
+   }
+
+   printf ("explain\en");
+   if (!explain (collection)) {
+      res = EXIT_FAILURE;
+      goto cleanup;
+   }
+
+cleanup:
+   if (collection) {
+      mongoc_collection_destroy (collection);
+   }
+
+   if (database) {
+      mongoc_database_destroy (database);
+   }
+
+   if (client) {
+      mongoc_client_destroy (client);
+   }
+
+   if (uri) {
+      mongoc_uri_destroy (uri);
+   }
+
+   bson_free (host_and_port);
+   mongoc_cleanup ();
+   return res;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+First launch two separate instances of mongod (must be done from separate shells):
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ mongod
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ mkdir /tmp/db2
+$ mongod \-\-dbpath /tmp/db2 \-\-port 27018 # second instance
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Now compile and run the example program:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cd examples/common_operations/$ gcc \-Wall \-o example common\-operations.c $(pkg\-config \-\-cflags \-\-libs libmongoc\-1.0)$ ./example localhost:27017 localhost:27018
+Inserting data
+explain
+{
+   "executionStats" : {
+      "allPlansExecution" : [],
+      "executionStages" : {
+         "advanced" : 19,
+         "direction" : "forward" ,
+         "docsExamined" : 76,
+         "executionTimeMillisEstimate" : 0,
+         "filter" : {
+            "x" : {
+               "$eq" : 1
+            }
+         },
+         "invalidates" : 0,
+         "isEOF" : 1,
+         "nReturned" : 19,
+         "needTime" : 58,
+         "needYield" : 0,
+         "restoreState" : 0,
+         "saveState" : 0,
+         "stage" : "COLLSCAN" ,
+         "works" : 78
+      },
+      "executionSuccess" : true,
+      "executionTimeMillis" : 0,
+      "nReturned" : 19,
+      "totalDocsExamined" : 76,
+      "totalKeysExamined" : 0
+   },
+   "ok" : 1,
+   "queryPlanner" : {
+      "indexFilterSet" : false,
+      "namespace" : "test.things",
+      "parsedQuery" : {
+         "x" : {
+            "$eq" : 1
+         }
+      },
+      "plannerVersion" : 1,
+      "rejectedPlans" : [],
+      "winningPlan" : {
+         "direction" : "forward" ,
+         "filter" : {
+            "x" : {
+               "$eq" : 1
+            }
+         },
+         "stage" : "COLLSCAN"
+      }
+   },
+   "serverInfo" : {
+      "gitVersion" : "05552b562c7a0b3143a729aaa0838e558dc49b25" ,
+      "host" : "MacBook\-Pro\-57.local",
+      "port" : 27017,
+      "version" : "3.2.6"
+   }
+}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH ADVANCED CONNECTIONS
+.sp
+The following guide contains information specific to certain types of MongoDB configurations.
+.sp
+For an example of connecting to a simple standalone server, see the Tutorial\&. To establish a connection with authentication options enabled, see the Authentication page.
+.SS Connecting to a Replica Set
+.sp
+Connecting to a \fI\%replica set\fP is much like connecting to a standalone MongoDB server. Simply specify the replica set name using the \fB?replicaSet=myreplset\fP URI option.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <bson/bson.h>
+#include <mongoc/mongoc.h>
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_client_t *client;
+
+   mongoc_init ();
+
+   /* Create our MongoDB Client */
+   client = mongoc_client_new (
+      "mongodb://host01:27017,host02:27017,host03:27017/?replicaSet=myreplset");
+
+   /* Do some work */
+   /* TODO */
+
+   /* Clean up */
+   mongoc_client_destroy (client);
+   mongoc_cleanup ();
+
+   return 0;
+}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBTIP:\fP
+.INDENT 0.0
+.INDENT 3.5
+Multiple hostnames can be specified in the MongoDB connection string URI, with a comma separating hosts in the seed list.
+.sp
+It is recommended to use a seed list of members of the replica set to allow the driver to connect to any node.
+.UNINDENT
+.UNINDENT
+.SS Connecting to a Sharded Cluster
+.sp
+To connect to a \fI\%sharded cluster\fP, specify the \fBmongos\fP nodes the client should connect to. The C Driver will automatically detect that it has connected to a \fBmongos\fP sharding server.
+.sp
+If more than one hostname is specified, a seed list will be created to attempt failover between the \fBmongos\fP instances.
+.sp
+\fBWARNING:\fP
+.INDENT 0.0
+.INDENT 3.5
+Specifying the \fBreplicaSet\fP parameter when connecting to a \fBmongos\fP sharding server is invalid.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <bson/bson.h>
+#include <mongoc/mongoc.h>
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_client_t *client;
+
+   mongoc_init ();
+
+   /* Create our MongoDB Client */
+   client = mongoc_client_new ("mongodb://myshard01:27017/");
+
+   /* Do something with client ... */
+
+   /* Free the client */
+   mongoc_client_destroy (client);
+
+   mongoc_cleanup ();
+
+   return 0;
+}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Connecting to an IPv6 Address
+.sp
+The MongoDB C Driver will automatically resolve IPv6 addresses from host names. However, to specify an IPv6 address directly, wrap the address in \fB[]\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mongoc_uri_t *uri = mongoc_uri_new ("mongodb://[::1]:27017");
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Connecting with IPv4 and IPv6
+.sp
+If connecting to a hostname that has both IPv4 and IPv6 DNS records, the behavior follows \fI\%RFC\-6555\fP\&. A connection to the IPv6 address is attempted first. If IPv6 fails, then a connection is attempted to the IPv4 address. If the connection attempt to IPv6 does not complete within 250ms, then IPv4 is tried in parallel. Whichever succeeds connection first cancels the other. The successful DNS result is cached for 10 minutes.
+.sp
+As a consequence, attempts to connect to a mongod only listening on IPv4 may be delayed if there are both A (IPv4) and AAAA (IPv6) DNS records associated with the host.
+.sp
+To avoid a delay, configure hostnames to match the MongoDB configuration. That is, only create an A record if the mongod is only listening on IPv4.
+.SS Connecting to a UNIX Domain Socket
+.sp
+On UNIX\-like systems, the C Driver can connect directly to a MongoDB server using a UNIX domain socket. Pass the URL\-encoded path to the socket, which \fImust\fP be suffixed with \fB\&.sock\fP\&. For example, to connect to a domain socket at \fB/tmp/mongodb\-27017.sock\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mongoc_uri_t *uri = mongoc_uri_new ("mongodb://%2Ftmp%2Fmongodb\-27017.sock");
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Include username and password like so:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mongoc_uri_t *uri = mongoc_uri_new ("mongodb://user:pass@%2Ftmp%2Fmongodb\-27017.sock");
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Connecting to a server over SSL
+.sp
+These are instructions for configuring TLS/SSL connections.
+.sp
+To run a server locally (on port 27017, for example):
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ mongod \-\-port 27017 \-\-sslMode requireSSL \-\-sslPEMKeyFile server.pem \-\-sslCAFile ca.pem
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Add \fB/?ssl=true\fP to the end of a client URI.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mongoc_client_t *client = NULL;
+client = mongoc_client_new ("mongodb://localhost:27017/?ssl=true");
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+MongoDB requires client certificates by default, unless the \fB\-\-sslAllowConnectionsWithoutCertificates\fP is provided. The C Driver can be configured to present a client certificate using a \fBmongoc_ssl_opt_t\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+const mongoc_ssl_opt_t *ssl_default = mongoc_ssl_opt_get_default ();
+mongoc_ssl_opt_t ssl_opts = { 0 };
+
+/* optionally copy in a custom trust directory or file; otherwise the default is used. */
+memcpy (&ssl_opts, ssl_default, sizeof ssl_opts);
+ssl_opts.pem_file = "client.pem"
+
+mongoc_client_set_ssl_opts (client, &ssl_opts);
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The client certificate provided by \fBpem_file\fP must be issued by one of the server trusted Certificate Authorities listed in \fB\-\-sslCAFile\fP, or issued by a CA in the native certificate store on the server when omitted.
+.sp
+To verify the server certificate against a specific CA, provide a PEM armored file with a CA certificate, or concatenated list of CA certificates using the \fBca_file\fP option, or \fBc_rehash\fP directory structure of CAs, pointed to using the \fBca_dir\fP option. When no \fBca_file\fP or \fBca_dir\fP is provided, the driver will use CAs provided by the native platform certificate store.
+.sp
+See mongoc_ssl_opt_t for more information on the various SSL related options.
+.SS Compressing data to and from MongoDB
+.sp
+MongoDB 3.4 added Snappy compression support, zlib compression in 3.6, and zstd compression in 4.2.
+To enable compression support the client must be configured with which compressors to use:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mongoc_client_t *client = NULL;
+client = mongoc_client_new ("mongodb://localhost:27017/?compressors=snappy,zlib,zstd");
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The \fBcompressors\fP option specifies the priority order of compressors the
+client wants to use. Messages are compressed if the client and server share any
+compressors in common.
+.sp
+Note that the compressor used by the server might not be the same compressor as
+the client used.  For example, if the client uses the connection string
+\fBcompressors=zlib,snappy\fP the client will use \fBzlib\fP compression to send
+data (if possible), but the server might still reply using \fBsnappy\fP,
+depending on how the server was configured.
+.sp
+The driver must be built with zlib and/or snappy and/or zstd support to enable compression
+support, any unknown (or not compiled in) compressor value will be ignored. Note: to build with zstd requires cmake 3.12 or higher.
+.SS Additional Connection Options
+.sp
+The full list of connection options can be found in the \fBmongoc_uri_t\fP docs.
+.sp
+Certain socket/connection related options are not configurable:
+.TS
+center;
+|l|l|l|.
+_
+T{
+Option
+T}	T{
+Description
+T}	T{
+Value
+T}
+_
+T{
+SO_KEEPALIVE
+T}	T{
+TCP Keep Alive
+T}	T{
+Enabled
+T}
+_
+T{
+TCP_KEEPIDLE
+T}	T{
+How long a connection needs to remain idle before TCP
+starts sending keepalive probes
+T}	T{
+300 seconds
+T}
+_
+T{
+TCP_KEEPINTVL
+T}	T{
+The time in seconds between TCP probes
+T}	T{
+10 seconds
+T}
+_
+T{
+TCP_KEEPCNT
+T}	T{
+How many probes to send, without acknowledgement,
+before dropping the connection
+T}	T{
+9 probes
+T}
+_
+T{
+TCP_NODELAY
+T}	T{
+Send packets as soon as possible or buffer small
+packets (Nagle algorithm)
+T}	T{
+Enabled (no buffering)
+T}
+_
+.TE
+.SH CONNECTION POOLING
+.sp
+The MongoDB C driver has two connection modes: single\-threaded and pooled. Single\-threaded mode is optimized for embedding the driver within languages like PHP. Multi\-threaded programs should use pooled mode: this mode minimizes the total connection count, and in pooled mode a background thread monitors the MongoDB server topology, so the program need not block to scan it.
+.SS Single Mode
+.sp
+In single mode, your program creates a \fBmongoc_client_t\fP directly:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mongoc_client_t *client = mongoc_client_new (
+   "mongodb://hostA,hostB/?replicaSet=my_rs");
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The client connects on demand when your program first uses it for a MongoDB operation. Using a non\-blocking socket per server, it begins a check on each server concurrently, and uses the asynchronous \fBpoll\fP or \fBselect\fP function to receive events from the sockets, until all have responded or timed out. Put another way, in single\-threaded mode the C Driver fans out to begin all checks concurrently, then fans in once all checks have completed or timed out. Once the scan completes, the client executes your program\(aqs operation and returns.
+.sp
+In single mode, the client re\-scans the server topology roughly once per minute. If more than a minute has elapsed since the previous scan, the next operation on the client will block while the client completes its scan. This interval is configurable with \fBheartbeatFrequencyMS\fP in the connection string. (See \fBmongoc_uri_t\fP\&.)
+.sp
+A single client opens one connection per server in your topology: these connections are used both for scanning the topology and performing normal operations.
+.SS Pooled Mode
+.sp
+To activate pooled mode, create a \fBmongoc_client_pool_t\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mongoc_uri_t *uri = mongoc_uri_new (
+   "mongodb://hostA,hostB/?replicaSet=my_rs");
+
+mongoc_client_pool_t *pool = mongoc_client_pool_new (uri);
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+When your program first calls \fBmongoc_client_pool_pop\fP, the pool launches a background thread for monitoring. The thread fans out and connects to all servers in the connection string, using non\-blocking sockets and a simple event loop. As it receives ismaster responses from the servers, it updates its view of the server topology. Each time the thread discovers a new server it begins connecting to it, and adds the new socket to the list of non\-blocking sockets in the event loop.
+.sp
+Each thread that executes MongoDB operations must check out a client from the pool:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mongoc_client_t *client = mongoc_client_pool_pop (pool);
+
+/* use the client for operations ... */
+
+mongoc_client_pool_push (pool, client);
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The \fBmongoc_client_t\fP object is not thread\-safe, only the \fBmongoc_client_pool_t\fP is.
+.sp
+When the driver is in pooled mode, your program\(aqs operations are unblocked as soon as monitoring discovers a usable server. For example, if a thread in your program is waiting to execute an "insert" on the primary, it is unblocked as soon as the primary is discovered, rather than waiting for all secondaries to be checked as well.
+.sp
+The pool opens one connection per server for monitoring, and each client opens its own connection to each server it uses for application operations. The background thread re\-scans the server topology roughly every 10 seconds. This interval is configurable with \fBheartbeatFrequencyMS\fP in the connection string. (See \fBmongoc_uri_t\fP\&.)
+.sp
+See connection_pool_options to configure pool size and behavior, and see \fBmongoc_client_pool_t\fP for an extended example of a multi\-threaded program that uses the driver in pooled mode.
+.SH CURSORS
+.SS Handling Cursor Failures
+.sp
+Cursors exist on a MongoDB server. However, the \fBmongoc_cursor_t\fP structure gives the local process a handle to the cursor. It is possible for errors to occur on the server while iterating a cursor on the client. Even a network partition may occur. This means that applications should be robust in handling cursor failures.
+.sp
+While iterating cursors, you should check to see if an error has occurred. See the following example for how to robustly check for errors.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+static void
+print_all_documents (mongoc_collection_t *collection)
+{
+   mongoc_cursor_t *cursor;
+   const bson_t *doc;
+   bson_error_t error;
+   bson_t query = BSON_INITIALIZER;
+   char *str;
+
+   cursor = mongoc_collection_find_with_opts (collection, query, NULL, NULL);
+
+   while (mongoc_cursor_next (cursor, &doc)) {
+      str = bson_as_canonical_extended_json (doc, NULL);
+      printf ("%s\en", str);
+      bson_free (str);
+   }
+
+   if (mongoc_cursor_error (cursor, &error)) {
+      fprintf (stderr, "Failed to iterate all documents: %s\en", error.message);
+   }
+
+   mongoc_cursor_destroy (cursor);
+}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Destroying Server\-Side Cursors
+.sp
+The MongoDB C driver will automatically destroy a server\-side cursor when \fBmongoc_cursor_destroy()\fP is called. Failure to call this function when done with a cursor will leak memory client side as well as consume extra memory server side. If the cursor was configured to never timeout, it will become a memory leak on the server.
+.SS Tailable Cursors
+.sp
+Tailable cursors are cursors that remain open even after they\(aqve returned a final result. This way, if more documents are added to a collection (i.e., to the cursor\(aqs result set), then you can continue to call \fBmongoc_cursor_next()\fP to retrieve those additional results.
+.sp
+Here\(aqs a complete test case that demonstrates the use of tailable cursors.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Tailable cursors are for capped collections only.
+.UNINDENT
+.UNINDENT
+.sp
+An example to tail the oplog from a replica set.
+.sp
+mongoc\-tail.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <bson/bson.h>
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#ifdef _WIN32
+#define sleep(_n) Sleep ((_n) *1000)
+#endif
+
+
+static void
+print_bson (const bson_t *b)
+{
+   char *str;
+
+   str = bson_as_canonical_extended_json (b, NULL);
+   fprintf (stdout, "%s\en", str);
+   bson_free (str);
+}
+
+
+static mongoc_cursor_t *
+query_collection (mongoc_collection_t *collection, uint32_t last_time)
+{
+   mongoc_cursor_t *cursor;
+   bson_t query;
+   bson_t gt;
+   bson_t opts;
+
+   BSON_ASSERT (collection);
+
+   bson_init (&query);
+   BSON_APPEND_DOCUMENT_BEGIN (&query, "ts", &gt);
+   BSON_APPEND_TIMESTAMP (&gt, "$gt", last_time, 0);
+   bson_append_document_end (&query, &gt);
+
+   bson_init (&opts);
+   BSON_APPEND_BOOL (&opts, "tailable", true);
+   BSON_APPEND_BOOL (&opts, "awaitData", true);
+
+   cursor = mongoc_collection_find_with_opts (collection, &query, &opts, NULL);
+
+   bson_destroy (&query);
+   bson_destroy (&opts);
+
+   return cursor;
+}
+
+
+static void
+tail_collection (mongoc_collection_t *collection)
+{
+   mongoc_cursor_t *cursor;
+   uint32_t last_time;
+   const bson_t *doc;
+   bson_error_t error;
+   bson_iter_t iter;
+
+   BSON_ASSERT (collection);
+
+   last_time = (uint32_t) time (NULL);
+
+   while (true) {
+      cursor = query_collection (collection, last_time);
+      while (!mongoc_cursor_error (cursor, &error) &&
+             mongoc_cursor_more (cursor)) {
+         if (mongoc_cursor_next (cursor, &doc)) {
+            if (bson_iter_init_find (&iter, doc, "ts") &&
+                BSON_ITER_HOLDS_TIMESTAMP (&iter)) {
+               bson_iter_timestamp (&iter, &last_time, NULL);
+            }
+            print_bson (doc);
+         }
+      }
+      if (mongoc_cursor_error (cursor, &error)) {
+         if (error.domain == MONGOC_ERROR_SERVER) {
+            fprintf (stderr, "%s\en", error.message);
+            exit (1);
+         }
+      }
+
+      mongoc_cursor_destroy (cursor);
+      sleep (1);
+   }
+}
+
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_collection_t *collection;
+   mongoc_client_t *client;
+   mongoc_uri_t *uri;
+   bson_error_t error;
+
+   if (argc != 2) {
+      fprintf (stderr, "usage: %s MONGO_URI\en", argv[0]);
+      return EXIT_FAILURE;
+   }
+
+   mongoc_init ();
+
+   uri = mongoc_uri_new_with_error (argv[1], &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               argv[1],
+               error.message);
+      return EXIT_FAILURE;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      return EXIT_FAILURE;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+
+   collection = mongoc_client_get_collection (client, "local", "oplog.rs");
+
+   tail_collection (collection);
+
+   mongoc_collection_destroy (collection);
+   mongoc_uri_destroy (uri);
+   mongoc_client_destroy (client);
+
+   return EXIT_SUCCESS;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Let\(aqs compile and run this example against a replica set to see updates as they are made.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ gcc \-Wall \-o mongoc\-tail mongoc\-tail.c $(pkg\-config \-\-cflags \-\-libs libmongoc\-1.0)
+$ ./mongoc\-tail mongodb://example.com/?replicaSet=myReplSet
+{
+    "h" : \-8458503739429355503,
+    "ns" : "test.test",
+    "o" : {
+        "_id" : {
+            "$oid" : "5372ab0a25164be923d10d50"
+        }
+    },
+    "op" : "i",
+    "ts" : {
+        "$timestamp" : {
+            "i" : 1,
+            "t" : 1400023818
+        }
+    },
+    "v" : 2
+}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The line of output is a sample from performing \fBdb.test.insert({})\fP from the mongo shell on the replica set.
+.sp
+See also \fBmongoc_cursor_set_max_await_time_ms\fP\&.
+.SH BULK WRITE OPERATIONS
+.sp
+This tutorial explains how to take advantage of MongoDB C driver bulk write operation features. Executing write operations in batches reduces the number of network round trips, increasing write throughput.
+.SS Bulk Insert
+.sp
+First we need to fetch a bulk operation handle from the \fBmongoc_collection_t\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mongoc_bulk_operation_t *bulk =
+   mongoc_collection_create_bulk_operation_with_opts (collection, NULL);
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+We can now start inserting documents to the bulk operation. These will be buffered until we execute the operation.
+.sp
+The bulk operation will coalesce insertions as a single batch for each consecutive call to \fBmongoc_bulk_operation_insert()\fP\&. This creates a pipelined effect when possible.
+.sp
+To execute the bulk operation and receive the result we call \fBmongoc_bulk_operation_execute()\fP\&.
+.sp
+bulk1.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <assert.h>
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+
+static void
+bulk1 (mongoc_collection_t *collection)
+{
+   mongoc_bulk_operation_t *bulk;
+   bson_error_t error;
+   bson_t *doc;
+   bson_t reply;
+   char *str;
+   bool ret;
+   int i;
+
+   bulk = mongoc_collection_create_bulk_operation_with_opts (collection, NULL);
+
+   for (i = 0; i < 10000; i++) {
+      doc = BCON_NEW ("i", BCON_INT32 (i));
+      mongoc_bulk_operation_insert (bulk, doc);
+      bson_destroy (doc);
+   }
+
+   ret = mongoc_bulk_operation_execute (bulk, &reply, &error);
+
+   str = bson_as_canonical_extended_json (&reply, NULL);
+   printf ("%s\en", str);
+   bson_free (str);
+
+   if (!ret) {
+      fprintf (stderr, "Error: %s\en", error.message);
+   }
+
+   bson_destroy (&reply);
+   mongoc_bulk_operation_destroy (bulk);
+}
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_client_t *client;
+   mongoc_collection_t *collection;
+   const char *uri_string = "mongodb://localhost/?appname=bulk1\-example";
+   mongoc_uri_t *uri;
+   bson_error_t error;
+
+   mongoc_init ();
+
+   uri = mongoc_uri_new_with_error (uri_string, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               uri_string,
+               error.message);
+      return EXIT_FAILURE;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      return EXIT_FAILURE;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   collection = mongoc_client_get_collection (client, "test", "test");
+
+   bulk1 (collection);
+
+   mongoc_uri_destroy (uri);
+   mongoc_collection_destroy (collection);
+   mongoc_client_destroy (client);
+
+   mongoc_cleanup ();
+
+   return EXIT_SUCCESS;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Example \fBreply\fP document:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{"nInserted"   : 10000,
+ "nMatched"    : 0,
+ "nModified"   : 0,
+ "nRemoved"    : 0,
+ "nUpserted"   : 0,
+ "writeErrors" : []
+ "writeConcernErrors" : [] }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Mixed Bulk Write Operations
+.sp
+MongoDB C driver also supports executing mixed bulk write operations. A batch of insert, update, and remove operations can be executed together using the bulk write operations API.
+.SS Ordered Bulk Write Operations
+.sp
+Ordered bulk write operations are batched and sent to the server in the order provided for serial execution. The \fBreply\fP document describes the type and count of operations performed.
+.sp
+bulk2.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <assert.h>
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+
+static void
+bulk2 (mongoc_collection_t *collection)
+{
+   mongoc_bulk_operation_t *bulk;
+   bson_error_t error;
+   bson_t *query;
+   bson_t *doc;
+   bson_t *opts;
+   bson_t reply;
+   char *str;
+   bool ret;
+   int i;
+
+   bulk = mongoc_collection_create_bulk_operation_with_opts (collection, NULL);
+
+   /* Remove everything */
+   query = bson_new ();
+   mongoc_bulk_operation_remove (bulk, query);
+   bson_destroy (query);
+
+   /* Add a few documents */
+   for (i = 1; i < 4; i++) {
+      doc = BCON_NEW ("_id", BCON_INT32 (i));
+      mongoc_bulk_operation_insert (bulk, doc);
+      bson_destroy (doc);
+   }
+
+   /* {_id: 1} => {$set: {foo: "bar"}} */
+   query = BCON_NEW ("_id", BCON_INT32 (1));
+   doc = BCON_NEW ("$set", "{", "foo", BCON_UTF8 ("bar"), "}");
+   mongoc_bulk_operation_update_many_with_opts (bulk, query, doc, NULL, &error);
+   bson_destroy (query);
+   bson_destroy (doc);
+
+   /* {_id: 4} => {\(aq$inc\(aq: {\(aqj\(aq: 1}} (upsert) */
+   opts = BCON_NEW ("upsert", BCON_BOOL (true));
+   query = BCON_NEW ("_id", BCON_INT32 (4));
+   doc = BCON_NEW ("$inc", "{", "j", BCON_INT32 (1), "}");
+   mongoc_bulk_operation_update_many_with_opts (bulk, query, doc, opts, &error);
+   bson_destroy (query);
+   bson_destroy (doc);
+   bson_destroy (opts);
+
+   /* replace {j:1} with {j:2} */
+   query = BCON_NEW ("j", BCON_INT32 (1));
+   doc = BCON_NEW ("j", BCON_INT32 (2));
+   mongoc_bulk_operation_replace_one_with_opts (bulk, query, doc, NULL, &error);
+   bson_destroy (query);
+   bson_destroy (doc);
+
+   ret = mongoc_bulk_operation_execute (bulk, &reply, &error);
+
+   str = bson_as_canonical_extended_json (&reply, NULL);
+   printf ("%s\en", str);
+   bson_free (str);
+
+   if (!ret) {
+      printf ("Error: %s\en", error.message);
+   }
+
+   bson_destroy (&reply);
+   mongoc_bulk_operation_destroy (bulk);
+}
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_client_t *client;
+   mongoc_collection_t *collection;
+   const char *uri_string = "mongodb://localhost/?appname=bulk2\-example";
+   mongoc_uri_t *uri;
+   bson_error_t error;
+
+   mongoc_init ();
+
+   uri = mongoc_uri_new_with_error (uri_string, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               uri_string,
+               error.message);
+      return EXIT_FAILURE;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      return EXIT_FAILURE;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   collection = mongoc_client_get_collection (client, "test", "test");
+
+   bulk2 (collection);
+
+   mongoc_uri_destroy (uri);
+   mongoc_collection_destroy (collection);
+   mongoc_client_destroy (client);
+
+   mongoc_cleanup ();
+
+   return EXIT_SUCCESS;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Example \fBreply\fP document:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ "nInserted"   : 3,
+  "nMatched"    : 2,
+  "nModified"   : 2,
+  "nRemoved"    : 10000,
+  "nUpserted"   : 1,
+  "upserted"    : [{"index" : 5, "_id" : 4}],
+  "writeErrors" : []
+  "writeConcernErrors" : [] }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The \fBindex\fP field in the \fBupserted\fP array is the 0\-based index of the upsert operation; in this example, the sixth operation of the overall bulk operation was an upsert, so its index is 5.
+.SS Unordered Bulk Write Operations
+.sp
+Unordered bulk write operations are batched and sent to the server in \fIarbitrary order\fP where they may be executed in parallel. Any errors that occur are reported after all operations are attempted.
+.sp
+In the next example the first and third operations fail due to the unique constraint on \fB_id\fP\&. Since we are doing unordered execution the second and fourth operations succeed.
+.sp
+bulk3.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <assert.h>
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+
+static void
+bulk3 (mongoc_collection_t *collection)
+{
+   bson_t opts = BSON_INITIALIZER;
+   mongoc_bulk_operation_t *bulk;
+   bson_error_t error;
+   bson_t *query;
+   bson_t *doc;
+   bson_t reply;
+   char *str;
+   bool ret;
+
+   /* false indicates unordered */
+   BSON_APPEND_BOOL (&opts, "ordered", false);
+   bulk = mongoc_collection_create_bulk_operation_with_opts (collection, &opts);
+   bson_destroy (&opts);
+
+   /* Add a document */
+   doc = BCON_NEW ("_id", BCON_INT32 (1));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   /* remove {_id: 2} */
+   query = BCON_NEW ("_id", BCON_INT32 (2));
+   mongoc_bulk_operation_remove_one (bulk, query);
+   bson_destroy (query);
+
+   /* insert {_id: 3} */
+   doc = BCON_NEW ("_id", BCON_INT32 (3));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   /* replace {_id:4} {\(aqi\(aq: 1} */
+   query = BCON_NEW ("_id", BCON_INT32 (4));
+   doc = BCON_NEW ("i", BCON_INT32 (1));
+   mongoc_bulk_operation_replace_one (bulk, query, doc, false);
+   bson_destroy (query);
+   bson_destroy (doc);
+
+   ret = mongoc_bulk_operation_execute (bulk, &reply, &error);
+
+   str = bson_as_canonical_extended_json (&reply, NULL);
+   printf ("%s\en", str);
+   bson_free (str);
+
+   if (!ret) {
+      printf ("Error: %s\en", error.message);
+   }
+
+   bson_destroy (&reply);
+   mongoc_bulk_operation_destroy (bulk);
+   bson_destroy (&opts);
+}
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_client_t *client;
+   mongoc_collection_t *collection;
+   const char *uri_string = "mongodb://localhost/?appname=bulk3\-example";
+   mongoc_uri_t *uri;
+   bson_error_t error;
+
+   mongoc_init ();
+
+   uri = mongoc_uri_new_with_error (uri_string, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               uri_string,
+               error.message);
+      return EXIT_FAILURE;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      return EXIT_FAILURE;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   collection = mongoc_client_get_collection (client, "test", "test");
+
+   bulk3 (collection);
+
+   mongoc_uri_destroy (uri);
+   mongoc_collection_destroy (collection);
+   mongoc_client_destroy (client);
+
+   mongoc_cleanup ();
+
+   return EXIT_SUCCESS;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Example \fBreply\fP document:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ "nInserted"    : 0,
+  "nMatched"     : 1,
+  "nModified"    : 1,
+  "nRemoved"     : 1,
+  "nUpserted"    : 0,
+  "writeErrors"  : [
+    { "index"  : 0,
+      "code"   : 11000,
+      "errmsg" : "E11000 duplicate key error index: test.test.$_id_ dup key: { : 1 }" },
+    { "index"  : 2,
+      "code"   : 11000,
+      "errmsg" : "E11000 duplicate key error index: test.test.$_id_ dup key: { : 3 }" } ],
+  "writeConcernErrors" : [] }
+
+Error: E11000 duplicate key error index: test.test.$_id_ dup key: { : 1 }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The \fBbson_error_t\fP domain is \fBMONGOC_ERROR_COMMAND\fP and its code is 11000.
+.SS Bulk Operation Bypassing Document Validation
+.sp
+This feature is only available when using MongoDB 3.2 and later.
+.sp
+By default bulk operations are validated against the schema, if any is defined. In certain cases however it may be necessary to bypass the document validation.
+.sp
+bulk5.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <assert.h>
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+
+static void
+bulk5_fail (mongoc_collection_t *collection)
+{
+   mongoc_bulk_operation_t *bulk;
+   bson_error_t error;
+   bson_t *doc;
+   bson_t reply;
+   char *str;
+   bool ret;
+
+   bulk = mongoc_collection_create_bulk_operation_with_opts (collection, NULL);
+
+   /* Two inserts */
+   doc = BCON_NEW ("_id", BCON_INT32 (31));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   doc = BCON_NEW ("_id", BCON_INT32 (32));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   /* The above documents do not comply to the schema validation rules
+    * we created previously, so this will result in an error */
+   ret = mongoc_bulk_operation_execute (bulk, &reply, &error);
+
+   str = bson_as_canonical_extended_json (&reply, NULL);
+   printf ("%s\en", str);
+   bson_free (str);
+
+   if (!ret) {
+      printf ("Error: %s\en", error.message);
+   }
+
+   bson_destroy (&reply);
+   mongoc_bulk_operation_destroy (bulk);
+}
+
+static void
+bulk5_success (mongoc_collection_t *collection)
+{
+   mongoc_bulk_operation_t *bulk;
+   bson_error_t error;
+   bson_t *doc;
+   bson_t reply;
+   char *str;
+   bool ret;
+
+   bulk = mongoc_collection_create_bulk_operation_with_opts (collection, NULL);
+
+   /* Allow this document to bypass document validation.
+    * NOTE: When authentication is enabled, the authenticated user must have
+    * either the "dbadmin" or "restore" roles to bypass document validation */
+   mongoc_bulk_operation_set_bypass_document_validation (bulk, true);
+
+   /* Two inserts */
+   doc = BCON_NEW ("_id", BCON_INT32 (31));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   doc = BCON_NEW ("_id", BCON_INT32 (32));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   ret = mongoc_bulk_operation_execute (bulk, &reply, &error);
+
+   str = bson_as_canonical_extended_json (&reply, NULL);
+   printf ("%s\en", str);
+   bson_free (str);
+
+   if (!ret) {
+      printf ("Error: %s\en", error.message);
+   }
+
+   bson_destroy (&reply);
+   mongoc_bulk_operation_destroy (bulk);
+}
+
+int
+main (int argc, char *argv[])
+{
+   bson_t *options;
+   bson_error_t error;
+   mongoc_client_t *client;
+   mongoc_collection_t *collection;
+   mongoc_database_t *database;
+   const char *uri_string = "mongodb://localhost/?appname=bulk5\-example";
+   mongoc_uri_t *uri;
+
+   mongoc_init ();
+
+   uri = mongoc_uri_new_with_error (uri_string, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               uri_string,
+               error.message);
+      return EXIT_FAILURE;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      return EXIT_FAILURE;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   database = mongoc_client_get_database (client, "testasdf");
+
+   /* Create schema validator */
+   options = BCON_NEW (
+      "validator", "{", "number", "{", "$gte", BCON_INT32 (5), "}", "}");
+   collection =
+      mongoc_database_create_collection (database, "collname", options, &error);
+
+   if (collection) {
+      bulk5_fail (collection);
+      bulk5_success (collection);
+      mongoc_collection_destroy (collection);
+   } else {
+      fprintf (stderr, "Couldn\(aqt create collection: \(aq%s\(aq\en", error.message);
+   }
+
+   bson_free (options);
+   mongoc_uri_destroy (uri);
+   mongoc_database_destroy (database);
+   mongoc_client_destroy (client);
+
+   mongoc_cleanup ();
+
+   return EXIT_SUCCESS;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Running the above example will result in:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ "nInserted" : 0,
+  "nMatched" : 0,
+  "nModified" : 0,
+  "nRemoved" : 0,
+  "nUpserted" : 0,
+  "writeErrors" : [
+    { "index" : 0,
+      "code" : 121,
+      "errmsg" : "Document failed validation" } ] }
+
+Error: Document failed validation
+
+{ "nInserted" : 2,
+  "nMatched" : 0,
+  "nModified" : 0,
+  "nRemoved" : 0,
+  "nUpserted" : 0,
+  "writeErrors" : [] }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The \fBbson_error_t\fP domain is \fBMONGOC_ERROR_COMMAND\fP\&.
+.SS Bulk Operation Write Concerns
+.sp
+By default bulk operations are executed with the \fBwrite_concern\fP of the collection they are executed against. A custom write concern can be passed to the \fBmongoc_collection_create_bulk_operation_with_opts()\fP method. Write concern errors (e.g. wtimeout) will be reported after all operations are attempted, regardless of execution order.
+.sp
+bulk4.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <assert.h>
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+
+static void
+bulk4 (mongoc_collection_t *collection)
+{
+   bson_t opts = BSON_INITIALIZER;
+   mongoc_write_concern_t *wc;
+   mongoc_bulk_operation_t *bulk;
+   bson_error_t error;
+   bson_t *doc;
+   bson_t reply;
+   char *str;
+   bool ret;
+
+   wc = mongoc_write_concern_new ();
+   mongoc_write_concern_set_w (wc, 4);
+   mongoc_write_concern_set_wtimeout_int64 (wc, 100); /* milliseconds */
+   mongoc_write_concern_append (wc, &opts);
+
+   bulk = mongoc_collection_create_bulk_operation_with_opts (collection, &opts);
+
+   /* Two inserts */
+   doc = BCON_NEW ("_id", BCON_INT32 (10));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   doc = BCON_NEW ("_id", BCON_INT32 (11));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   ret = mongoc_bulk_operation_execute (bulk, &reply, &error);
+
+   str = bson_as_canonical_extended_json (&reply, NULL);
+   printf ("%s\en", str);
+   bson_free (str);
+
+   if (!ret) {
+      printf ("Error: %s\en", error.message);
+   }
+
+   bson_destroy (&reply);
+   mongoc_bulk_operation_destroy (bulk);
+   mongoc_write_concern_destroy (wc);
+   bson_destroy (&opts);
+}
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_client_t *client;
+   mongoc_collection_t *collection;
+   const char *uri_string = "mongodb://localhost/?appname=bulk4\-example";
+   mongoc_uri_t *uri;
+   bson_error_t error;
+
+   mongoc_init ();
+
+   uri = mongoc_uri_new_with_error (uri_string, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               uri_string,
+               error.message);
+      return EXIT_FAILURE;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      return EXIT_FAILURE;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   collection = mongoc_client_get_collection (client, "test", "test");
+
+   bulk4 (collection);
+
+   mongoc_uri_destroy (uri);
+   mongoc_collection_destroy (collection);
+   mongoc_client_destroy (client);
+
+   mongoc_cleanup ();
+
+   return EXIT_SUCCESS;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Example \fBreply\fP document and error message:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ "nInserted"    : 2,
+  "nMatched"     : 0,
+  "nModified"    : 0,
+  "nRemoved"     : 0,
+  "nUpserted"    : 0,
+  "writeErrors"  : [],
+  "writeConcernErrors" : [
+    { "code"   : 64,
+      "errmsg" : "waiting for replication timed out" }
+] }
+
+Error: waiting for replication timed out
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The \fBbson_error_t\fP domain is \fBMONGOC_ERROR_WRITE_CONCERN\fP if there are write concern errors and no write errors. Write errors indicate failed operations, so they take precedence over write concern errors, which mean merely that the write concern is not satisfied \fIyet\fP\&.
+.SS Setting Collation Order
+.sp
+This feature is only available when using MongoDB 3.4 and later.
+.sp
+bulk\-collation.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+
+static void
+bulk_collation (mongoc_collection_t *collection)
+{
+   mongoc_bulk_operation_t *bulk;
+   bson_t *opts;
+   bson_t *doc;
+   bson_t *selector;
+   bson_t *update;
+   bson_error_t error;
+   bson_t reply;
+   char *str;
+   uint32_t ret;
+
+   /* insert {_id: "one"} and {_id: "One"} */
+   bulk = mongoc_collection_create_bulk_operation_with_opts (
+      collection, NULL);
+   doc = BCON_NEW ("_id", BCON_UTF8 ("one"));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   doc = BCON_NEW ("_id", BCON_UTF8 ("One"));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   /* "One" normally sorts before "one"; make "one" come first */
+   opts = BCON_NEW ("collation",
+                    "{",
+                    "locale",
+                    BCON_UTF8 ("en_US"),
+                    "caseFirst",
+                    BCON_UTF8 ("lower"),
+                    "}");
+
+   /* set x=1 on the document with _id "One", which now sorts after "one" */
+   update = BCON_NEW ("$set", "{", "x", BCON_INT64 (1), "}");
+   selector = BCON_NEW ("_id", "{", "$gt", BCON_UTF8 ("one"), "}");
+   mongoc_bulk_operation_update_one_with_opts (
+      bulk, selector, update, opts, &error);
+
+   ret = mongoc_bulk_operation_execute (bulk, &reply, &error);
+
+   str = bson_as_canonical_extended_json (&reply, NULL);
+   printf ("%s\en", str);
+   bson_free (str);
+
+   if (!ret) {
+      printf ("Error: %s\en", error.message);
+   }
+
+   bson_destroy (&reply);
+   bson_destroy (update);
+   bson_destroy (selector);
+   bson_destroy (opts);
+   mongoc_bulk_operation_destroy (bulk);
+}
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_client_t *client;
+   mongoc_collection_t *collection;
+   const char *uri_string = "mongodb://localhost/?appname=bulk\-collation";
+   mongoc_uri_t *uri;
+   bson_error_t error;
+
+   mongoc_init ();
+
+   uri = mongoc_uri_new_with_error (uri_string, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               uri_string,
+               error.message);
+      return EXIT_FAILURE;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      return EXIT_FAILURE;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   collection = mongoc_client_get_collection (client, "db", "collection");
+   bulk_collation (collection);
+
+   mongoc_uri_destroy (uri);
+   mongoc_collection_destroy (collection);
+   mongoc_client_destroy (client);
+
+   mongoc_cleanup ();
+
+   return EXIT_SUCCESS;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Running the above example will result in:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ "nInserted" : 2,
+   "nMatched" : 1,
+   "nModified" : 1,
+   "nRemoved" : 0,
+   "nUpserted" : 0,
+   "writeErrors" : [  ]
+}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Unacknowledged Bulk Writes
+.sp
+Set "w" to zero for an unacknowledged write. The driver sends unacknowledged writes using the legacy opcodes \fBOP_INSERT\fP, \fBOP_UPDATE\fP, and \fBOP_DELETE\fP\&.
+.sp
+bulk6.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+
+static void
+bulk6 (mongoc_collection_t *collection)
+{
+   bson_t opts = BSON_INITIALIZER;
+   mongoc_write_concern_t *wc;
+   mongoc_bulk_operation_t *bulk;
+   bson_error_t error;
+   bson_t *doc;
+   bson_t *selector;
+   bson_t reply;
+   char *str;
+   bool ret;
+
+   wc = mongoc_write_concern_new ();
+   mongoc_write_concern_set_w (wc, 0);
+   mongoc_write_concern_append (wc, &opts);
+
+   bulk = mongoc_collection_create_bulk_operation_with_opts (collection, &opts);
+
+   doc = BCON_NEW ("_id", BCON_INT32 (10));
+   mongoc_bulk_operation_insert (bulk, doc);
+   bson_destroy (doc);
+
+   selector = BCON_NEW ("_id", BCON_INT32 (11));
+   mongoc_bulk_operation_remove_one (bulk, selector);
+   bson_destroy (selector);
+
+   ret = mongoc_bulk_operation_execute (bulk, &reply, &error);
+
+   str = bson_as_canonical_extended_json (&reply, NULL);
+   printf ("%s\en", str);
+   bson_free (str);
+
+   if (!ret) {
+      printf ("Error: %s\en", error.message);
+   }
+
+   bson_destroy (&reply);
+   mongoc_bulk_operation_destroy (bulk);
+   mongoc_write_concern_destroy (wc);
+   bson_destroy (&opts);
+}
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_client_t *client;
+   mongoc_collection_t *collection;
+   const char *uri_string = "mongodb://localhost/?appname=bulk6\-example";
+   mongoc_uri_t *uri;
+   bson_error_t error;
+
+   mongoc_init ();
+
+   uri = mongoc_uri_new_with_error (uri_string, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               uri_string,
+               error.message);
+      return EXIT_FAILURE;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      return EXIT_FAILURE;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   collection = mongoc_client_get_collection (client, "test", "test");
+
+   bulk6 (collection);
+
+   mongoc_uri_destroy (uri);
+   mongoc_collection_destroy (collection);
+   mongoc_client_destroy (client);
+
+   mongoc_cleanup ();
+
+   return EXIT_SUCCESS;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The \fBreply\fP document is empty:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Further Reading
+.sp
+See the \fI\%Driver Bulk API Spec\fP, which describes bulk write operations for all MongoDB drivers.
+.SH AGGREGATION FRAMEWORK EXAMPLES
+.sp
+This document provides a number of practical examples that display the capabilities of the aggregation framework.
+.sp
+The \fI\%Aggregations using the Zip Codes Data Set\fP examples uses a publicly available data set of all zipcodes and populations in the United States. These data are available at: \fI\%zips.json\fP\&.
+.SS Requirements
+.sp
+Let\(aqs check if everything is installed.
+.sp
+Use the following command to load zips.json data set into mongod instance:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ mongoimport \-\-drop \-d test \-c zipcodes zips.json
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Let\(aqs use the MongoDB shell to verify that everything was imported successfully.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ mongo test
+connecting to: test
+> db.zipcodes.count()
+29467
+> db.zipcodes.findOne()
+{
+      "_id" : "35004",
+      "city" : "ACMAR",
+      "loc" : [
+              \-86.51557,
+              33.584132
+      ],
+      "pop" : 6055,
+      "state" : "AL"
+}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Aggregations using the Zip Codes Data Set
+.sp
+Each document in this collection has the following form:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{
+  "_id" : "35004",
+  "city" : "Acmar",
+  "state" : "AL",
+  "pop" : 6055,
+  "loc" : [\-86.51557, 33.584132]
+}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+In these documents:
+.INDENT 0.0
+.IP \(bu 2
+The \fB_id\fP field holds the zipcode as a string.
+.IP \(bu 2
+The \fBcity\fP field holds the city name.
+.IP \(bu 2
+The \fBstate\fP field holds the two letter state abbreviation.
+.IP \(bu 2
+The \fBpop\fP field holds the population.
+.IP \(bu 2
+The \fBloc\fP field holds the location as a \fB[latitude, longitude]\fP array.
+.UNINDENT
+.SS States with Populations Over 10 Million
+.sp
+To get all states with a population greater than 10 million, use the following aggregation pipeline:
+.sp
+aggregation1.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+
+static void
+print_pipeline (mongoc_collection_t *collection)
+{
+   mongoc_cursor_t *cursor;
+   bson_error_t error;
+   const bson_t *doc;
+   bson_t *pipeline;
+   char *str;
+
+   pipeline = BCON_NEW ("pipeline",
+                        "[",
+                        "{",
+                        "$group",
+                        "{",
+                        "_id",
+                        "$state",
+                        "total_pop",
+                        "{",
+                        "$sum",
+                        "$pop",
+                        "}",
+                        "}",
+                        "}",
+                        "{",
+                        "$match",
+                        "{",
+                        "total_pop",
+                        "{",
+                        "$gte",
+                        BCON_INT32 (10000000),
+                        "}",
+                        "}",
+                        "}",
+                        "]");
+
+   cursor = mongoc_collection_aggregate (
+      collection, MONGOC_QUERY_NONE, pipeline, NULL, NULL);
+
+   while (mongoc_cursor_next (cursor, &doc)) {
+      str = bson_as_canonical_extended_json (doc, NULL);
+      printf ("%s\en", str);
+      bson_free (str);
+   }
+
+   if (mongoc_cursor_error (cursor, &error)) {
+      fprintf (stderr, "Cursor Failure: %s\en", error.message);
+   }
+
+   mongoc_cursor_destroy (cursor);
+   bson_destroy (pipeline);
+}
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_client_t *client;
+   mongoc_collection_t *collection;
+   const char *uri_string =
+      "mongodb://localhost:27017/?appname=aggregation\-example";
+   mongoc_uri_t *uri;
+   bson_error_t error;
+
+   mongoc_init ();
+
+   uri = mongoc_uri_new_with_error (uri_string, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               uri_string,
+               error.message);
+      return EXIT_FAILURE;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      return EXIT_FAILURE;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   collection = mongoc_client_get_collection (client, "test", "zipcodes");
+
+   print_pipeline (collection);
+
+   mongoc_uri_destroy (uri);
+   mongoc_collection_destroy (collection);
+   mongoc_client_destroy (client);
+
+   mongoc_cleanup ();
+
+   return EXIT_SUCCESS;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+You should see a result like the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ "_id" : "PA", "total_pop" : 11881643 }
+{ "_id" : "OH", "total_pop" : 10847115 }
+{ "_id" : "NY", "total_pop" : 17990455 }
+{ "_id" : "FL", "total_pop" : 12937284 }
+{ "_id" : "TX", "total_pop" : 16986510 }
+{ "_id" : "IL", "total_pop" : 11430472 }
+{ "_id" : "CA", "total_pop" : 29760021 }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The above aggregation pipeline is build from two pipeline operators: \fB$group\fP and \fB$match\fP\&.
+.sp
+The \fB$group\fP pipeline operator requires _id field where we specify grouping; remaining fields specify how to generate composite value and must use one of the group aggregation functions: \fB$addToSet\fP, \fB$first\fP, \fB$last\fP, \fB$max\fP, \fB$min\fP, \fB$avg\fP, \fB$push\fP, \fB$sum\fP\&. The \fB$match\fP pipeline operator syntax is the same as the read operation query syntax.
+.sp
+The \fB$group\fP process reads all documents and for each state it creates a separate document, for example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ "_id" : "WA", "total_pop" : 4866692 }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The \fBtotal_pop\fP field uses the $sum aggregation function to sum the values of all pop fields in the source documents.
+.sp
+Documents created by \fB$group\fP are piped to the \fB$match\fP pipeline operator. It returns the documents with the value of \fBtotal_pop\fP field greater than or equal to 10 million.
+.SS Average City Population by State
+.sp
+To get the first three states with the greatest average population per city, use the following aggregation:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+pipeline = BCON_NEW ("pipeline", "[",
+   "{", "$group", "{", "_id", "{", "state", "$state", "city", "$city", "}", "pop", "{", "$sum", "$pop", "}", "}", "}",
+   "{", "$group", "{", "_id", "$_id.state", "avg_city_pop", "{", "$avg", "$pop", "}", "}", "}",
+   "{", "$sort", "{", "avg_city_pop", BCON_INT32 (\-1), "}", "}",
+   "{", "$limit", BCON_INT32 (3) "}",
+"]");
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This aggregate pipeline produces:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ "_id" : "DC", "avg_city_pop" : 303450.0 }
+{ "_id" : "FL", "avg_city_pop" : 27942.29805615551 }
+{ "_id" : "CA", "avg_city_pop" : 27735.341099720412 }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The above aggregation pipeline is build from three pipeline operators: \fB$group\fP, \fB$sort\fP and \fB$limit\fP\&.
+.sp
+The first \fB$group\fP operator creates the following documents:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ "_id" : { "state" : "WY", "city" : "Smoot" }, "pop" : 414 }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Note, that the \fB$group\fP operator can\(aqt use nested documents except the \fB_id\fP field.
+.sp
+The second \fB$group\fP uses these documents to create the following documents:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+{ "_id" : "FL", "avg_city_pop" : 27942.29805615551 }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+These documents are sorted by the \fBavg_city_pop\fP field in descending order. Finally, the \fB$limit\fP pipeline operator returns the first 3 documents from the sorted set.
+.SH "DISTINCT" AND "MAPREDUCE"
+.sp
+This document provides some practical, simple, examples to demonstrate the \fBdistinct\fP and \fBmapReduce\fP commands.
+.SS Setup
+.sp
+First we\(aqll write some code to insert sample data:
+.sp
+doc\-common\-insert.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+/* Don\(aqt try to compile this file on its own. It\(aqs meant to be #included
+   by example code */
+
+/* Insert some sample data */
+bool
+insert_data (mongoc_collection_t *collection)
+{
+   mongoc_bulk_operation_t *bulk;
+   enum N { ndocs = 4 };
+   bson_t *docs[ndocs];
+   bson_error_t error;
+   int i = 0;
+   bool ret;
+
+   bulk = mongoc_collection_create_bulk_operation_with_opts (collection, NULL);
+
+   docs[0] = BCON_NEW ("x", BCON_DOUBLE (1.0), "tags", "[", "dog", "cat", "]");
+   docs[1] = BCON_NEW ("x", BCON_DOUBLE (2.0), "tags", "[", "cat", "]");
+   docs[2] = BCON_NEW (
+      "x", BCON_DOUBLE (2.0), "tags", "[", "mouse", "cat", "dog", "]");
+   docs[3] = BCON_NEW ("x", BCON_DOUBLE (3.0), "tags", "[", "]");
+
+   for (i = 0; i < ndocs; i++) {
+      mongoc_bulk_operation_insert (bulk, docs[i]);
+      bson_destroy (docs[i]);
+      docs[i] = NULL;
+   }
+
+   ret = mongoc_bulk_operation_execute (bulk, NULL, &error);
+
+   if (!ret) {
+      fprintf (stderr, "Error inserting data: %s\en", error.message);
+   }
+
+   mongoc_bulk_operation_destroy (bulk);
+   return ret;
+}
+
+/* A helper which we\(aqll use a lot later on */
+void
+print_res (const bson_t *reply)
+{
+   char *str;
+   BSON_ASSERT (reply);
+   str = bson_as_canonical_extended_json (reply, NULL);
+   printf ("%s\en", str);
+   bson_free (str);
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS "distinct" command
+.sp
+This is how to use the \fBdistinct\fP command to get the distinct values of \fBx\fP which are greater than \fB1\fP:
+.sp
+distinct.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+bool
+distinct (mongoc_database_t *database)
+{
+   bson_t *command;
+   bson_t reply;
+   bson_error_t error;
+   bool res;
+   bson_iter_t iter;
+   bson_iter_t array_iter;
+   double val;
+
+   command = BCON_NEW ("distinct",
+                       BCON_UTF8 (COLLECTION_NAME),
+                       "key",
+                       BCON_UTF8 ("x"),
+                       "query",
+                       "{",
+                       "x",
+                       "{",
+                       "$gt",
+                       BCON_DOUBLE (1.0),
+                       "}",
+                       "}");
+   res =
+      mongoc_database_command_simple (database, command, NULL, &reply, &error);
+   if (!res) {
+      fprintf (stderr, "Error with distinct: %s\en", error.message);
+      goto cleanup;
+   }
+
+   /* Do something with reply (in this case iterate through the values) */
+   if (!(bson_iter_init_find (&iter, &reply, "values") &&
+         BSON_ITER_HOLDS_ARRAY (&iter) &&
+         bson_iter_recurse (&iter, &array_iter))) {
+      fprintf (stderr, "Couldn\(aqt extract \e"values\e" field from response\en");
+      goto cleanup;
+   }
+
+   while (bson_iter_next (&array_iter)) {
+      if (BSON_ITER_HOLDS_DOUBLE (&array_iter)) {
+         val = bson_iter_double (&array_iter);
+         printf ("Next double: %f\en", val);
+      }
+   }
+
+cleanup:
+   /* cleanup */
+   bson_destroy (command);
+   bson_destroy (&reply);
+   return res;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS "mapReduce" \- basic example
+.sp
+A simple example using the map reduce framework. It simply adds up the number of occurrences of each "tag".
+.sp
+First define the \fBmap\fP and \fBreduce\fP functions:
+.sp
+constants.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+const char *const COLLECTION_NAME = "things";
+
+/* Our map function just emits a single (key, 1) pair for each tag
+   in the array: */
+const char *const MAPPER = "function () {"
+                           "this.tags.forEach(function(z) {"
+                           "emit(z, 1);"
+                           "});"
+                           "}";
+
+/* The reduce function sums over all of the emitted values for a
+   given key: */
+const char *const REDUCER = "function (key, values) {"
+                            "var total = 0;"
+                            "for (var i = 0; i < values.length; i++) {"
+                            "total += values[i];"
+                            "}"
+                            "return total;"
+                            "}";
+/* Note We can\(aqt just return values.length as the reduce function
+   might be called iteratively on the results of other reduce
+   steps. */
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Run the \fBmapReduce\fP command. Use the generic command helpers (e.g. \fBmongoc_database_command_simple()\fP).
+Do not the read command helpers (e.g. \fBmongoc_database_read_command_with_opts()\fP) because they are considered
+retryable read operations. If retryable reads are enabled, those operations will retry once on a retryable error,
+giving undesirable behavior for \fBmapReduce\fP\&.
+.sp
+map\-reduce\-basic.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+bool
+map_reduce_basic (mongoc_database_t *database)
+{
+   bson_t reply;
+   bson_t *command;
+   bool res;
+   bson_error_t error;
+   mongoc_cursor_t *cursor;
+   const bson_t *doc;
+
+   bool query_done = false;
+
+   const char *out_collection_name = "outCollection";
+   mongoc_collection_t *out_collection;
+
+   /* Empty find query */
+   bson_t find_query = BSON_INITIALIZER;
+
+   /* Construct the mapReduce command */
+
+   /* Other arguments can also be specified here, like "query" or
+      "limit" and so on */
+   command = BCON_NEW ("mapReduce",
+                       BCON_UTF8 (COLLECTION_NAME),
+                       "map",
+                       BCON_CODE (MAPPER),
+                       "reduce",
+                       BCON_CODE (REDUCER),
+                       "out",
+                       BCON_UTF8 (out_collection_name));
+   res =
+      mongoc_database_command_simple (database, command, NULL, &reply, &error);
+
+   if (!res) {
+      fprintf (stderr, "MapReduce failed: %s\en", error.message);
+      goto cleanup;
+   }
+
+   /* Do something with the reply (it doesn\(aqt contain the mapReduce results) */
+   print_res (&reply);
+
+   /* Now we\(aqll query outCollection to see what the results are */
+   out_collection =
+      mongoc_database_get_collection (database, out_collection_name);
+   cursor = mongoc_collection_find_with_opts (
+      out_collection, &find_query, NULL, NULL);
+   query_done = true;
+
+   /* Do something with the results */
+   while (mongoc_cursor_next (cursor, &doc)) {
+      print_res (doc);
+   }
+
+   if (mongoc_cursor_error (cursor, &error)) {
+      fprintf (stderr, "ERROR: %s\en", error.message);
+      res = false;
+      goto cleanup;
+   }
+
+cleanup:
+   /* cleanup */
+   if (query_done) {
+      mongoc_cursor_destroy (cursor);
+      mongoc_collection_destroy (out_collection);
+   }
+
+   bson_destroy (&reply);
+   bson_destroy (command);
+
+   return res;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS "mapReduce" \- more complicated example
+.sp
+You must have replica set running for this.
+.sp
+In this example we contact a secondary in the replica set and do an "inline" map reduce, so the results are returned immediately:
+.sp
+map\-reduce\-advanced.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+bool
+map_reduce_advanced (mongoc_database_t *database)
+{
+   bson_t *command;
+   bson_error_t error;
+   bool res = true;
+   mongoc_cursor_t *cursor;
+   mongoc_read_prefs_t *read_pref;
+   const bson_t *doc;
+
+   /* Construct the mapReduce command */
+   /* Other arguments can also be specified here, like "query" or "limit"
+      and so on */
+
+   /* Read the results inline from a secondary replica */
+   command = BCON_NEW ("mapReduce",
+                       BCON_UTF8 (COLLECTION_NAME),
+                       "map",
+                       BCON_CODE (MAPPER),
+                       "reduce",
+                       BCON_CODE (REDUCER),
+                       "out",
+                       "{",
+                       "inline",
+                       "1",
+                       "}");
+
+   read_pref = mongoc_read_prefs_new (MONGOC_READ_SECONDARY);
+   cursor = mongoc_database_command (
+      database, MONGOC_QUERY_NONE, 0, 0, 0, command, NULL, read_pref);
+
+   /* Do something with the results */
+   while (mongoc_cursor_next (cursor, &doc)) {
+      print_res (doc);
+   }
+
+   if (mongoc_cursor_error (cursor, &error)) {
+      fprintf (stderr, "ERROR: %s\en", error.message);
+      res = false;
+   }
+
+   mongoc_cursor_destroy (cursor);
+   mongoc_read_prefs_destroy (read_pref);
+   bson_destroy (command);
+
+   return res;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Running the Examples
+.sp
+Here\(aqs how to run the example code
+.sp
+basic\-aggregation.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+/*
+ * Copyright 2016 MongoDB, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE\-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+
+
+#include "constants.c"
+
+#include "../doc\-common\-insert.c"
+#include "distinct.c"
+#include "map\-reduce\-basic.c"
+#include "map\-reduce\-advanced.c"
+
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_database_t *database = NULL;
+   mongoc_client_t *client = NULL;
+   mongoc_collection_t *collection = NULL;
+   mongoc_uri_t *uri = NULL;
+   bson_error_t error;
+   char *host_and_port = NULL;
+   int exit_code = EXIT_FAILURE;
+
+   if (argc != 2) {
+      fprintf (stderr, "usage: %s CONNECTION\-STRING\en", argv[0]);
+      fprintf (stderr,
+               "the connection string can be of the following forms:\en");
+      fprintf (stderr, "localhost\et\et\et\etlocal machine\en");
+      fprintf (stderr, "localhost:27018\et\et\et\etlocal machine on port 27018\en");
+      fprintf (stderr,
+               "mongodb://user:pass@localhost:27017\et"
+               "local machine on port 27017, and authenticate with username "
+               "user and password pass\en");
+      return exit_code;
+   }
+
+   mongoc_init ();
+
+   if (strncmp (argv[1], "mongodb://", 10) == 0) {
+      host_and_port = bson_strdup (argv[1]);
+   } else {
+      host_and_port = bson_strdup_printf ("mongodb://%s", argv[1]);
+   }
+
+   uri = mongoc_uri_new_with_error (host_and_port, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               host_and_port,
+               error.message);
+      goto cleanup;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      goto cleanup;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   database = mongoc_client_get_database (client, "test");
+   collection = mongoc_database_get_collection (database, COLLECTION_NAME);
+
+   printf ("Inserting data\en");
+   if (!insert_data (collection)) {
+      goto cleanup;
+   }
+
+   printf ("distinct\en");
+   if (!distinct (database)) {
+      goto cleanup;
+   }
+
+   printf ("map reduce\en");
+   if (!map_reduce_basic (database)) {
+      goto cleanup;
+   }
+
+   printf ("more complicated map reduce\en");
+   if (!map_reduce_advanced (database)) {
+      goto cleanup;
+   }
+   
+   exit_code = EXIT_SUCCESS;
+
+cleanup:
+   if (collection) {
+      mongoc_collection_destroy (collection);
+   }
+
+   if (database) {
+      mongoc_database_destroy (database);
+   }
+
+   if (client) {
+      mongoc_client_destroy (client);
+   }
+
+   if (uri) {
+      mongoc_uri_destroy (uri);
+   }
+
+   if (host_and_port) {
+      bson_free (host_and_port);
+   }
+
+   mongoc_cleanup ();
+   return exit_code;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+If you want to try the advanced map reduce example with a secondary, start a replica set (instructions for how to do this can be found \fI\%here\fP).
+.sp
+Otherwise, just start an instance of MongoDB:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ mongod
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Now compile and run the example program:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cd examples/basic_aggregation/
+$ gcc \-Wall \-o agg\-example basic\-aggregation.c $(pkg\-config \-\-cflags \-\-libs libmongoc\-1.0)
+$ ./agg\-example localhost
+
+Inserting data
+distinct
+Next double: 2.000000
+Next double: 3.000000
+map reduce
+{ "result" : "outCollection", "timeMillis" : 155, "counts" : { "input" : 84, "emit" : 126, "reduce" : 3, "output" : 3 }, "ok" : 1 }
+{ "_id" : "cat", "value" : 63 }
+{ "_id" : "dog", "value" : 42 }
+{ "_id" : "mouse", "value" : 21 }
+more complicated map reduce
+{ "results" : [ { "_id" : "cat", "value" : 63 }, { "_id" : "dog", "value" : 42 }, { "_id" : "mouse", "value" : 21 } ], "timeMillis" : 14, "counts" : { "input" : 84, "emit" : 126, "reduce" : 3, "output" : 3 }, "ok" : 1 }
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH USING LIBMONGOC IN A MICROSOFT VISUAL STUDIO PROJECT
+.sp
+Download and install libmongoc on your system, then open Visual Studio, select "File→New→Project...", and create a new Win32 Console Application.
+[image]
+.sp
+Remember to switch the platform from 32\-bit to 64\-bit:
+[image]
+.sp
+Right\-click on your console application in the Solution Explorer and select "Properties". Choose to edit properties for "All Configurations", expand the "C/C++" options and choose "General". Add to the "Additional Include Directories" these paths:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+C:\emongo\-c\-driver\einclude\elibbson\-1.0
+C:\emongo\-c\-driver\einclude\elibmongoc\-1.0
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+[image]
+.sp
+(If you chose a different \fBCMAKE_INSTALL_PREFIX\fP when you ran CMake, your include paths will be different.)
+.sp
+Also in the Properties dialog, expand the "Linker" options and choose "Input", and add to the "Additional Dependencies" these libraries:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+C:\emongo\-c\-driver\elib\ebson\-1.0.lib
+C:\emongo\-c\-driver\elib\emongoc\-1.0.lib
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+[image]
+.sp
+Adding these libraries as dependencies provides linker symbols to build your application, but to actually run it, libbson\(aqs and libmongoc\(aqs DLLs must be in your executable path. Select "Debugging" in the Properties dialog, and set the "Environment" option to:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+PATH=c:/mongo\-c\-driver/bin
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+[image]
+.sp
+Finally, include "mongoc/mongoc.h" in your project\(aqs "stdafx.h":
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#include <mongoc/mongoc.h>
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Static linking
+.sp
+Following the instructions above, you have dynamically linked your application to the libbson and libmongoc DLLs. This is usually the right choice. If you want to link statically instead, update your "Additional Dependencies" list by removing \fBbson\-1.0.lib\fP and \fBmongoc\-1.0.lib\fP and replacing them with these libraries:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+C:\emongo\-c\-driver\elib\ebson\-static\-1.0.lib
+C:\emongo\-c\-driver\elib\emongoc\-static\-1.0.lib
+ws2_32.lib
+Secur32.lib
+Crypt32.lib
+BCrypt.lib
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+[image]
+.sp
+(To explain the purpose of each library: \fBbson\-static\-1.0.lib\fP and \fBmongoc\-static\-1.0.lib\fP are static archives of the driver code. The socket library \fBws2_32\fP is required by libbson, which uses the socket routine \fBgethostname\fP to help guarantee ObjectId uniqueness. The \fBBCrypt\fP library is used by libmongoc for SSL connections to MongoDB, and \fBSecur32\fP and \fBCrypt32\fP are required for enterprise authentication methods like Kerberos.)
+.sp
+Finally, define two preprocessor symbols before including \fBmongoc/mongoc.h\fP in your \fBstdafx.h\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+#define BSON_STATIC
+#define MONGOC_STATIC
+#include <mongoc/mongoc.h>
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Making these changes to your project is only required for static linking; for most people, the dynamic\-linking instructions above are preferred.
+.SS Next Steps
+.sp
+Now you can build and debug applications in Visual Studio that use libbson and libmongoc. Proceed to making\-a\-connection in the tutorial to learn how connect to MongoDB and perform operations.
+.SH CREATING INDEXES
+.sp
+To create indexes on a MongoDB collection, execute the \fBcreateIndexes\fP command
+with a command function like \fBmongoc_database_write_command_with_opts\fP or
+\fBmongoc_collection_write_command_with_opts\fP\&. See \fI\%the MongoDB
+Manual entry for the createIndexes command\fP for details.
+.SS Example
+.sp
+example\-create\-indexes.c
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+/* gcc example\-create\-indexes.c \-o example\-create\-indexes $(pkg\-config \-\-cflags
+ * \-\-libs libmongoc\-1.0) */
+
+/* ./example\-create\-indexes [CONNECTION_STRING [COLLECTION_NAME]] */
+
+#include <mongoc/mongoc.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int
+main (int argc, char *argv[])
+{
+   mongoc_client_t *client;
+   const char *uri_string =
+      "mongodb://127.0.0.1/?appname=create\-indexes\-example";
+   mongoc_uri_t *uri;
+   mongoc_database_t *db;
+   const char *collection_name = "test";
+   bson_t keys;
+   char *index_name;
+   bson_t *create_indexes;
+   bson_t reply;
+   char *reply_str;
+   bson_error_t error;
+   bool r;
+
+   mongoc_init ();
+
+   if (argc > 1) {
+      uri_string = argv[1];
+   }
+
+   if (argc > 2) {
+      collection_name = argv[2];
+   }
+
+   uri = mongoc_uri_new_with_error (uri_string, &error);
+   if (!uri) {
+      fprintf (stderr,
+               "failed to parse URI: %s\en"
+               "error message:       %s\en",
+               uri_string,
+               error.message);
+      return EXIT_FAILURE;
+   }
+
+   client = mongoc_client_new_from_uri (uri);
+   if (!client) {
+      return EXIT_FAILURE;
+   }
+
+   mongoc_client_set_error_api (client, 2);
+   db = mongoc_client_get_database (client, "test");
+
+   /* ascending index on field "x" */
+   bson_init (&keys);
+   BSON_APPEND_INT32 (&keys, "x", 1);
+   index_name = mongoc_collection_keys_to_index_string (&keys);
+   create_indexes = BCON_NEW ("createIndexes",
+                              BCON_UTF8 (collection_name),
+                              "indexes",
+                              "[",
+                              "{",
+                              "key",
+                              BCON_DOCUMENT (&keys),
+                              "name",
+                              BCON_UTF8 (index_name),
+                              "}",
+                              "]");
+
+   r = mongoc_database_write_command_with_opts (
+      db, create_indexes, NULL /* opts */, &reply, &error);
+
+   reply_str = bson_as_json (&reply, NULL);
+   printf ("%s\en", reply_str);
+
+   if (!r) {
+      fprintf (stderr, "Error in createIndexes: %s\en", error.message);
+   }
+
+   bson_free (index_name);
+   bson_free (reply_str);
+   bson_destroy (&reply);
+   bson_destroy (create_indexes);
+   mongoc_database_destroy (db);
+   mongoc_uri_destroy (uri);
+   mongoc_client_destroy (client);
+
+   mongoc_cleanup ();
+
+   return r ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH AIDS FOR DEBUGGING
+.SS GDB
+.sp
+This repository contains a \fB\&.gdbinit\fP file that contains helper functions to
+aid debugging of data structures. GDB will load this file
+\fI\%automatically\fP if you have added the directory which contains the \fI\&.gdbinit\fP file to GDB\(aqs
+\fI\%auto\-load safe\-path\fP, \fIand\fP you start GDB from the directory which holds the \fI\&.gdbinit\fP file.
+.sp
+You can see the safe\-path with \fBshow auto\-load safe\-path\fP on a GDB prompt. You
+can configure it by setting it in \fB~/.gdbinit\fP with:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+add\-auto\-load\-safe\-path /path/to/mongo\-c\-driver
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+If you haven\(aqt added the path to your auto\-load safe\-path, or start GDB in
+another directory, load the file with:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+source path/to/mongo\-c\-driver/.gdbinit
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The \fB\&.gdbinit\fP file defines the \fBprintbson\fP function, which shows the contents of a \fBbson_t *\fP variable.
+If you have a local \fBbson_t\fP, then you must prefix the variable with a \fI&\fP\&.
+.sp
+An example GDB session looks like:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+(gdb) printbson bson
+ALLOC [0x555556cd7310 + 0] (len=475)
+{
+    \(aqbool\(aq : true,
+    \(aqint32\(aq : NumberInt("42"),
+    \(aqint64\(aq : NumberLong("3000000042"),
+    \(aqstring\(aq : "Stŕìñg",
+    \(aqobjectId\(aq : ObjectID("5A1442F3122D331C3C6757E1"),
+    \(aqutcDateTime\(aq : UTCDateTime(1511277299031),
+    \(aqarrayOfInts\(aq : [
+        \(aq0\(aq : NumberInt("1"),
+        \(aq1\(aq : NumberInt("2")
+    ],
+    \(aqembeddedDocument\(aq : {
+        \(aqarrayOfStrings\(aq : [
+            \(aq0\(aq : "one",
+            \(aq1\(aq : "two"
+        ],
+        \(aqdouble\(aq : 2.718280,
+        \(aqnotherDoc\(aq : {
+            \(aqtrue\(aq : NumberInt("1"),
+            \(aqfalse\(aq : false
+        }
+    },
+    \(aqbinary\(aq : Binary("02", "3031343532333637"),
+    \(aqregex\(aq : Regex("@[a\-z]+@", "im"),
+    \(aqnull\(aq : null,
+    \(aqjs\(aq : JavaScript("print foo"),
+    \(aqjsws\(aq : JavaScript("print foo") with scope: {
+        \(aqf\(aq : NumberInt("42"),
+        \(aqa\(aq : [
+            \(aq0\(aq : 3.141593,
+            \(aq1\(aq : 2.718282
+        ]
+    },
+    \(aqtimestamp\(aq : Timestamp(4294967295, 4294967295),
+    \(aqdouble\(aq : 3.141593
+}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS LLDB
+.sp
+This repository also includes a script that customizes LLDB\(aqs standard \fBprint\fP command to print a \fBbson_t\fP or \fBbson_t *\fP as JSON:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+(lldb) print b
+(bson_t) $0 = {"x": 1, "y": 2}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The custom \fBbson\fP command provides more options:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+(lldb) bson \-\-verbose b
+len=19
+flags=INLINE|STATIC
+{
+  "x": 1,
+  "y": 2
+}
+(lldb) bson \-\-raw b
+\(aq\ex13\ex00\ex00\ex00\ex10x\ex00\ex01\ex00\ex00\ex00\ex10y\ex00\ex02\ex00\ex00\ex00\ex00\(aq
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Type \fBhelp bson\fP for a list of options.
+.sp
+The script requires a build of libbson with debug symbols, and an installation of \fI\%PyMongo\fP\&. Install PyMongo with:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+python \-m pip install pymongo
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+If you see "No module named pip" then you must \fI\%install pip\fP, then run the previous command again.
+.sp
+Create a file \fB~/.lldbinit\fP containing:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+command script import /path/to/mongo\-c\-driver/lldb_bson.py
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+If you see "bson command installed by lldb_bson" at the beginning of your LLDB session, you\(aqve installed the script correctly.
+.SH AUTHOR
+MongoDB, Inc
+.SH COPYRIGHT
+2017-present, MongoDB, Inc
+.\" Generated by docutils manpage writer.
+.

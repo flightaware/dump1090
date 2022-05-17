@@ -197,13 +197,65 @@ function initialize() {
         refreshClock();
 
         $("#loader").removeClass("hidden");
-        
+
+        if (ExtendedData || window.location.hash == '#extended') {
+                $("#extendedData").removeClass("hidden");
+        }
+
         // Set up map/sidebar splitter
-        $("#sidebar_container").resizable({handles: {w: '#splitter'}});
+		$("#sidebar_container").resizable({
+			handles: {
+				w: '#splitter'
+			},
+			minWidth: 350
+		});
 
-        // Set up aircraft information panel
-        $("#selected_infoblock").draggable({containment: "parent"});
+		// Set up datablock splitter
+		$('#selected_infoblock').resizable({
+			handles: {
+				s: '#splitter-infoblock'
+			},
+			containment: "#sidebar_container",
+			minHeight: 50
+		});
 
+		$('#close-button').on('click', function() {
+			if (SelectedPlane !== null) {
+				var selectedPlane = Planes[SelectedPlane];
+				SelectedPlane = null;
+				selectedPlane.selected = null;
+				selectedPlane.clearLines();
+				selectedPlane.updateMarker();         
+				refreshSelected();
+				refreshHighlighted();
+				$('#selected_infoblock').hide();
+			}
+		});
+
+		// this is a little hacky, but the best, most consitent way of doing this. change the margin bottom of the table container to the height of the overlay
+		$('#selected_infoblock').on('resize', function() {
+			$('#sidebar_canvas').css('margin-bottom', $('#selected_infoblock').height() + 'px');
+		});
+		// look at the window resize to resize the pop-up infoblock so it doesn't float off the bottom or go off the top
+		$(window).on('resize', function() {
+			var topCalc = ($(window).height() - $('#selected_infoblock').height() - 60);
+			// check if the top will be less than zero, which will be overlapping/off the screen, and set the top correctly. 
+			if (topCalc < 0) {
+				topCalc = 0;
+				$('#selected_infoblock').css('height', ($(window).height() - 60) +'px');
+			}
+			$('#selected_infoblock').css('top', topCalc + 'px');
+		});
+
+		// to make the infoblock responsive 
+		$('#sidebar_container').on('resize', function() {
+			if ($('#sidebar_container').width() < 500) {
+				$('#selected_infoblock').addClass('infoblock-container-small');
+			} else {
+				$('#selected_infoblock').removeClass('infoblock-container-small');
+			}
+		});
+	
         // Set up event handlers for buttons
         $("#toggle_sidebar_button").click(toggleSidebarVisibility);
         $("#expand_sidebar_button").click(expandSidebar);
@@ -327,21 +379,25 @@ function initialize() {
 }
 
 var CurrentHistoryFetch = null;
-var PositionHistoryBuffer = []
+var PositionHistoryBuffer = [];
 var HistoryItemsReturned = 0;
 function start_load_history() {
-        if (PositionHistorySize > 0 && window.location.hash != '#nohistory') {
-                $("#loader_progress").attr('max',PositionHistorySize);
-                console.log("Starting to load history (" + PositionHistorySize + " items)");
-                //Load history items in parallel
-                for (var i = 0; i < PositionHistorySize; i++) {
-                        load_history_item(i);
-                }
-        }
+	if (PositionHistorySize > 0 && window.location.hash != '#nohistory') {
+		$("#loader_progress").attr('max',PositionHistorySize);
+		console.log("Starting to load history (" + PositionHistorySize + " items)");
+		//Load history items in parallel
+		for (var i = 0; i < PositionHistorySize; i++) {
+			load_history_item(i);
+		}
+	} else {
+		// Nothing to load
+		end_load_history();
+	}
 }
 
 function load_history_item(i) {
         console.log("Loading history #" + i);
+        $("#loader_progress").attr('value',i);
 
         $.ajax({ url: 'data/history_' + i + '.json',
                  timeout: 5000,
@@ -349,20 +405,20 @@ function load_history_item(i) {
                  dataType: 'json' })
 
                 .done(function(data) {
-                        PositionHistoryBuffer.push(data);
-                        HistoryItemsReturned++;
-                        $("#loader_progress").attr('value',HistoryItemsReturned);
-                        if (HistoryItemsReturned == PositionHistorySize) {
-                                end_load_history();
-                        }
+					PositionHistoryBuffer.push(data);
+					HistoryItemsReturned++;
+					$("#loader_progress").attr('value',HistoryItemsReturned);
+					if (HistoryItemsReturned == PositionHistorySize) {
+						end_load_history();
+					}
                 })
 
                 .fail(function(jqxhr, status, error) {
-                        //Doesn't matter if it failed, we'll just be missing a data point
-                        HistoryItemsReturned++;
-                        if (HistoryItemsReturned == PositionHistorySize) {
-                                end_load_history();
-                        }
+					//Doesn't matter if it failed, we'll just be missing a data point
+					HistoryItemsReturned++;
+					if (HistoryItemsReturned == PositionHistorySize) {
+						end_load_history();
+					}
                 });
 }
 
@@ -388,7 +444,7 @@ function end_load_history() {
                         console.log("Updating tracks at: " + now);
                         for (var i = 0; i < PlanesOrdered.length; ++i) {
                                 var plane = PlanesOrdered[i];
-                                plane.updateTrack((now - last) + 1);
+                                plane.updateTrack(now, last);
                         }
 
                         last = now;
@@ -583,9 +639,9 @@ function initialize_map() {
                 if (FollowSelected) {
                         // On manual navigation, disable follow
                         var selected = Planes[SelectedPlane];
-                        if (typeof selected === 'undefined' ||
-                            (Math.abs(center[0] - selected.position[0]) > 0.0001 &&
-                             Math.abs(center[1] - selected.position[1]) > 0.0001)) {
+						if (typeof selected === 'undefined' ||
+							(Math.abs(center[0] - selected.position[0]) > 0.0001 &&
+							Math.abs(center[1] - selected.position[1]) > 0.0001)){
                                 FollowSelected = false;
                                 refreshSelected();
                                 refreshHighlighted();
@@ -852,18 +908,18 @@ function refreshSelected() {
         } else {
                 $('#selected_callsign').text('n/a');
         }
-        $('#selected_flightaware_link').html(getFlightAwareModeSLink(selected.icao, selected.flight, "FlightAware.com"));
+        $('#selected_flightaware_link').html(getFlightAwareModeSLink(selected.icao, selected.flight, "Visit Flight Page"));
 
         if (selected.registration !== null) {
                 $('#selected_registration').text(selected.registration);
         } else {
-                $('#selected_registration').text("");
+                $('#selected_registration').text("n/a");
         }
 
         if (selected.icaotype !== null) {
                 $('#selected_icaotype').text(selected.icaotype);
         } else {
-                $('#selected_icaotype').text("");
+                $('#selected_icaotype').text("n/a");
         }
 
         // Not using this logic for the redesigned info panel at the time, but leaving it in  if/when adding it back
@@ -875,7 +931,9 @@ function refreshSelected() {
         //         emerg.className = 'hidden';
         // }
 
-        $("#selected_altitude").text(format_altitude_long(selected.altitude, selected.vert_rate, DisplayUnits));
+		$("#selected_altitude").text(format_altitude_long(selected.altitude, selected.vert_rate, DisplayUnits));
+
+		$('#selected_onground').text(format_onground(selected.altitude));
 
         if (selected.squawk === null || selected.squawk === '0000') {
                 $('#selected_squawk').text('n/a');
@@ -883,11 +941,14 @@ function refreshSelected() {
                 $('#selected_squawk').text(selected.squawk);
         }
 	
-        $('#selected_gs').text(format_speed_long(selected.gs, DisplayUnits));
-        $('#selected_vertical_rate').text(format_vert_rate_long(selected.vert_rate, DisplayUnits));
+		$('#selected_speed').text(format_speed_long(selected.gs, DisplayUnits));
+		$('#selected_ias').text(format_speed_long(selected.ias, DisplayUnits));
+		$('#selected_tas').text(format_speed_long(selected.tas, DisplayUnits));
+		$('#selected_vertical_rate').text(format_vert_rate_long(selected.baro_rate, DisplayUnits));
+		$('#selected_vertical_rate_geo').text(format_vert_rate_long(selected.geom_rate, DisplayUnits));
         $('#selected_icao').text(selected.icao.toUpperCase());
         $('#airframes_post_icao').attr('value',selected.icao);
-	$('#selected_track').text(format_track_long(selected.track));
+		$('#selected_track').text(format_track_long(selected.track));
 
         if (selected.seen <= 1) {
                 $('#selected_seen').text('now');
@@ -913,8 +974,8 @@ function refreshSelected() {
                         $('#selected_position').text(format_latlng(selected.position));
                 } else {
                         $('#selected_position').text(format_latlng(selected.position));
-                }
-
+				}
+				
                 $('#selected_follow').removeClass('hidden');
                 if (FollowSelected) {
                         $('#selected_follow').css('font-weight', 'bold');
@@ -923,21 +984,22 @@ function refreshSelected() {
                         $('#selected_follow').css('font-weight', 'normal');
                 }
 	}
-        if (selected.getDataSource() === "adsb_icao") {
-        	$('#selected_source').text("ADS-B");
-        } else if (selected.getDataSource() === "tisb_trackfile" || selected.getDataSource() === "tisb_icao" || selected.getDataSource() === "tisb_other") {
-        	$('#selected_source').text("TIS-B");
-        } else if (selected.getDataSource() === "mlat") {
-        	$('#selected_source').text("MLAT");
-        } else {
-        	$('#selected_source').text("Other");
-        }
+		if (selected.getDataSource() === "adsb_icao") {
+			$('#selected_source').text("ADS-B");
+		} else if (selected.getDataSource() === "tisb_trackfile" || selected.getDataSource() === "tisb_icao" || selected.getDataSource() === "tisb_other") {
+			$('#selected_source').text("TIS-B");
+		} else if (selected.getDataSource() === "mlat") {
+			$('#selected_source').text("MLAT");
+		} else {
+			$('#selected_source').text("Other");
+		}
+		$('#selected_category').text(selected.category ? selected.category : "n/a");
         $('#selected_sitedist').text(format_distance_long(selected.sitedist, DisplayUnits));
         $('#selected_rssi').text(selected.rssi.toFixed(1) + ' dBFS');
         $('#selected_message_count').text(selected.messages);
-        $('#selected_photo_link').html(getFlightAwarePhotoLink(selected.registration));
-
-        $('#selected_alt_geom').text(format_altitude_long(selected.alt_geom, selected.geom_rate, DisplayUnits));
+		$('#selected_photo_link').html(getFlightAwarePhotoLink(selected.registration));
+		
+		$('#selected_altitude_geom').text(format_altitude_long(selected.alt_geom, selected.geom_rate, DisplayUnits));
         $('#selected_mag_heading').text(format_track_long(selected.mag_heading));
         $('#selected_true_heading').text(format_track_long(selected.true_heading));
         $('#selected_ias').text(format_speed_long(selected.ias, DisplayUnits));
@@ -953,9 +1015,9 @@ function refreshSelected() {
                 $('#selected_roll').text(selected.roll.toFixed(1));
         }
         if (selected.track_rate == null) {
-                $('#selected_track_rate').text('n/a');
+                $('#selected_trackrate').text('n/a');
         } else {
-                $('#selected_track_rate').text(selected.track_rate.toFixed(2));
+                $('#selected_trackrate').text(selected.track_rate.toFixed(2));
         }
         $('#selected_geom_rate').text(format_vert_rate_long(selected.geom_rate, DisplayUnits));
         if (selected.nav_qnh == null) {
@@ -969,7 +1031,58 @@ function refreshSelected() {
                 $('#selected_nav_modes').text("n/a");
         } else {
                 $('#selected_nav_modes').text(selected.nav_modes.join());
-        }
+		}
+		if (selected.nic_baro == null) {
+			$('#selected_nic_baro').text("n/a");
+		} else {
+			if (selected.nic_baro == 1) {
+				$('#selected_nic_baro').text("cross-checked");
+			} else {
+				$('#selected_nic_baro').text("not cross-checked");
+			}
+		}
+
+		$('#selected_nac_p').text(format_nac_p(selected.nac_p));
+		$('#selected_nac_v').text(format_nac_v(selected.nac_v));
+		if (selected.rc == null) {
+			$('#selected_rc').text("n/a");
+		} else if (selected.rc == 0) {
+			$('#selected_rc').text("unknown");
+		} else {
+			$('#selected_rc').text(format_distance_short(selected.rc, DisplayUnits));
+		}
+
+		if (selected.sil == null || selected.sil_type == null) {
+			$('#selected_sil').text("n/a");
+		} else {
+			var sampleRate = "";
+			var silDesc = "";
+			if (selected.sil_type == "perhour") {
+				sampleRate = " per flight hour";
+			} else if (selected.sil_type == "persample") {
+				sampleRate = " per sample";
+			}
+			
+			switch (selected.sil) {
+				case 0:
+					silDesc = "&gt; 1×10<sup>-3</sup>";
+					break;
+				case 1:
+					silDesc = "≤ 1×10<sup>-3</sup>";
+					break;
+				case 2:
+					silDesc = "≤ 1×10<sup>-5</sup>";
+					break;
+				case 3:
+					silDesc = "≤ 1×10<sup>-7</sup>";
+					break;
+				default:
+					silDesc = "n/a";
+					sampleRate = "";
+					break;
+			}
+			$('#selected_sil').html(silDesc + sampleRate);
+		}
 
         if (selected.version == null) {
                 $('#selected_version').text('none');
@@ -982,7 +1095,8 @@ function refreshSelected() {
         } else {
                 $('#selected_version').text('v' + selected.version);
         }
-}
+
+        }
 
 function refreshHighlighted() {
 	// this is following nearly identical logic, etc, as the refreshSelected function, but doing less junk for the highlighted pane
@@ -1000,6 +1114,48 @@ function refreshHighlighted() {
 
 	$('#highlighted_infoblock').show();
 
+	// Get info box position and size
+	var infoBox = $('#highlighted_infoblock');
+	var infoBoxPosition = infoBox.position();
+	if (typeof infoBoxOriginalPosition.top === 'undefined') {
+		infoBoxOriginalPosition.top = infoBoxPosition.top;
+		infoBoxOriginalPosition.left = infoBoxPosition.left;
+	} else {
+		infoBox.css("left", infoBoxOriginalPosition.left);
+		infoBox.css("top", infoBoxOriginalPosition.top);
+		infoBoxPosition = infoBox.position();
+	}
+	var infoBoxExtent = getExtent(infoBoxPosition.left, infoBoxPosition.top, infoBox.outerWidth(), infoBox.outerHeight());
+
+	// Get map size
+	var mapCanvas = $('#map_canvas');
+	var mapExtent = getExtent(0, 0, mapCanvas.width(), mapCanvas.height());
+
+	var marker = highlighted.marker;
+	var markerCoordinates = highlighted.marker.getGeometry().getCoordinates();
+    var markerPosition = OLMap.getPixelFromCoordinate(markerCoordinates);
+
+	// Check for overlap
+	//FIXME TODO: figure out this/remove this check
+	if (isPointInsideExtent(markerPosition[0], markerPosition[1], infoBoxExtent) || true) {
+		// Array of possible new positions for info box
+		var candidatePositions = [];
+		candidatePositions.push( { x: 40, y: 80 } );
+		candidatePositions.push( { x: markerPosition[0] + 20, y: markerPosition[1] + 60 } );
+
+		// Find new position
+		for (var i = 0; i < candidatePositions.length; i++) {
+			var candidatePosition = candidatePositions[i];
+			var candidateExtent = getExtent(candidatePosition.x, candidatePosition.y, infoBox.outerWidth(), infoBox.outerHeight());
+
+			if (!isPointInsideExtent(markerPosition[0],  markerPosition[1], candidateExtent) && isPointInsideExtent(candidatePosition.x, candidatePosition.y, mapExtent)) {
+				// Found a new position that doesn't overlap marker - move box to that position
+				infoBox.css("left", candidatePosition.x);
+				infoBox.css("top", candidatePosition.y);
+			}
+		}
+	}
+
 	if (highlighted.flight !== null && highlighted.flight !== "") {
 		$('#highlighted_callsign').text(highlighted.flight);
 	} else {
@@ -1009,9 +1165,24 @@ function refreshHighlighted() {
 	if (highlighted.icaotype !== null) {
 		$('#higlighted_icaotype').text(highlighted.icaotype);
 	} else {
-		$('#higlighted_icaotype').text("");
+		$('#higlighted_icaotype').text("n/a");
 	}
 
+	if (highlighted.getDataSource() === "adsb_icao") {
+		$('#highlighted_source').text("ADS-B");
+	} else if (highlighted.getDataSource() === "tisb_trackfile" || highlighted.getDataSource() === "tisb_icao" || highlighted.getDataSource() === "tisb_other") {
+		$('#highlighted_source').text("TIS-B");
+	} else if (highlighted.getDataSource() === "mlat") {
+		$('#highlighted_source').text("MLAT");
+	} else {
+		$('#highlighted_source').text("Other");
+	}
+
+	if (highlighted.registration !== null) {
+		$('#highlighted_registration').text(highlighted.registration);
+	} else {
+		$('#highlighted_registration').text("n/a");
+	}
 
 	$('#highlighted_speed').text(format_speed_long(highlighted.speed, DisplayUnits));
 
@@ -1209,7 +1380,6 @@ function sortBy(id,sc,se) {
 function selectPlaneByHex(hex,autofollow) {
         //console.log("select: " + hex);
 	// If SelectedPlane has something in it, clear out the selected
-    removeHighlight();
 	if (SelectedAllPlanes) {
 		deselectAllPlanes();
 	}
@@ -1219,6 +1389,8 @@ function selectPlaneByHex(hex,autofollow) {
 		Planes[SelectedPlane].clearLines();
 		Planes[SelectedPlane].updateMarker();
                 $(Planes[SelectedPlane].tr).removeClass("selected");
+		// scroll the infoblock back to the top for the next plane to be selected
+		$('.infoblock-container').scrollTop(0);
 	}
 
 	// If we are clicking the same plane, we are deselecting it.
@@ -1251,10 +1423,6 @@ function selectPlaneByHex(hex,autofollow) {
 }
 
 function highlightPlaneByHex(hex) {
-	// if we've selected a plane, don't show the highlighting box
-	if (SelectedPlane != null) {
-		return;
-	}
 
 	if (hex != null) {
 		HighlightedPlane = hex;
@@ -1420,10 +1588,12 @@ function setSelectedInfoBlockVisibility() {
 
     if (planeSelected && mapIsVisible) {
         $('#selected_infoblock').show();
+		$('#sidebar_canvas').css('margin-bottom', $('#selected_infoblock').height() + 'px');
     }
     else {
         $('#selected_infoblock').hide();
-    }
+		$('#sidebar_canvas').css('margin-bottom', 0);
+	}
 }
 
 // Reposition selected plane info box if it overlaps plane marker
@@ -1442,21 +1612,8 @@ function adjustSelectedInfoBlockPosition() {
         // Get marker position
         var marker = selectedPlane.marker;
         var markerCoordinates = selectedPlane.marker.getGeometry().getCoordinates();
-        var markerPosition = OLMap.getPixelFromCoordinate(markerCoordinates);
-
-        // Get info box position and size
-        var infoBox = $('#selected_infoblock');
-        var infoBoxPosition = infoBox.position();
-        if (typeof infoBoxOriginalPosition.top === 'undefined') {
-            infoBoxOriginalPosition.top = infoBoxPosition.top;
-            infoBoxOriginalPosition.left = infoBoxPosition.left;
-        } else {
-            infoBox.css("left", infoBoxOriginalPosition.left);
-            infoBox.css("top", infoBoxOriginalPosition.top);
-            infoBoxPosition = infoBox.position();
-        }
-        var infoBoxExtent = getExtent(infoBoxPosition.left, infoBoxPosition.top, infoBox.outerWidth(), infoBox.outerHeight());
-
+		var markerPosition = OLMap.getPixelFromCoordinate(markerCoordinates);
+		
         // Get map size
         var mapCanvas = $('#map_canvas');
         var mapExtent = getExtent(0, 0, mapCanvas.width(), mapCanvas.height());
@@ -1680,7 +1837,7 @@ function getFlightAwareModeSLink(code, ident, linkText) {
 
 function getFlightAwarePhotoLink(registration) {
     if (registration !== null && registration !== "") {
-        return "<a target=\"_blank\" href=\"https://flightaware.com/photos/aircraft/" + registration.replace(/[^0-9a-z]/ig,'') + "\">See Aircraft Photos</a>";
+        return "<a target=\"_blank\" href=\"https://flightaware.com/photos/aircraft/" + registration.replace(/[^0-9a-z]/ig,'') + "\">See Photos</a>";
     }
 
     return "";   
@@ -1739,11 +1896,11 @@ function updatePiAwareOrFlightFeeder() {
 	if (isFlightFeeder) {
 		$('.piAwareLogo').hide();
 		$('.flightfeederLogo').show();
-		PageName = 'FlightFeeder Skyview';
+		PageName = 'FlightFeeder SkyAware';
 	} else {
 		$('.flightfeederLogo').hide();
 		$('.piAwareLogo').show();
-		PageName = 'PiAware Skyview';
+		PageName = 'PiAware SkyAware';
 	}
 	refreshPageTitle();
 }

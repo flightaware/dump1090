@@ -117,7 +117,7 @@ var ICAO_Ranges = [
         { start: 0x681000, end: 0x6813FF, country: "Micronesia, Federated States of", flag_image: "Micronesia.png" },
         { start: 0x4D4000, end: 0x4D43FF, country: "Monaco", flag_image: "Monaco.png" },
         { start: 0x682000, end: 0x6823FF, country: "Mongolia", flag_image: "Mongolia.png" },
-        { start: 0x516000, end: 0x5163FF, country: "Montenegro", flag_image: "blank.png" },  // Need separate flags for Serbia and Montenegro
+        { start: 0x516000, end: 0x5163FF, country: "Montenegro", flag_image: "Montenegro.png" },
         { start: 0x020000, end: 0x027FFF, country: "Morocco", flag_image: "Morocco.png" },
         { start: 0x006000, end: 0x006FFF, country: "Mozambique", flag_image: "Mozambique.png" },
         { start: 0x704000, end: 0x704FFF, country: "Myanmar", flag_image: "Myanmar.png" },
@@ -153,7 +153,7 @@ var ICAO_Ranges = [
         { start: 0x09E000, end: 0x09E3FF, country: "Sao Tome and Principe", flag_image: "Sao_Tome_and_Principe.png" },
         { start: 0x710000, end: 0x717FFF, country: "Saudi Arabia", flag_image: "Saudi_Arabia.png" },
         { start: 0x070000, end: 0x070FFF, country: "Senegal", flag_image: "Senegal.png" },
-        { start: 0x4C0000, end: 0x4C7FFF, country: "Serbia", flag_image: "blank.png" },  // Need separate flags for Serbia and Montenegro
+        { start: 0x4C0000, end: 0x4C7FFF, country: "Serbia", flag_image: "Serbia.png" },
         { start: 0x074000, end: 0x0743FF, country: "Seychelles", flag_image: "Seychelles.png" },
         { start: 0x076000, end: 0x0763FF, country: "Sierra Leone", flag_image: "Sierra_Leone.png" },
         { start: 0x768000, end: 0x76FFFF, country: "Singapore", flag_image: "Singapore.png" },

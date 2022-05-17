@@ -224,15 +224,12 @@ void *readerThreadEntryPoint(void *arg)
 
     // Wake the main thread (if it's still waiting)
     pthread_mutex_lock(&Modes.data_mutex);
-    Modes.exit = 1; // just in case
+    if (!Modes.exit)
+        Modes.exit = 2; // unexpected exit
     pthread_cond_signal(&Modes.data_cond);
     pthread_mutex_unlock(&Modes.data_mutex);
 
-#ifndef _WIN32
-    pthread_exit(NULL);
-#else
     return NULL;
-#endif
 }
 //
 // ============================== Snip mode =================================
@@ -786,15 +783,15 @@ int main(int argc, char **argv) {
         display_total_stats();
     }
 
-    log_with_timestamp("Normal exit.");
-
     sdrClose();
 
-#ifndef _WIN32
-    pthread_exit(0);
-#else
-    return (0);
-#endif
+    if (Modes.exit == 1) {
+        log_with_timestamp("Normal exit.");
+        return 0;
+    } else {
+        log_with_timestamp("Abnormal exit.");
+        return 1;
+    }
 }
 //
 //=========================================================================

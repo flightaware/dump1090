@@ -1,8 +1,100 @@
-dump1090-fa (3.6.0~dev) UNRELEASED; urgency=medium
+dump1090-fa (3.7.2~dev) UNRELEASED; urgency=medium
 
-  * In development
+  * in development
 
- -- Oliver Jowett <oliver@mutability.co.uk>  Mon, 19 Jun 2017 11:11:59 -0500
+ -- Eric Tran <eric.tran@flightaware.com>  Wed, 31 Jul 2019 11:27:00 -6000
+
+dump1090-fa (3.7.1) stable; urgency=medium
+
+  * dump1090: TSV buffer overflow fix/increase max TSV packet size
+  * dump1090: Fix incorrect mode_s bit number usage
+  * dump1090: Rework use of pkg-config to work around librtlsdr packaging bugs
+    in Ubuntu distro
+  * dump1090: Minimal polyfill to support building older bladeRF libs
+  * dump1090: Add COMMB_AMBIGUOUS enum type for Comm-B messages we're unsure of
+  * dump1090: Comm-b message decoding updates
+  * dump1090: Require more fields to be populated in BDS5,0/BDS6,0 before accepting
+  * dump1090: Update aircraft DB to 20190502
+  * dump1090: Doc/README updates
+
+ -- Eric Tran <eric.tran@flightaware.com>  Fri, 03 May 2019 12:35:00 -6000
+
+dump1090-fa (3.7.0.1) stable; urgency=medium
+
+  * dump1090: Fix piaware lat/lon variable
+
+ -- Eric Tran <eric.tran@flightaware.com>  Fri, 29 Mar 2019 7:04:00 -6000
+
+dump1090-fa (3.7.0) stable; urgency=medium
+
+  * dump1090: Fix Rc decoding errors
+  * dump1090: Compute ADS-B v0 NACp/SIL
+  * dump1090: When generating aircraft.json, leave space for the final line;
+    otherwise the generated json may have trailing garbage
+  * dump1090: Don't update the known-address-set from DF18 messages
+  * Skyview: use heading data for icon orientation if track data is unavailable
+  * Skyview: don't spin forever if there's no history to load / receiver.json
+    is missing
+  * dump1090: Bail out if rtlsdr_read_async() returns early; it probably means we lost
+    the USB device. There was a workaround for this (originally implemented
+    in dump1090-mutability) that got lost in the refactoring needed to support
+    different SDRs. librtlsdr can still be flaky under disconnect conditions, so
+    this won't catch everything.
+  * dump1090: add ENABLED to /etc/default/dump1090-fa
+  * dump1090: track FMS and MCP selected altitudes separately
+  * skyview: use whichever selected altitude is available
+  * faup1090: updates to support PiAware 3.7.0
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Fri, 22 Mar 2019 15:58:04 +0000
+
+dump1090-fa (3.6.3) stable; urgency=medium
+
+  * Fix port 30003 output (Basestation) timestamp formatting broken in 3.6.0
+  * Ignore altitudes in DF17 "airborne" positions with airGround = ground
+  * SkyView layout change and proper support for extended data fields
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Tue, 11 Sep 2018 14:52:20 +0100
+
+dump1090-fa (3.6.2) stable; urgency=medium
+
+  * Update SkyView flags for Libya, Serbia, Montenegro
+  * Improve handling of bad callsigns in ADS-B messages
+  * Update FlightAware aircraft static data export
+  * Add --direct option to enable rtlsdr direct sampling mode
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Fri, 27 Jul 2018 18:32:30 +0100
+
+dump1090-fa (3.6.1) stable; urgency=medium
+
+  * Fix tracking of NICbaro
+  * Don't translate 7x00 to emergency status, it obscures the source of the
+    data (squawk vs ADS-B v2)
+  * Support for building on stretch
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Mon, 16 Jul 2018 14:58:59 +0100
+
+dump1090-fa (3.6.0) stable; urgency=medium
+
+  * dump1090: implement speculative decoding for Comm-B messages, capturing
+    most of the Mode S EHS data:
+    BDS 1,0 (datalink capabilities); BDS 1,7 (GICB capabilities);
+    BDS 2,0 (aircraft identification); BDS 3,0 (ACAS RA);
+    BDS 4,0 (vertical intention); BDS 5,0 (track and turn);
+    BDS 6,0 (heading and speed)
+  * dump1090: implement decoding of most of DO-260A/DO-260B including
+    ADS-B version, autopilot settings, NIC/Rc, NAC, SIL, GVA, etc.
+  * dump1090: aircraft state tracking overhaul; track data age in milliseconds
+  * dump1090: emit newly decoded fields in aircraft.json
+  * Skyview: experimental display of new fields, disabled by default; to
+    enable, set ExtendedData = true in config.js or add #extended to the URL
+  * Skyview: Remove obsolete chartbundle WAC layer, add heli layer
+  * Skyview: Remove Mapzen layer as Mapzen is shutting down
+  * faup1090: Restructure emitted data to include data age and source
+  * faup1090: Include newly decoded fields in reports
+  * dump1090, faup1090: fix use of snprintf to correctly handle buffer overruns
+  * dump1090: don't bother tracking ICAO 000000
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Wed, 09 May 2018 22:34:24 +0100
 
 dump1090-fa (3.5.3) stable; urgency=medium
 

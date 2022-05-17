@@ -49,6 +49,7 @@
 
 
 #include "dump1090.h"
+#include "ais_charset.h"
 
 /* for PRIX64 */
 #include <inttypes.h>
@@ -382,8 +383,6 @@ int scoreModesMessage(unsigned char *msg, int validbits)
 
 static void decodeExtendedSquitter(struct modesMessage *mm);
 
-char ais_charset[64] = "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_ !\"#$%&'()*+,-./0123456789:;<=>?";
-
 // return 0 if all OK
 //   -1: message might be valid, but we couldn't validate the CRC against a known ICAO
 //   -2: bad message or unrepairable CRC error
@@ -568,9 +567,9 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
         mm->CC = getbit(msg, 7);
     }
 
-    // CF (Control field)
+    // CF (Control field, see Figure 2-2 ADS-B Message BaselineFormat Structure)
     if (mm->msgtype == 18) {
-        mm->CF = getbits(msg, 5, 8);
+        mm->CF = getbits(msg, 6, 8);
     }
 
     // DR (Downlink Request)
@@ -681,12 +680,12 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
             mm->airground = AG_UNCERTAIN;
     }
 
-    if (!mm->correctedbits && (mm->msgtype == 17 || mm->msgtype == 18 || (mm->msgtype == 11 && mm->IID == 0))) {
-        // No CRC errors seen, and either it was an DF17/18 extended squitter
+    if (!mm->correctedbits && (mm->msgtype == 17 || (mm->msgtype == 11 && mm->IID == 0))) {
+        // No CRC errors seen, and either it was an DF17 extended squitter
         // or a DF11 acquisition squitter with II = 0. We probably have the right address.
 
-        // We wait until here to do this as we may have needed to decode an ES to note
-        // the type of address in DF18 messages.
+        // Don't do this for DF18, as a DF18 transmitter doesn't necessarily have a
+        // Mode S transponder.
 
         // NB this is the only place that adds addresses!
         icaoFilterAdd(mm->addr);
@@ -716,10 +715,18 @@ static void decodeESIdentAndCategory(struct modesMessage *mm)
     mm->callsign[6] = ais_charset[getbits(me, 45, 50)];
     mm->callsign[7] = ais_charset[getbits(me, 51, 56)];
     mm->callsign[8] = 0;
+    mm->callsign_valid = 1;
 
-    // A common failure mode seems to be to intermittently send
-    // all zeros. Catch that here.
-    mm->callsign_valid = (strcmp(mm->callsign, "@@@@@@@@") != 0);
+    // actually valid?
+    for (unsigned i = 0; i < 8; ++i) {
+        if (!(mm->callsign[i] >= 'A' && mm->callsign[i] <= 'Z') &&
+            !(mm->callsign[i] >= '0' && mm->callsign[i] <= '9') &&
+            mm->callsign[i] != ' ') {
+            // Bad callsign, ignore it
+            mm->callsign_valid = 0;
+            break;
+        }
+    }
 
     mm->category = ((0x0E - mm->metype) << 4) | mm->mesub;
     mm->category_valid = 1;
@@ -966,7 +973,7 @@ static void decodeESAirbornePosition(struct modesMessage *mm, int check_imf)
         }
     }
 
-    if (AC12Field) {// Only attempt to decode if a valid (non zero) altitude is present
+    if (AC12Field && mm->airground != AG_GROUND) {// Only attempt to decode if a valid (non zero) altitude is present and not on ground
         altitude_unit_t unit;
         int alt = decodeAC12Field(AC12Field, &unit);
         if (alt != INVALID_ALTITUDE) {
@@ -1045,7 +1052,7 @@ static void decodeESTargetStatus(struct modesMessage *mm, int check_imf)
             // nothing
             break;
         }
-        // 10: target altitude type (ignored)
+        // 10: target altitude type (MSL or Baro, ignored)
         // 11: backward compatibility bit, always 0
         // 12-13: target alt capabilities (ignored)
         // 14-15: vertical mode
@@ -1073,7 +1080,7 @@ static void decodeESTargetStatus(struct modesMessage *mm, int check_imf)
             break;
         }
 
-        // 16-25: altitude
+        // 16-25: target altitude
         int alt = -1000 + 100 * getbits(me, 16, 25);
         switch (mm->nav.altitude_source) {
         case NAV_ALT_MCP:
@@ -1101,7 +1108,7 @@ static void decodeESTargetStatus(struct modesMessage *mm, int check_imf)
                 mm->nav.heading_type = HEADING_MAGNETIC_OR_TRUE;
             }
         }
-        // 38-39: horiontal mode
+        // 38-39: horizontal mode
         switch (getbits(me, 38, 39)) {
         case 1: // acquiring
         case 2: // maintaining
@@ -1273,7 +1280,10 @@ static void decodeESOperationalStatus(struct modesMessage *mm, int check_imf)
                 mm->accuracy.nic_baro_valid = 1;
                 mm->accuracy.nic_baro = getbit(me, 53);
             } else {
-                mm->opstatus.tah = getbit(me, 53) ? HEADING_GROUND_TRACK : mm->opstatus.hrd;
+                // see DO=260B §2.2.3.2.7.2.12
+                // TAH=0 : surface movement reports ground track
+                // TAH=1 : surface movement reports aircraft heading
+                mm->opstatus.tah = getbit(me, 53) ? mm->opstatus.hrd : HEADING_GROUND_TRACK;
             }
             break;
 
@@ -1323,7 +1333,10 @@ static void decodeESOperationalStatus(struct modesMessage *mm, int check_imf)
                 mm->accuracy.nic_baro_valid = 1;
                 mm->accuracy.nic_baro = getbit(me, 53);
             } else {
-                mm->opstatus.tah = getbit(me, 53) ? HEADING_GROUND_TRACK : mm->opstatus.hrd;
+                // see DO=260B §2.2.3.2.7.2.12
+                // TAH=0 : surface movement reports ground track
+                // TAH=1 : surface movement reports aircraft heading
+                mm->opstatus.tah = getbit(me, 53) ? mm->opstatus.hrd : HEADING_GROUND_TRACK;
             }
             break;
         }
@@ -1562,6 +1575,8 @@ static const char *commb_format_to_string(commb_format_t format) {
     switch (format) {
     case COMMB_EMPTY_RESPONSE:
         return "empty response";
+    case COMMB_AMBIGUOUS:
+        return "ambiguous format";
     case COMMB_DATALINK_CAPS:
         return "BDS1,0 Datalink capabilities";
     case COMMB_GICB_CAPS:

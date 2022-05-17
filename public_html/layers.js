@@ -37,15 +37,11 @@ function createBaseLayers() {
                 }));
         }
 
-        if (MapzenAPIKey) {
-                world.push(createMapzenLayer());
-        }
-
         if (ChartBundleLayers) {
                 var chartbundleTypes = {
                         sec: "Sectional Charts",
                         tac: "Terminal Area Charts",
-                        wac: "World Aeronautical Charts",
+                        hel: "Helicopter Charts",
                         enrl: "IFR Enroute Low Charts",
                         enra: "IFR Area Charts",
                         enrh: "IFR Enroute High Charts"
@@ -104,100 +100,4 @@ function createBaseLayers() {
         }
 
         return layers;
-}
-
-function createMapzenLayer() {
-        // draw earth with a fat stroke;
-        // force water above earth
-
-        var earthStyle = new ol.style.Style({
-                fill: new ol.style.Fill({
-                        color: '#a06000'
-                }),
-                stroke: new ol.style.Stroke({
-                        color: '#a06000',
-                        width: 5.0
-                }),
-                zIndex: 0
-        });
-
-        var waterStyle = new ol.style.Style({
-                fill: new ol.style.Fill({
-                        color: '#0040a0'
-                }),
-                stroke: new ol.style.Stroke({
-                        color: '#0040a0',
-                        width: 1.0
-                }),
-                zIndex: 1
-        });
-
-        var boundaryStyle = new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                        color: '#804000',
-                        width: 2.0
-                }),
-                zIndex: 2
-        });
-
-        var dashedBoundaryStyle = new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                        color: '#804000',
-                        width: 1.0,
-                        lineDash: [4, 4],
-                }),
-                zIndex: 2
-        });
-
-        var styleMap = {
-                earth: earthStyle,
-
-                water: waterStyle,
-                basin: waterStyle,
-                dock: waterStyle,
-                lake: waterStyle,
-                ocean: waterStyle,
-                riverbank: waterStyle,
-                river: waterStyle,
-
-                country: boundaryStyle,
-                disputed: dashedBoundaryStyle,
-                indefinite: dashedBoundaryStyle,
-                indeterminate: dashedBoundaryStyle,
-                line_of_control: dashedBoundaryStyle
-        };
-
-        return new ol.layer.VectorTile({
-                name: 'mapzen_vector',
-                title: 'Mapzen coastlines and water',
-                type: 'base',
-                renderMode: 'image',
-                renderOrder: function(a,b) {
-                        return a.get('sort_key') - b.get('sort_key');
-                },
-                source: new ol.source.VectorTile({
-                        url: '//vector.mapzen.com/osm/earth,water,boundaries/{z}/{x}/{y}.topojson?api_key=' + MapzenAPIKey,
-                        format: new ol.format.TopoJSON(),
-                        attributions: [
-                                new ol.Attribution({
-                                        html: 'Tiles courtesy of <a href="http://mapzen.com">Mapzen</a>'
-                                }),
-                                new ol.Attribution({
-                                        html: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                                })
-                        ],
-
-                        tileGrid: ol.tilegrid.createXYZ({
-                                preload: 3,
-                                maxZoom: 14,
-                                tileSize: [512, 512]
-                        }),
-
-                        wrapX: true
-                }),
-
-                style: function (feature) {
-                        return (styleMap[feature.get('kind')]);
-                }
-        });
 }

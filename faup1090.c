@@ -204,7 +204,6 @@ int main(int argc, char **argv) {
     // Set up output connection on stdout
     fatsv_output = makeFatsvOutputService();
     createGenericClient(fatsv_output, STDOUT_FILENO);
-    writeFATSVHeader();
 
     // Run it until we've lost either connection
     while (!Modes.exit && beast_input->connections && fatsv_output->connections) {
