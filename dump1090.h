@@ -79,6 +79,10 @@
 #include <sys/ioctl.h>
 #include <time.h>
 #include <limits.h>
+#ifdef __APPLE__
+#include <alloca.h>
+#include <strings.h>
+#endif
 
 #include "compat/compat.h"
 #include "dsp/generated/starch.h"
