@@ -1,5 +1,5 @@
 #!/bin/bash
-VER=1.21.1
+VER=1.21.2
 
 wget https://github.com/mongodb/mongo-c-driver/releases/download/${VER}/mongo-c-driver-${VER}.tar.gz
 tar xzf mongo-c-driver-${VER}.tar.gz
