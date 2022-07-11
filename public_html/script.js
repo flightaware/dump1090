@@ -5,7 +5,6 @@
 
 var DefaultSiteElevationAsl =0;	////
 var SiteElevationAsl //// will be set from LocalStorage
-const SiteAltFeet        = 0; ////
 var LowestElevationAngle = 90.0; ////
 var HighestElevationAngle= 0.0; ////
 var SpecialElevations    = [ { exceptional: -0.5, markerColor: 'rgb(255, 0, 0)', logColour: "yellow"},
@@ -1754,7 +1753,7 @@ function refreshTableInfo() {
 						
 ////
 
-			var elevationAngle  = format_elevation(SiteAltFeet, tableplane.sitedist, tableplane.altitude, tableplane.gs);
+			var elevationAngle  = format_elevation(SiteElevationAsl, tableplane.sitedist, tableplane.altitude, tableplane.gs);
 			tableplane.elevation =  elevationAngle;
 
 			
@@ -1798,7 +1797,7 @@ function refreshTableInfo() {
 									'?' : '('+tableplane.registration+')' ) :  tableplane.flight;
 
 				        console.log(timestamp.toLocaleString()+" "+tableplane.tr.cells[20].textContent+" -> "+
-								km+" Km @ ("+ tableplane.altitude+" - "+ SiteAltFeet+" ft) "+ 
+								km+" Km @ ("+ tableplane.altitude+" - "+ SiteElevationAsl+" ft) "+ 
 								identity +" ("+ml+" ml / "+nm+" NM)");
         				}
 				}
