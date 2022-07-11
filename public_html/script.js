@@ -2,6 +2,19 @@
 "use strict";
 
 // Define our global variables
+
+var DefaultSiteElevationAsl =0;	////
+var SiteElevationAsl //// will be set from LocalStorage
+var LowestElevationAngle = 90.0; ////
+var HighestElevationAngle= 0.0; ////
+var SpecialElevations    = [ { exceptional: -0.5, markerColor: 'rgb(255, 0, 0)', logColour: "yellow"},
+                             { exceptional: -1.0, markerColor: 'rgb(0, 255, 0)', logColour: "orange"},
+                             { exceptional: -1.5, markerColor: 'rgb(0, 0, 255)', logColour: "pink"} ] ; ////
+var MaximumMessageRate = 0.0 ////
+var MaximumTrackedAircraft = 0; ////
+var MaximumTrackedAircraftPositions = 0; ////
+var logTime=0; ////
+
 var OLMap         = null;
 var StaticFeatures = new ol.Collection();
 var SiteCircleFeatures = new ol.Collection();
@@ -88,7 +101,7 @@ var checkbox_div_map = new Map ([
         ['#airframes_col_checkbox', '#airframes_mode_s_link'],
         ['#fa_modes_link_checkbox', '#flightaware_mode_s_link'],
         ['#fa_photo_link_checkbox', '#flightaware_photo_link'],
-
+		['#elevation_col_checkbox', '#elevation'], ////
 ]);
 
 var DefaultMinMaxFilters = {
@@ -1101,6 +1114,8 @@ function initialize_map() {
 		toggleLayer('#acpositions_checkbox', 'ac_positions');
 	});
 
+	$('#elevation_asl_button').click(onSetElevationAsl);
+
 	// Add home marker if requested
 	if (SitePosition) {
                 var markerStyle = new ol.style.Style({
@@ -1431,6 +1446,7 @@ function refreshSelected() {
         $('#selected_sitedist').text(format_distance_long(selected.sitedist, DisplayUnits));
         $('#selected_rssi').text(selected.rssi.toFixed(1) + ' dBFS');
         $('#selected_message_count').text(selected.messages);
+		$('#selected_elevation').text(selected.elevation); ////
         $('#selected_photo_link').html(getFlightAwarePhotoLink(selected.registration));
         $('#selected_altitude_geom').text(format_altitude_long(selected.alt_geom, selected.geom_rate, DisplayUnits));
         $('#selected_mag_heading').text(format_track_long(selected.mag_heading));
@@ -1734,9 +1750,99 @@ function refreshTableInfo() {
                         tableplane.tr.cells[17].innerHTML = getAirframesModeSLink(tableplane.icao);
                         tableplane.tr.cells[18].innerHTML = getFlightAwareModeSLink(tableplane.icao, tableplane.flight);
                         tableplane.tr.cells[19].innerHTML = getFlightAwarePhotoLink(tableplane.registration);
+						
+////
+
+			var elevationAngle  = format_elevation(SiteAltFeet, tableplane.sitedist, tableplane.altitude, tableplane.gs);
+			tableplane.elevation =  elevationAngle;
+
+			if(  elevationAngle > 90 ) {
+
+				tableplane.tr.cells[20].textContent = '';
+			}
+			else {
+                 tableplane.tr.cells[20].textContent = tableplane.elevation+'\u00b0';
+
+				// OPTIONAL: log the ident of the lowest and highest elevation angles seen so far
+
+				let timestamp = new Date();
+				let secondsNow= (Date.now() / 1000) >> 0;	//// ms to integer seconds
+
+				if( secondsNow > logTime ) {	//// ensures no more than once a second
+
+					logTime = secondsNow;
+
+					let log=false;
+
+	        			if(  compareNumeric( elevationAngle, LowestElevationAngle) < 0 && null != tableplane.track ) {
+
+							LowestElevationAngle = elevationAngle;
+							log=true;
+						}
+
+						if(  compareNumeric( elevationAngle, HighestElevationAngle) > 0 && null != tableplane.track ) {
+
+								HighestElevationAngle = elevationAngle;
+								log=true;
+						}
+
+					if( true == log ) {
+
+						let ml = Number.parseFloat(tableplane.sitedist/1609.34).toFixed(1);  // metres in imperial  mile
+				        let nm = Number.parseFloat(tableplane.sitedist/1852).toFixed(1);  // metres in nautical mile
+						let km = Number.parseFloat(tableplane.sitedist/1000).toFixed(3);  // metres in Km
+
+						let identity = null == flight ? ( null == tableplane.registration ? 
+									'?' : '('+tableplane.registration+')' ) :  tableplane.flight;
+
+				        console.log(timestamp.toLocaleString()+" "+tableplane.tr.cells[20].textContent+" -> "+
+								km+" Km @ ("+ tableplane.altitude+" - "+ SiteAltFeet+" ft) "+ 
+								identity +" ("+ml+" ml / "+nm+" NM)");
+        				}
+				}
+			}
+
+			////						
+						
                         tableplane.tr.className = classes;
                 }
         }
+
+        ////  OPTIONAL: log highest message rates & # aircraft
+
+        let log=false;
+        let colour="background: white;";
+
+        if( null != MessageRate ) {
+
+            if( MessageRate > MaximumMessageRate ) {
+
+                MaximumMessageRate = MessageRate;
+                colour="background: LightGreen;";
+                log=true;
+            }
+
+            if( TrackedAircraft > MaximumTrackedAircraft ) {
+
+                MaximumTrackedAircraft = TrackedAircraft;
+                log=true;
+            }
+
+            if( TrackedAircraftPositions > MaximumTrackedAircraftPositions ) {
+
+                MaximumTrackedAircraftPositions = TrackedAircraftPositions;
+                log=true;
+            }
+
+            if( true == log ) {
+
+                console.log("%c%s",colour,timestamp.toLocaleString()+" ADS-B Message Rate: "+MessageRate.toFixed(1)+"/sec(max="+
+                    MaximumMessageRate.toFixed(1)+") Aircraft: "+TrackedAircraft+"(max="+MaximumTrackedAircraft+
+                    ") Positions: " +TrackedAircraftPositions+"(max="+MaximumTrackedAircraftPositions+")");
+            }
+        }
+
+        ////
 
         if (show_squawk_warning) {
                 $("#SpecialSquawkWarning").css('display','block');
@@ -1783,6 +1889,7 @@ function sortByRssi()     { sortBy('rssi',    compareNumeric, function(x) { retu
 function sortByLatitude()   { sortBy('lat',   compareNumeric, function(x) { return (x.position !== null ? x.position[1] : null) }); }
 function sortByLongitude()  { sortBy('lon',   compareNumeric, function(x) { return (x.position !== null ? x.position[0] : null) }); }
 function sortByDataSource() { sortBy('data_source',     compareAlpha, function(x) { return x.getDataSource() } ); }
+function sortByElevation()  { sortBy('elevation',     compareNumeric, function(x) { return x.elevation; }); } ////
 
 var sortId = '';
 var sortCompare = null;

@@ -307,3 +307,52 @@ function format_nac_v (value) {
 			return "n/a";
 	}
 }
+
+////
+
+function format_elevation(siteAltFeet, siteDistMetres, altitudeFeet) {
+
+        var ftHeight = 'ground' == altitudeFeet ? 0 : altitudeFeet;
+
+        if( ftHeight < 0 ) {
+
+                return 93;      // it happens
+        }
+
+        if( null == siteDistMetres) {
+
+                return 92;      // invalid angle
+        }
+
+        if( null == altitudeFeet ) {
+
+                return 91;      // invalid angle
+        }
+
+        if( 0 == siteDistMetres ) {     // craft overhead
+
+                return 90;
+        }
+
+        var ftDistance = siteDistMetres*3.28084;
+
+        var ftDiff = ftHeight - siteAltFeet;
+
+		// make approximation for  2 * Earth radius in ft
+
+        var radiansAngularDrop = ftDistance / 41784593;
+
+        var radians = ftDiff / ftDistance;
+
+        var elevAngleRadians = Math.atan( radians - radiansAngularDrop);
+
+        var elevAngleDegrees = 57.29577951308232 * elevAngleRadians;
+
+        var result =  Math.round( 1000*elevAngleDegrees) / 1000;
+
+        var result3dp = Number.parseFloat(result).toFixed(3);
+
+        return result3dp;
+}
+
+////
