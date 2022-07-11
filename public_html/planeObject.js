@@ -3,7 +3,7 @@
 function PlaneObject(icao) {
 	// Info about the plane
 
-this.count = 0;	////
+		this.count = 0;	////
 
         this.icao      = icao;
         this.icaorange = findICAORange(icao);
@@ -351,38 +351,21 @@ PlaneObject.prototype.getMarkerColor = function() {
         if (this.squawk in SpecialSquawks)
                 return SpecialSquawks[this.squawk].markerColor;
 
-
-////
-
-	this.count ++;
-
-
+		////
+		this.count ++;
 
         for( let index=0; index < SpecialElevations.length; index++) {
 
+			if( this.elevation < SpecialElevations[index].exceptional ) {
 
+				if( 0 == parseInt(this.count)%2 ) {
 
-                if( this.elevation < SpecialElevations[index].exceptional ) {
-
-
-
-        		 if( 0 == parseInt(this.count)%2 ) {
-
-
-
-				return SpecialElevations[index].markerColor;
-
-               		}
-
-
-
-			break;
-
-                }
-
-	}
-
-////
+					return SpecialElevations[index].markerColor;
+               	}
+				break;
+            }
+		}
+		////
 
         var h, s, l;
 

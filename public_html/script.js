@@ -5,27 +5,14 @@
 
 var DefaultSiteElevationAsl =0;	////
 var SiteElevationAsl //// will be set from LocalStorage
-
-//const SiteAltFeet        = 361; ////
-
 var LowestElevationAngle = 90.0; ////
-
 var HighestElevationAngle= 0.0; ////
-
 var SpecialElevations    = [ { exceptional: -0.5, markerColor: 'rgb(255, 0, 0)', logColour: "yellow"},
-
                              { exceptional: -1.0, markerColor: 'rgb(0, 255, 0)', logColour: "orange"},
-
                              { exceptional: -1.5, markerColor: 'rgb(0, 0, 255)', logColour: "pink"} ] ; ////
-
-
-
 var MaximumMessageRate = 0.0 ////
-
 var MaximumTrackedAircraft = 0; ////
-
 var MaximumTrackedAircraftPositions = 0; ////
-
 var logTime=0; ////
 
 var OLMap         = null;
@@ -114,9 +101,7 @@ var checkbox_div_map = new Map ([
         ['#airframes_col_checkbox', '#airframes_mode_s_link'],
         ['#fa_modes_link_checkbox', '#flightaware_mode_s_link'],
         ['#fa_photo_link_checkbox', '#flightaware_photo_link'],
-
-['#elevation_col_checkbox', '#elevation'], ////
-
+		['#elevation_col_checkbox', '#elevation'], ////
 ]);
 
 var DefaultMinMaxFilters = {
@@ -1470,7 +1455,7 @@ function refreshSelected() {
         $('#selected_message_count').text(selected.messages);
         $('#selected_photo_link').html(getFlightAwarePhotoLink(selected.registration));
 
-$('#selected_elevation').text(selected.elevation); ////
+		$('#selected_elevation').text(selected.elevation); ////
 
         $('#selected_altitude_geom').text(format_altitude_long(selected.alt_geom, selected.geom_rate, DisplayUnits));
         $('#selected_mag_heading').text(format_track_long(selected.mag_heading));
@@ -1757,128 +1742,78 @@ function refreshTableInfo() {
 				tableplane.tr.cells[2].className = "";
 			}
 
-                        tableplane.tr.cells[3].textContent = (tableplane.registration !== null ? tableplane.registration : "");
-                        tableplane.tr.cells[4].textContent = (tableplane.icaotype !== null ? tableplane.icaotype : "");
-                        tableplane.tr.cells[5].textContent = (tableplane.squawk !== null ? tableplane.squawk : "");
-                        tableplane.tr.cells[6].innerHTML = format_altitude_brief(tableplane.altitude, tableplane.vert_rate, DisplayUnits);
-                        tableplane.tr.cells[7].textContent = format_speed_brief(tableplane.gs, DisplayUnits);
-                        tableplane.tr.cells[8].textContent = format_vert_rate_brief(tableplane.vert_rate, DisplayUnits);
-                        tableplane.tr.cells[9].textContent = format_distance_brief(tableplane.sitedist, DisplayUnits);
-                        tableplane.tr.cells[10].textContent = format_track_brief(tableplane.track);
-                        tableplane.tr.cells[11].textContent = tableplane.messages;
-                        tableplane.tr.cells[12].textContent = tableplane.seen.toFixed(0);
-                        tableplane.tr.cells[13].textContent = (tableplane.rssi !== null ? tableplane.rssi : "");
-                        tableplane.tr.cells[14].textContent = (tableplane.position !== null ? tableplane.position[1].toFixed(4) : "");
-                        tableplane.tr.cells[15].textContent = (tableplane.position !== null ? tableplane.position[0].toFixed(4) : "");
-                        tableplane.tr.cells[16].textContent = format_data_source(tableplane.getDataSource());
-                        tableplane.tr.cells[17].innerHTML = getAirframesModeSLink(tableplane.icao);
-                        tableplane.tr.cells[18].innerHTML = getFlightAwareModeSLink(tableplane.icao, tableplane.flight);
-                        tableplane.tr.cells[19].innerHTML = getFlightAwarePhotoLink(tableplane.registration);
+				tableplane.tr.cells[3].textContent = (tableplane.registration !== null ? tableplane.registration : "");
+				tableplane.tr.cells[4].textContent = (tableplane.icaotype !== null ? tableplane.icaotype : "");
+				tableplane.tr.cells[5].textContent = (tableplane.squawk !== null ? tableplane.squawk : "");
+				tableplane.tr.cells[6].innerHTML = format_altitude_brief(tableplane.altitude, tableplane.vert_rate, DisplayUnits);
+				tableplane.tr.cells[7].textContent = format_speed_brief(tableplane.gs, DisplayUnits);
+				tableplane.tr.cells[8].textContent = format_vert_rate_brief(tableplane.vert_rate, DisplayUnits);
+				tableplane.tr.cells[9].textContent = format_distance_brief(tableplane.sitedist, DisplayUnits);
+				tableplane.tr.cells[10].textContent = format_track_brief(tableplane.track);
+				tableplane.tr.cells[11].textContent = tableplane.messages;
+				tableplane.tr.cells[12].textContent = tableplane.seen.toFixed(0);
+				tableplane.tr.cells[13].textContent = (tableplane.rssi !== null ? tableplane.rssi : "");
+				tableplane.tr.cells[14].textContent = (tableplane.position !== null ? tableplane.position[1].toFixed(4) : "");
+				tableplane.tr.cells[15].textContent = (tableplane.position !== null ? tableplane.position[0].toFixed(4) : "");
+				tableplane.tr.cells[16].textContent = format_data_source(tableplane.getDataSource());
+				tableplane.tr.cells[17].innerHTML = getAirframesModeSLink(tableplane.icao);
+				tableplane.tr.cells[18].innerHTML = getFlightAwareModeSLink(tableplane.icao, tableplane.flight);
+				tableplane.tr.cells[19].innerHTML = getFlightAwarePhotoLink(tableplane.registration);
 
 
-			////
+				////
+				var elevationAngle  = format_elevation(SiteElevationAsl, tableplane.sitedist, tableplane.altitude, tableplane.gs);
+				tableplane.elevation =  elevationAngle;
 
-			var elevationAngle  = format_elevation(SiteElevationAsl, tableplane.sitedist, tableplane.altitude, tableplane.gs);
+				if(     elevationAngle > 90 ) {
 
+					tableplane.tr.cells[20].textContent = '';
+				}
+				else {
 
+					tableplane.tr.cells[20].textContent = tableplane.elevation+'\u00b0';
 
-			tableplane.elevation =  elevationAngle;
+					// OPTIONAL: log the ident of the lowest and highest elevation angles seen so far
 
+					let timestamp = new Date();
+					let secondsNow= (Date.now() / 1000) >> 0;	//// ms to integer seconds
 
+					if( secondsNow > logTime ) {	//// ensures no more than once a second
 
-			if(     elevationAngle > 90 ) {
+						logTime = secondsNow;
+						let log=false;
 
-				tableplane.tr.cells[20].textContent = '';
-
-			}
-
-			else {
-
-                        	tableplane.tr.cells[20].textContent = tableplane.elevation+'\u00b0';
-
-
-
-				// OPTIONAL: log the ident of the lowest and highest elevation angles seen so far
-
-
-
-				let timestamp = new Date();
-
-				let secondsNow= (Date.now() / 1000) >> 0;	//// ms to integer seconds
-
-
-
-				if( secondsNow > logTime ) {	//// ensures no more than once a second
-
-
-
-					logTime = secondsNow;
-
-
-
-					let log=false;
-
-
-
-	        			if(  compareNumeric( elevationAngle, LowestElevationAngle) < 0 && null != tableplane.track ) {
-
-
+						if(  compareNumeric( elevationAngle, LowestElevationAngle) < 0 && null != tableplane.track ) {
 
 							LowestElevationAngle = elevationAngle;
-
 							log=true;
-
 						}
-
-
 
 						if(  compareNumeric( elevationAngle, HighestElevationAngle) > 0 && null != tableplane.track ) {
 
-
-
-								HighestElevationAngle = elevationAngle;
-
-								log=true;
-
+							HighestElevationAngle = elevationAngle;
+							log=true;
 						}
 
+						if( true == log ) {
 
+							let ml = Number.parseFloat(tableplane.sitedist/1609.34).toFixed(1);  // metres in imperial  mile
+							let nm = Number.parseFloat(tableplane.sitedist/1852).toFixed(1);  // metres in nautical mile
+							let km = Number.parseFloat(tableplane.sitedist/1000).toFixed(3);  // metres in Km
 
-					if( true == log ) {
+							let identity = null == flight ? ( null == tableplane.registration ? 
+										'?' : '('+tableplane.registration+')' ) :  tableplane.flight;
 
-
-
-						let ml = Number.parseFloat(tableplane.sitedist/1609.34).toFixed(1);  // metres in imperial  mile
-
-				        let nm = Number.parseFloat(tableplane.sitedist/1852).toFixed(1);  // metres in nautical mile
-
-						let km = Number.parseFloat(tableplane.sitedist/1000).toFixed(3);  // metres in Km
-
-
-
-						let identity = null == flight ? ( null == tableplane.registration ? 
-
-									'?' : '('+tableplane.registration+')' ) :  tableplane.flight;
-
-
-
-				                console.log(timestamp.toLocaleString()+" "+tableplane.tr.cells[20].textContent+" -> "+
-
-								km+" Km @ ("+ tableplane.altitude+" - "+ SiteElevationAsl+" ft) "+ 
-
-								identity +" ("+ml+" ml / "+nm+" NM)");
-
-        				}
-
+							console.log(timestamp.toLocaleString()+" "+tableplane.tr.cells[20].textContent+" -> "+
+									km+" Km @ ("+ tableplane.altitude+" - "+ SiteElevationAsl+" ft) "+ 
+									identity +" ("+ml+" ml / "+nm+" NM)");
+						}
+					}
 				}
+				////
 
+				tableplane.tr.className = classes;
 			}
-
-			////
-
-
-                        tableplane.tr.className = classes;
-                }
         }
 
         if (show_squawk_warning) {
