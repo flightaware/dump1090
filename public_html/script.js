@@ -5,14 +5,27 @@
 
 var DefaultSiteElevationAsl =0;	////
 var SiteElevationAsl //// will be set from LocalStorage
+
+//const SiteAltFeet        = 361; ////
+
 var LowestElevationAngle = 90.0; ////
+
 var HighestElevationAngle= 0.0; ////
+
 var SpecialElevations    = [ { exceptional: -0.5, markerColor: 'rgb(255, 0, 0)', logColour: "yellow"},
+
                              { exceptional: -1.0, markerColor: 'rgb(0, 255, 0)', logColour: "orange"},
+
                              { exceptional: -1.5, markerColor: 'rgb(0, 0, 255)', logColour: "pink"} ] ; ////
+
+
+
 var MaximumMessageRate = 0.0 ////
+
 var MaximumTrackedAircraft = 0; ////
+
 var MaximumTrackedAircraftPositions = 0; ////
+
 var logTime=0; ////
 
 var OLMap         = null;
@@ -101,7 +114,9 @@ var checkbox_div_map = new Map ([
         ['#airframes_col_checkbox', '#airframes_mode_s_link'],
         ['#fa_modes_link_checkbox', '#flightaware_mode_s_link'],
         ['#fa_photo_link_checkbox', '#flightaware_photo_link'],
-		['#elevation_col_checkbox', '#elevation'], ////
+
+['#elevation_col_checkbox', '#elevation'], ////
+
 ]);
 
 var DefaultMinMaxFilters = {
@@ -482,6 +497,8 @@ function initialize() {
         });
 
         // Initialize settings from local storage
+		setElevation();	////
+		
         filterGroundVehicles(false);
         filterBlockedMLAT(false);
         toggleAltitudeChart(false);
@@ -869,6 +886,10 @@ function applyUrlQueryStrings() {
     if (params.get('ringInterval')) {
         setRingInterval(params.get('ringInterval'));
     }
+	
+	if (params.get('siteElevation')) {
+        setSiteElevation(params.get('siteElevation'));
+    }
 }
 
 // Make a LineString with 'points'-number points
@@ -1114,7 +1135,8 @@ function initialize_map() {
 		toggleLayer('#acpositions_checkbox', 'ac_positions');
 	});
 
-	$('#elevation_asl_button').click(onSetElevationAsl);
+
+$('#elevation_asl_button').click(onSetElevationAsl);
 
 	// Add home marker if requested
 	if (SitePosition) {
@@ -1446,8 +1468,10 @@ function refreshSelected() {
         $('#selected_sitedist').text(format_distance_long(selected.sitedist, DisplayUnits));
         $('#selected_rssi').text(selected.rssi.toFixed(1) + ' dBFS');
         $('#selected_message_count').text(selected.messages);
-		$('#selected_elevation').text(selected.elevation); ////
         $('#selected_photo_link').html(getFlightAwarePhotoLink(selected.registration));
+
+$('#selected_elevation').text(selected.elevation); ////
+
         $('#selected_altitude_geom').text(format_altitude_long(selected.alt_geom, selected.geom_rate, DisplayUnits));
         $('#selected_mag_heading').text(format_track_long(selected.mag_heading));
         $('#selected_true_heading').text(format_track_long(selected.true_heading));
@@ -1750,101 +1774,112 @@ function refreshTableInfo() {
                         tableplane.tr.cells[17].innerHTML = getAirframesModeSLink(tableplane.icao);
                         tableplane.tr.cells[18].innerHTML = getFlightAwareModeSLink(tableplane.icao, tableplane.flight);
                         tableplane.tr.cells[19].innerHTML = getFlightAwarePhotoLink(tableplane.registration);
-						
-////
+
+
+			////
 
 			var elevationAngle  = format_elevation(SiteElevationAsl, tableplane.sitedist, tableplane.altitude, tableplane.gs);
+
+
+
 			tableplane.elevation =  elevationAngle;
 
-			
-			
-			if(  elevationAngle > 90 ) {
+
+
+			if(     elevationAngle > 90 ) {
 
 				tableplane.tr.cells[20].textContent = '';
+
 			}
+
 			else {
-                 tableplane.tr.cells[20].textContent = tableplane.elevation+'\u00b0';
+
+                        	tableplane.tr.cells[20].textContent = tableplane.elevation+'\u00b0';
+
+
 
 				// OPTIONAL: log the ident of the lowest and highest elevation angles seen so far
+
+
+
 				let timestamp = new Date();
+
 				let secondsNow= (Date.now() / 1000) >> 0;	//// ms to integer seconds
+
+
 
 				if( secondsNow > logTime ) {	//// ensures no more than once a second
 
+
+
 					logTime = secondsNow;
+
+
 
 					let log=false;
 
+
+
 	        			if(  compareNumeric( elevationAngle, LowestElevationAngle) < 0 && null != tableplane.track ) {
 
+
+
 							LowestElevationAngle = elevationAngle;
+
 							log=true;
+
 						}
+
+
 
 						if(  compareNumeric( elevationAngle, HighestElevationAngle) > 0 && null != tableplane.track ) {
 
+
+
 								HighestElevationAngle = elevationAngle;
+
 								log=true;
+
 						}
+
+
 
 					if( true == log ) {
 
+
+
 						let ml = Number.parseFloat(tableplane.sitedist/1609.34).toFixed(1);  // metres in imperial  mile
+
 				        let nm = Number.parseFloat(tableplane.sitedist/1852).toFixed(1);  // metres in nautical mile
+
 						let km = Number.parseFloat(tableplane.sitedist/1000).toFixed(3);  // metres in Km
 
+
+
 						let identity = null == flight ? ( null == tableplane.registration ? 
+
 									'?' : '('+tableplane.registration+')' ) :  tableplane.flight;
 
-				        console.log(timestamp.toLocaleString()+" "+tableplane.tr.cells[20].textContent+" -> "+
+
+
+				                console.log(timestamp.toLocaleString()+" "+tableplane.tr.cells[20].textContent+" -> "+
+
 								km+" Km @ ("+ tableplane.altitude+" - "+ SiteElevationAsl+" ft) "+ 
+
 								identity +" ("+ml+" ml / "+nm+" NM)");
+
         				}
+
 				}
+
 			}
 
-			////						
-						
+			////
+
+
                         tableplane.tr.className = classes;
                 }
         }
-
-        ////  OPTIONAL: log highest message rates & # aircraft
-
-        let log=false;
-        let colour="background: white;";
-
-        if( null != MessageRate ) {
-
-            if( MessageRate > MaximumMessageRate ) {
-
-                MaximumMessageRate = MessageRate;
-                colour="background: LightGreen;";
-                log=true;
-            }
-
-            if( TrackedAircraft > MaximumTrackedAircraft ) {
-
-                MaximumTrackedAircraft = TrackedAircraft;
-                log=true;
-            }
-
-            if( TrackedAircraftPositions > MaximumTrackedAircraftPositions ) {
-
-                MaximumTrackedAircraftPositions = TrackedAircraftPositions;
-                log=true;
-            }
-
-            if( true == log ) {
-
-				let timestamp = new Date();
-                console.log("%c%s",colour,timestamp.toLocaleString()+" ADS-B Message Rate: "+MessageRate.toFixed(1)+"/sec(max="+
-                    MaximumMessageRate.toFixed(1)+") Aircraft: "+TrackedAircraft+"(max="+MaximumTrackedAircraft+
-                    ") Positions: " +TrackedAircraftPositions+"(max="+MaximumTrackedAircraftPositions+")");
-            }
-        }
-
-        ////
 
         if (show_squawk_warning) {
                 $("#SpecialSquawkWarning").css('display','block');
@@ -1891,6 +1926,7 @@ function sortByRssi()     { sortBy('rssi',    compareNumeric, function(x) { retu
 function sortByLatitude()   { sortBy('lat',   compareNumeric, function(x) { return (x.position !== null ? x.position[1] : null) }); }
 function sortByLongitude()  { sortBy('lon',   compareNumeric, function(x) { return (x.position !== null ? x.position[0] : null) }); }
 function sortByDataSource() { sortBy('data_source',     compareAlpha, function(x) { return x.getDataSource() } ); }
+
 function sortByElevation()  { sortBy('elevation',     compareNumeric, function(x) { return x.elevation; }); } ////
 
 var sortId = '';
@@ -2146,6 +2182,7 @@ function resetMap() {
         localStorage['ZoomLvl']   = ZoomLvl = DefaultZoomLvl;
 
         // Reset to default range rings
+		localStorage['SiteCirclesElevation'] = SiteCirclesElevation = DefaultSiteCirclesElevation;
         localStorage['SiteCirclesCount'] = SiteCirclesCount = DefaultSiteCirclesCount;
         localStorage['SiteCirclesBaseDistance'] = SiteCirclesBaseDistance = DefaultSiteCirclesBaseDistance;
         localStorage['SiteCirclesInterval'] = SiteCirclesInterval = DefaultSiteCirclesInterval;
@@ -2154,7 +2191,7 @@ function resetMap() {
 
         // Set and refresh
         OLMap.getView().setZoom(ZoomLvl);
-	OLMap.getView().setCenter(ol.proj.fromLonLat([CenterLon, CenterLat]));
+		OLMap.getView().setCenter(ol.proj.fromLonLat([CenterLon, CenterLat]));
 	
 	selectPlaneByHex(null,false);
 }
@@ -2231,6 +2268,7 @@ function setColumnVisibility() {
     ]
 
     // Show default columns if checkboxes have not been set
+	
     for (var i=0; i < defaultCheckBoxes.length; i++) {
         var checkBoxdiv = defaultCheckBoxes[i];
         var columnDiv = checkbox_div_map.get(checkBoxdiv)
@@ -2241,6 +2279,7 @@ function setColumnVisibility() {
                 showColumn(infoTable, columnDiv, true);
         }
     }
+	
 
     // Now check local storage checkbox status
     checkbox_div_map.forEach(function (div, checkbox) {
@@ -2750,6 +2789,7 @@ function setRangeRingVisibility (showhide) {
     });
 }
 
+
 // simple function to set range ring count
 function setRingCount(val) {
     localStorage['SiteCirclesCount'] = val;
@@ -2773,11 +2813,13 @@ function setRingInterval(val) {
 
 // Set range ring globals and populate form values
 function setRangeRings() {
+
     SiteCirclesCount = Number(localStorage['SiteCirclesCount']) || DefaultSiteCirclesCount;
     SiteCirclesBaseDistance = Number(localStorage['SiteCirclesBaseDistance']) || DefaultSiteCirclesBaseDistance;
     SiteCirclesInterval = Number(localStorage['SiteCirclesInterval']) || DefaultSiteCirclesInterval;
 
     // Populate text fields with current values
+
     $('#range_ring_count').val(SiteCirclesCount);
     $('#range_ring_base').val(SiteCirclesBaseDistance);
     $('#range_ring_interval').val(SiteCirclesInterval);
@@ -2786,6 +2828,7 @@ function setRangeRings() {
 // redraw range rings with form values
 function onSetRangeRings() {
     // Save state to localStorage
+
     localStorage.setItem('SiteCirclesCount', parseFloat($("#range_ring_count").val().trim()));
     localStorage.setItem('SiteCirclesBaseDistance', parseFloat($("#range_ring_base").val().trim()));
     localStorage.setItem('SiteCirclesInterval', parseFloat($("#range_ring_interval").val().trim()));
@@ -2795,8 +2838,8 @@ function onSetRangeRings() {
     createSiteCircleFeatures();
 }
 
-
 //// functions to support configuration of global SiteElevationAsl
+
 function setElevationAsl(val) {
     localStorage['SiteElevationAsl'] = val;
     setElevation();
@@ -2805,17 +2848,21 @@ function setElevationAsl(val) {
 function setElevation() {
 	
 	SiteElevationAsl = Number(localStorage['SiteElevationAsl']) || DefaultSiteElevationAsl;
+	
 	// Populate text field with current value
+
     $('#elevation_asl').val(SiteElevationAsl);
 }
 
 function onSetElevationAsl() {
     // Save state to localStorage
+
     localStorage.setItem('SiteElevationAsl', parseFloat($("#elevation_asl").val().trim()));
+
     setElevation();
 }
-////
 
+////
 
 function toggleColumn(div, checkbox, toggled) {
 	if (typeof localStorage[checkbox] === 'undefined') {

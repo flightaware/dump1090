@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="utf-8"/>
-		<link rel="stylesheet" type="text/css" href="style.css?v=8.0" />
+		<link rel="stylesheet" type="text/css" href="style.css?v=5.0" />
 		<link rel="stylesheet" href="jquery/jquery-ui-1.11.4-smoothness.css" />
 		<script src="jquery/jquery-3.0.0.min.js"></script>
 		<script src="jquery/jquery-ui-1.11.4.min.js"></script>
@@ -17,15 +17,15 @@
 		<script src="noUiSlider/distribute/nouislider.min.js"></script>
 		<link rel="stylesheet" href="noUiSlider/distribute/nouislider.min.css"/>
 
-		<script type="text/javascript" src="config.js?v=8.0"></script>
-		<script type="text/javascript" src="markers.js?v=8.0"></script>
-		<script type="text/javascript" src="dbloader.js?v=8.0"></script>
-		<script type="text/javascript" src="registrations.js?v=8.0"></script>
-		<script type="text/javascript" src="planeObject.js?v=8.0"></script>
-		<script type="text/javascript" src="formatter.js?v=2?v=8.0"></script>
-		<script type="text/javascript" src="flags.js?v=8.0"></script>
-		<script type="text/javascript" src="layers.js?v=8.0"></script>
-		<script type="text/javascript" src="script.js?v=8.0"></script>
+		<script type="text/javascript" src="config.js?v=5.0"></script>
+		<script type="text/javascript" src="markers.js?v=5.0"></script>
+		<script type="text/javascript" src="dbloader.js?v=5.0"></script>
+		<script type="text/javascript" src="registrations.js?v=5.0"></script>
+		<script type="text/javascript" src="planeObject.js?v=5.0"></script>
+		<script type="text/javascript" src="formatter.js?v=2?v=5.0"></script>
+		<script type="text/javascript" src="flags.js?v=5.0"></script>
+		<script type="text/javascript" src="layers.js?v=5.0"></script>
+		<script type="text/javascript" src="script.js?v=5.0"></script>
 		<title>PiAware SkyAware</title>
 	</head>
 
@@ -99,16 +99,23 @@
 
 			<div id="settings_infoblock">
 				<div id="settings_close" class="settingsCloseBox"></div>
+				
 				<div>
-					<div id="units_container">
-						<label for="units_selector"><span class="infoBlockTitleText">Units:</span></label>
-						<select name="units_selector" id="units_selector">
-							<option value="nautical">Aeronautical</option>
-							<option value="metric">Metric</option>
-							<option value="imperial">Imperial</option>
-						</select>
-					</div>
 					<div class="settingsColumn">
+					
+						<div id="units_container">
+							<label for="units_selector"><span class="infoBlockTitleText">Units:</span></label>
+							<select name="units_selector" id="units_selector">
+								<option value="nautical">Aeronautical</option>
+								<option value="metric">Metric</option>
+								<option value="imperial">Imperial</option>
+							</select>
+						</div>
+
+					</div>
+					
+					<div class="settingsColumn">
+						
 						<div id="elevation_container">
 							<form id="elevation_form">
 								<div class="elevationOptions">
@@ -120,8 +127,11 @@
 								</div>
 							</form>
 						</div>	
+
 					</div>
-				</div>				
+				
+				</div>
+				
 				<div class="settingsColumn">
 					<div class="settingsOptionContainer">
 						<div class="infoBlockTitleText">Overlay Toggles</div>
@@ -172,6 +182,8 @@
 						<div class="settingsText">Show Aircraft Labels</div>
 					</div>
 				</div>
+
+								
 				<div id="range_ring_column" class="settingsOptionContainer">
 					<div class="infoBlockTitleText">Range Rings</div>
 				<form id="range_ring_form">
@@ -374,11 +386,20 @@
 											<div class="columnOptionContainer">
 												<div class="columnSelectCheckbox" id="fa_photo_link_checkbox"></div>
 												<div class="columnOptionText">Photos</div>
-											</div>											
-											<div class="columnOptionContainer">
-												<div class="columnSelectCheckbox" id="elevation_col_checkbox"></div>
-												<div class="columnOptionText">Elevation</div>
 											</div>
+
+
+
+						<div class="columnOptionContainer">
+
+								<div class="columnSelectCheckbox" id="elevation_col_checkbox"></div>
+
+								<div class="columnOptionText">Elevation</div>
+
+						</div>
+
+
+
 										</div>
 								</div>
 
@@ -407,7 +428,9 @@
 													<td id="airframes_mode_s_link">Airframes.org</td>
 													<td id="flightaware_mode_s_link">FlightAware</td>
 													<td id="flightaware_photo_link">Photos</td>
+
 													<td id="elevation" onclick="sortByElevation();">Elevation</td>
+
 												</tr>
 											</thead>
 											<tbody>
@@ -432,7 +455,9 @@
 													<td style="text-align: center">AIRFRAMES_MODE_S_LINK</td>
 													<td style="text-align: center">FLIGHTAWARE_MODE_S_LINK</td>
 													<td style="text-align: center">FLIGHTAWARE_PHOTO_LINK</td>
+
 													<td style="text-align: right">ELEVATION</td>
+
 												</tr>
 											</tbody>
 										</table>
