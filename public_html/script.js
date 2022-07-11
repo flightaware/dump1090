@@ -2781,7 +2781,8 @@ function setAngle() {
 function onSetNegativeAngle() {
     // Save state to localStorage
 
-    localStorage.setItem('SiteNegativeAngle', parseFloat($("#negative_angle").val().trim()));
+	var desiredNegativeAngle = parseFloat($("#negative_angle").val().trim());
+    localStorage.setItem('SiteNegativeAngle', desiredNegativeAngle < 0 ? desiredNegativeAngle : DefaultSiteNegativeAngle);
 
     setAngle();
 }
