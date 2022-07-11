@@ -5,6 +5,7 @@
 
 var DefaultSiteElevationAsl =0;	////
 var SiteElevationAsl //// will be set from LocalStorage
+const SiteAltFeet        = 0; ////
 var LowestElevationAngle = 90.0; ////
 var HighestElevationAngle= 0.0; ////
 var SpecialElevations    = [ { exceptional: -0.5, markerColor: 'rgb(255, 0, 0)', logColour: "yellow"},
@@ -1756,6 +1757,8 @@ function refreshTableInfo() {
 			var elevationAngle  = format_elevation(SiteAltFeet, tableplane.sitedist, tableplane.altitude, tableplane.gs);
 			tableplane.elevation =  elevationAngle;
 
+			
+			
 			if(  elevationAngle > 90 ) {
 
 				tableplane.tr.cells[20].textContent = '';
@@ -1764,7 +1767,6 @@ function refreshTableInfo() {
                  tableplane.tr.cells[20].textContent = tableplane.elevation+'\u00b0';
 
 				// OPTIONAL: log the ident of the lowest and highest elevation angles seen so far
-
 				let timestamp = new Date();
 				let secondsNow= (Date.now() / 1000) >> 0;	//// ms to integer seconds
 
@@ -1836,6 +1838,7 @@ function refreshTableInfo() {
 
             if( true == log ) {
 
+				let timestamp = new Date();
                 console.log("%c%s",colour,timestamp.toLocaleString()+" ADS-B Message Rate: "+MessageRate.toFixed(1)+"/sec(max="+
                     MaximumMessageRate.toFixed(1)+") Aircraft: "+TrackedAircraft+"(max="+MaximumTrackedAircraft+
                     ") Positions: " +TrackedAircraftPositions+"(max="+MaximumTrackedAircraftPositions+")");
@@ -2792,6 +2795,28 @@ function onSetRangeRings() {
 
     createSiteCircleFeatures();
 }
+
+
+//// functions to support configuration of global SiteElevationAsl
+function setElevationAsl(val) {
+    localStorage['SiteElevationAsl'] = val;
+    setElevation();
+}
+
+function setElevation() {
+	
+	SiteElevationAsl = Number(localStorage['SiteElevationAsl']) || DefaultSiteElevationAsl;
+	// Populate text field with current value
+    $('#elevation_asl').val(SiteElevationAsl);
+}
+
+function onSetElevationAsl() {
+    // Save state to localStorage
+    localStorage.setItem('SiteElevationAsl', parseFloat($("#elevation_asl").val().trim()));
+    setElevation();
+}
+////
+
 
 function toggleColumn(div, checkbox, toggled) {
 	if (typeof localStorage[checkbox] === 'undefined') {
