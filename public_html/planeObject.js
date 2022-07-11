@@ -353,17 +353,20 @@ PlaneObject.prototype.getMarkerColor = function() {
 
 		////
 		this.count ++;
+		
+		if( this.elevation < SiteNegativeAngle ) {
 
-        for( let index=0; index < SpecialElevations.length; index++) {
+			for( let index=0; index < SpecialElevations.length; index++) {
 
-			if( this.elevation < SpecialElevations[index].exceptional ) {
+				if( this.elevation < SpecialElevations[index].exceptional ) {
 
-				if( 0 == parseInt(this.count)%2 ) {
+					if( 0 == parseInt(this.count)%2 ) {
 
-					return SpecialElevations[index].markerColor;
-               	}
-				break;
-            }
+						return SpecialElevations[index].markerColor;
+					}
+					break;
+				}
+			}
 		}
 		////
 

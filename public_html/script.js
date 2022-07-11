@@ -4,12 +4,13 @@
 // Define our global variables
 
 var DefaultSiteElevationAsl =0;	////
+var DefaultSiteNegativeAngle= -0.5	////
 var SiteElevationAsl //// will be set from LocalStorage
-var LowestElevationAngle = 90.0; ////
-var HighestElevationAngle= 0.0; ////
-var SpecialElevations    = [ { exceptional: -0.5, markerColor: 'rgb(255, 0, 0)', logColour: "yellow"},
-                             { exceptional: -1.0, markerColor: 'rgb(0, 255, 0)', logColour: "orange"},
-                             { exceptional: -1.5, markerColor: 'rgb(0, 0, 255)', logColour: "pink"} ] ; ////
+var SiteNegativeAngle //// will be set from LocalStorage
+
+var SpecialElevations    = [ { exceptional: -0.0, markerColor: 'rgb(255, 0, 0)'},
+                             { exceptional: -1.0, markerColor: 'rgb(0, 255, 0)'},
+                             { exceptional: -1.5, markerColor: 'rgb(0, 0, 255)'} ] ; ////
 var MaximumMessageRate = 0.0 ////
 var MaximumTrackedAircraft = 0; ////
 var MaximumTrackedAircraftPositions = 0; ////
@@ -483,6 +484,7 @@ function initialize() {
 
         // Initialize settings from local storage
 		setElevation();	////
+		setNegativeAngle();////
 		
         filterGroundVehicles(false);
         filterBlockedMLAT(false);
@@ -1120,8 +1122,10 @@ function initialize_map() {
 		toggleLayer('#acpositions_checkbox', 'ac_positions');
 	});
 
-
-$('#elevation_asl_button').click(onSetElevationAsl);
+	////
+	$('#elevation_asl_button').click(onSetElevationAsl);
+	$('#negative_angle_button').click(onSetNegativeAngle);
+	////
 
 	// Add home marker if requested
 	if (SitePosition) {
@@ -1772,43 +1776,6 @@ function refreshTableInfo() {
 				else {
 
 					tableplane.tr.cells[20].textContent = tableplane.elevation+'\u00b0';
-
-					// OPTIONAL: log the ident of the lowest and highest elevation angles seen so far
-
-					let timestamp = new Date();
-					let secondsNow= (Date.now() / 1000) >> 0;	//// ms to integer seconds
-
-					if( secondsNow > logTime ) {	//// ensures no more than once a second
-
-						logTime = secondsNow;
-						let log=false;
-
-						if(  compareNumeric( elevationAngle, LowestElevationAngle) < 0 && null != tableplane.track ) {
-
-							LowestElevationAngle = elevationAngle;
-							log=true;
-						}
-
-						if(  compareNumeric( elevationAngle, HighestElevationAngle) > 0 && null != tableplane.track ) {
-
-							HighestElevationAngle = elevationAngle;
-							log=true;
-						}
-
-						if( true == log ) {
-
-							let ml = Number.parseFloat(tableplane.sitedist/1609.34).toFixed(1);  // metres in imperial  mile
-							let nm = Number.parseFloat(tableplane.sitedist/1852).toFixed(1);  // metres in nautical mile
-							let km = Number.parseFloat(tableplane.sitedist/1000).toFixed(3);  // metres in Km
-
-							let identity = null == flight ? ( null == tableplane.registration ? 
-										'?' : '('+tableplane.registration+')' ) :  tableplane.flight;
-
-							console.log(timestamp.toLocaleString()+" "+tableplane.tr.cells[20].textContent+" -> "+
-									km+" Km @ ("+ tableplane.altitude+" - "+ SiteElevationAsl+" ft) "+ 
-									identity +" ("+ml+" ml / "+nm+" NM)");
-						}
-					}
 				}
 				////
 
@@ -2773,7 +2740,7 @@ function onSetRangeRings() {
     createSiteCircleFeatures();
 }
 
-//// functions to support configuration of global SiteElevationAsl
+//// functions to support configuration of global SiteElevationAsl & SiteNegativeAngle
 
 function setElevationAsl(val) {
     localStorage['SiteElevationAsl'] = val;
@@ -2797,6 +2764,27 @@ function onSetElevationAsl() {
     setElevation();
 }
 
+function setNegativeAngle(val) {
+    localStorage['SiteNegativeAngle'] = val;
+    setAngle();
+}
+
+function setAngle() {
+	
+	SiteNegativeAngle = Number(localStorage['SiteNegativeAngle']) || DefaultSiteNegativeAngle;
+	
+	// Populate text field with current value
+
+    $('#negative_angle').val(SiteNegativeAngle);
+}
+
+function onSetNegativeAngle() {
+    // Save state to localStorage
+
+    localStorage.setItem('SiteNegativeAngle', parseFloat($("#negative_angle").val().trim()));
+
+    setAngle();
+}
 ////
 
 function toggleColumn(div, checkbox, toggled) {
