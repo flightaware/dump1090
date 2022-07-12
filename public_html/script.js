@@ -11,11 +11,7 @@ var SiteNegativeAngle //// will be set from LocalStorage
 var SpecialElevations    = [ { exceptional: -0.0, markerColor: 'rgb(255, 0, 0)'},
                              { exceptional: -1.0, markerColor: 'rgb(0, 255, 0)'},
                              { exceptional: -1.5, markerColor: 'rgb(0, 0, 255)'} ] ; ////
-var MaximumMessageRate = 0.0 ////
-var MaximumTrackedAircraft = 0; ////
-var MaximumTrackedAircraftPositions = 0; ////
-var logTime=0; ////
-
+							 
 var OLMap         = null;
 var StaticFeatures = new ol.Collection();
 var SiteCircleFeatures = new ol.Collection();
