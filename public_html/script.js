@@ -480,7 +480,7 @@ function initialize() {
 
         // Initialize settings from local storage
 		setElevation();	////
-		setNegativeAngle();////
+		setAngle();////
 		
         filterGroundVehicles(false);
         filterBlockedMLAT(false);
@@ -2086,6 +2086,9 @@ function resetMap() {
         localStorage['SiteCirclesInterval'] = SiteCirclesInterval = DefaultSiteCirclesInterval;
         setRangeRings();
         createSiteCircleFeatures();
+		
+		localStorage['SiteElevationAsl'] = SiteElevationAsl = DefaultSiteElevationAsl;	////
+		localStorage['SiteNegativeAngle'] = SiteNegativeAngle = DefaultSiteNegativeAngle;	////
 
         // Set and refresh
         OLMap.getView().setZoom(ZoomLvl);
