@@ -2080,7 +2080,7 @@ function resetMap() {
         localStorage['ZoomLvl']   = ZoomLvl = DefaultZoomLvl;
 
         // Reset to default range rings
-		localStorage['SiteCirclesElevation'] = SiteCirclesElevation = DefaultSiteCirclesElevation;
+////	localStorage['SiteCirclesElevation'] = SiteCirclesElevation = DefaultSiteCirclesElevation;
         localStorage['SiteCirclesCount'] = SiteCirclesCount = DefaultSiteCirclesCount;
         localStorage['SiteCirclesBaseDistance'] = SiteCirclesBaseDistance = DefaultSiteCirclesBaseDistance;
         localStorage['SiteCirclesInterval'] = SiteCirclesInterval = DefaultSiteCirclesInterval;
