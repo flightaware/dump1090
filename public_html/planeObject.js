@@ -42,6 +42,7 @@ function PlaneObject(icao) {
         this.vert_rate      = null;
 
         this.version        = null;
+        this.uat_version    = null;
 
         this.prev_position = null;
         this.prev_position_time = null;
@@ -84,6 +85,11 @@ function PlaneObject(icao) {
         this.typeDescription = null;
         this.wtc = null;
 
+        this.heard_on_1090 = false;
+        this.heard_on_978 = false;
+        this.heard_on_tisb = false;
+        this.heard_on_adsr = false;
+
         // request metadata
         getAircraftData(this.icao).done(function(data) {
                 if ("r" in data) {
@@ -103,31 +109,73 @@ function PlaneObject(icao) {
                 }
 
                 if (this.selected) {
-		        refreshSelected();
+                        refreshSelected();
                 }
         }.bind(this));
 }
 
 PlaneObject.prototype.isFiltered = function() {
+    // aircraft type filter
+    if (this.filter.aircraftTypeCode) {
+        if (this.icaotype === null || (typeof this.icaotype === 'string' && !this.icaotype.toUpperCase().trim().match(this.filter.aircraftTypeCode))) {
+                return true;
+        }
+    }
+
+    // aircraft ident filter
+    if (this.filter.aircraftIdent) {
+        if (this.flight === null || (typeof this.flight === 'string' && !this.flight.toUpperCase().trim().match(this.filter.aircraftIdent))) {
+                return true;
+        }
+    }
+
+    var dataSource = this.getDataSource();
+    if (dataSource === 'uat') {
+        if (!this.filter.UAT) return true;
+    } else if (dataSource === 'adsb_icao') {
+        if (!this.filter.ADSB) return true;
+    } else if (dataSource === 'mlat') {
+        if (!this.filter.MLAT) return true;
+    } else if (dataSource === 'tisb_trackfile' || dataSource === 'tisb_icao' || dataSource === 'tisb_other') {
+        if (!this.filter.TISB) return true;
+    } else {
+        if (!this.filter.Other) return true;
+    }
+
     if (this.filter.minAltitude !== undefined && this.filter.maxAltitude !== undefined) {
         if (this.altitude === null || this.altitude === undefined) {
-            return true;
+                return true;
         }
+
         var planeAltitude = this.altitude === "ground" ? 0 : convert_altitude(this.altitude, this.filter.altitudeUnits);
-        return planeAltitude < this.filter.minAltitude || planeAltitude > this.filter.maxAltitude;
+        var isFilteredByAltitude = planeAltitude < this.filter.minAltitude || planeAltitude > this.filter.maxAltitude;
+        if (isFilteredByAltitude) {
+                return true;
+        }
+    }
+    if (this.filter.minSpeedFilter !== undefined && this.filter.maxSpeedFilter !== undefined) {
+        if (this.speed === null || this.speed === undefined) {
+                return true;
+        }
+
+        var convertedSpeed = convert_speed(this.speed, this.filter.speedUnits)
+        var isFilteredBySpeed = convertedSpeed < this.filter.minSpeedFilter || convertedSpeed > this.filter.maxSpeedFilter;
+        if (isFilteredBySpeed) {
+                return true;
+        }
     }
 
     // filter out ground vehicles
     if (typeof this.filter.groundVehicles !== 'undefined' && this.filter.groundVehicles === 'filtered') {
         if (typeof this.category === 'string' && this.category.startsWith('C')) {
-            return true;
+                return true;
         }
     }
 
     // filter out blocked MLAT flights
     if (typeof this.filter.blockedMLAT !== 'undefined' && this.filter.blockedMLAT === 'filtered') {
         if (typeof this.icao === 'string' && this.icao.startsWith('~')) {
-            return true;
+                return true;
         }
     }
 
@@ -279,6 +327,11 @@ PlaneObject.prototype.getDataSource = function() {
         return 'mlat';
     }
 
+    // Classify as UAT if we heard it on 978 Mhz until we hear it from another source
+    if (this.heard_on_978 && !this.heard_on_tisb) {
+        return 'uat';
+    }
+
     // Not MLAT, but position reported - ADSB or variants
     if (this.position !== null) {
         return this.addrtype;
@@ -410,8 +463,9 @@ PlaneObject.prototype.updateIcon = function() {
         //var transparentBorderWidth = (32 / baseMarker.scale / scaleFactor).toFixed(1);
 
         var svgKey = col + '!' + outline + '!' + baseMarker.svg + '!' + add_stroke + "!" + scaleFactor;
-        var styleKey = opacity + '!' + rotation;
+        var styleKey = opacity + '!' + rotation + '!' + AircraftLabels;
 
+        // New icon or marker change
         if (this.markerStyle === null || this.markerIcon === null || this.markerSvgKey != svgKey) {
                 //console.log(this.icao + " new icon and style " + this.markerSvgKey + " -> " + svgKey);
 
@@ -428,9 +482,26 @@ PlaneObject.prototype.updateIcon = function() {
                 });
 
                 this.markerIcon = icon;
-                this.markerStyle = new ol.style.Style({
-                        image: this.markerIcon
-                });
+
+                if (AircraftLabels && this.flight != null) {
+                        this.markerStyle = new ol.style.Style({
+                                image: this.markerIcon,
+                                text: new ol.style.Text({
+                                        text: this.flight.trim(),
+                                        fill: new ol.style.Fill({color: 'white'}),
+                                        backgroundFill: new ol.style.Stroke({color: 'rgba(0, 47, 93, 0.8'}),
+                                        textAlign: 'center',
+                                        offsetY: -20,
+                                        font: '10px Helvetica',
+                                        padding: [1,0,0,2]
+                                })
+                        });
+                } else {
+                        this.markerStyle = new ol.style.Style({
+                                image: this.markerIcon
+                        });
+                };
+
                 this.markerStaticIcon = null;
                 this.markerStaticStyle = new ol.style.Style({});
 
@@ -443,12 +514,35 @@ PlaneObject.prototype.updateIcon = function() {
                 }
         }
 
+        // Rotation or aircraft label display change
         if (this.markerStyleKey != styleKey) {
                 //console.log(this.icao + " new rotation");
                 this.markerIcon.setRotation(rotation * Math.PI / 180.0);
                 this.markerIcon.setOpacity(opacity);
                 if (this.staticIcon) {
                         this.staticIcon.setOpacity(opacity);
+                }
+
+                if (AircraftLabels && this.flight != null) {
+                        this.markerStyle = new ol.style.Style({
+                                image: this.markerIcon,
+                                text: new ol.style.Text({
+                                        text: this.flight.trim(),
+                                        fill: new ol.style.Fill({color: 'white'}),
+                                        backgroundFill: new ol.style.Stroke({color: 'rgba(0, 47, 93, 0.8)'}),
+                                        textAlign: 'center',
+                                        offsetY: -20,
+                                        font: '10px Helvetica',
+                                        padding: [1,0,0,2]
+                                })
+                        });
+                } else {
+                        this.markerStyle = new ol.style.Style({
+                                image: this.markerIcon
+                        });
+                };
+                if (this.marker !== null) {
+                        this.marker.setStyle(this.markerStyle);
                 }
                 this.markerStyleKey = styleKey;
         }
@@ -457,20 +551,28 @@ PlaneObject.prototype.updateIcon = function() {
 };
 
 // Update our data
-PlaneObject.prototype.updateData = function(receiver_timestamp, data) {
-	// Update all of our data
-	this.messages	= data.messages;
-        this.rssi       = data.rssi;
-	this.last_message_time = receiver_timestamp - data.seen;
+PlaneObject.prototype.updateData = function(receiver_timestamp, data, receiver_source) {
+        if (receiver_source == "dump1090-fa") {
+                this.heard_on_1090 = true;
+                // Ignore messages on 1090 for now if we heard it on 978. We will show multiple data sources in a later release
+                if (this.heard_on_978)
+                        return
+        } else if (receiver_source == "skyaware978") {
+                this.heard_on_978 = true;
+        }
+        // Update all of our data
+        this.messages = data.messages;
+        this.rssi = data.rssi;
+        this.last_message_time = receiver_timestamp - data.seen;
+
 
         // simple fields
-
         var fields = ["alt_baro", "alt_geom", "gs", "ias", "tas", "track",
                       "track_rate", "mag_heading", "true_heading", "mach",
-					  "roll", "nav_heading", "nav_modes",
-					  "nac_p", "nac_v", "nic_baro", "sil_type", "sil",
+                      "roll", "nav_heading", "nav_modes",
+                      "nac_p", "nac_v", "nic_baro", "sil_type", "sil",
                       "nav_qnh", "baro_rate", "geom_rate", "rc",
-                      "squawk", "category", "version"];
+                      "squawk", "category", "version", "uat_version"];
 
         for (var i = 0; i < fields.length; ++i) {
                 if (fields[i] in data) {
@@ -481,11 +583,19 @@ PlaneObject.prototype.updateData = function(receiver_timestamp, data) {
         }
 
         // fields with more complex behaviour
-        
+
         if ('type' in data)
                 this.addrtype	= data.type;
         else
                 this.addrtype   = 'adsb_icao';
+
+        if (this.addrtype == "tisb_trackfile" || this.addrtype == "tisb_icao" || this.addrtype == "tisb_other") {
+                this.heard_on_tisb = true;
+        }
+
+        if (this.addrtype == "adsr_icao") {
+                this.heard_on_adsr = true;
+        }
 
         // don't expire callsigns
         if ('flight' in data)
@@ -555,38 +665,38 @@ PlaneObject.prototype.updateTick = function(receiver_timestamp, last_timestamp) 
         this.seen = receiver_timestamp - this.last_message_time;
         this.seen_pos = (this.last_position_time === null ? null : receiver_timestamp - this.last_position_time);
         
-	// If no packet in over 58 seconds, clear the plane.
-	if (this.seen > 58) {
+        // If no packet in over 58 seconds, clear the plane.
+        if (this.seen > 58) {
                 if (this.visible) {
                         //console.log("hiding " + this.icao);
                         this.clearMarker();
                         this.visible = false;
-			if (SelectedPlane == this.icao)
+                        if (SelectedPlane == this.icao)
                                 selectPlaneByHex(null,false);
                 }
-	} else {
+        } else {
                 if (this.position !== null && (this.selected || this.seen_pos < 60)) {
-			this.visible = true;
-			if (this.updateTrack(receiver_timestamp, last_timestamp)) {
+                        this.visible = true;
+                        if (this.updateTrack(receiver_timestamp, last_timestamp)) {
                                 this.updateLines();
                                 this.updateMarker(true);
                         } else { 
                                 this.updateMarker(false); // didn't move
                         }
                 } else {
-			this.clearMarker();
-			this.visible = false;
-		}
-	}
+                        this.clearMarker();
+                        this.visible = false;
+                }
+        }
 };
 
 PlaneObject.prototype.clearMarker = function() {
-	if (this.marker) {
+        if (this.marker) {
                 PlaneIconFeatures.remove(this.marker);
                 PlaneIconFeatures.remove(this.markerStatic);
                 /* FIXME google.maps.event.clearListeners(this.marker, 'click'); */
                 this.marker = this.markerStatic = null;
-	}
+        }
 };
 
 // Update our marker on the map

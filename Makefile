@@ -2,10 +2,10 @@ PROGNAME=dump1090
 
 DUMP1090_VERSION ?= unknown
 
-CPPFLAGS += -I. -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
+CFLAGS ?= -O3 -g
+DUMP1090_CFLAGS := -std=c11 -fno-common -Wall -Wmissing-declarations -Werror -W
+DUMP1090_CPPFLAGS := -I. -D_POSIX_C_SOURCE=200112L -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
 
-DIALECT = -std=c11
-CFLAGS += $(DIALECT) -O3 -g -Wall -Wmissing-declarations -Werror -W -D_DEFAULT_SOURCE -fno-common
 LIBS = -lpthread -lm
 SDR_OBJ = cpu.o sdr.o fifo.o sdr_ifile.o dsp/helpers/tables.o
 
@@ -51,6 +51,7 @@ UNAME ?= $(HOST_UNAME)
 ARCH ?= $(HOST_ARCH)
 
 ifeq ($(UNAME), Linux)
+  DUMP1090_CPPFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses
@@ -59,18 +60,21 @@ endif
 
 ifeq ($(UNAME), Darwin)
   ifneq ($(shell sw_vers -productVersion | egrep '^10\.([0-9]|1[01])\.'),) # Mac OS X ver <= 10.11
-    CPPFLAGS += -DMISSING_GETTIME
+    DUMP1090_CPPFLAGS += -DMISSING_GETTIME
     COMPAT += compat/clock_gettime/clock_gettime.o
   endif
-  CPPFLAGS += -DMISSING_NANOSLEEP
+  DUMP1090_CPPFLAGS += -DMISSING_NANOSLEEP
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses
-  CPUFEATURES ?= yes
+  # cpufeatures reportedly does not work (yet) on darwin arm64
+  ifneq ($(ARCH),arm64)
+    CPUFEATURES ?= yes
+  endif
 endif
 
 ifeq ($(UNAME), OpenBSD)
-  CPPFLAGS += -DMISSING_NANOSLEEP
+  DUMP1090_CPPFLAGS += -DMISSING_NANOSLEEP
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses
@@ -78,12 +82,14 @@ ifeq ($(UNAME), OpenBSD)
 endif
 
 ifeq ($(UNAME), FreeBSD)
+  DUMP1090_CPPFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb
   LIBS_CURSES := -lncurses
 endif
 
 ifeq ($(UNAME), NetBSD)
+  DUMP1090_CPPFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lcurses
@@ -102,7 +108,7 @@ endif
 CPUFEATURES ?= no
 ifeq ($(CPUFEATURES),yes)
   include Makefile.cpufeatures
-  CPPFLAGS += -DENABLE_CPUFEATURES -Icpu_features/include
+  DUMP1090_CPPFLAGS += -DENABLE_CPUFEATURES -Icpu_features/include
 endif
 
 RTLSDR ?= yes
@@ -110,10 +116,10 @@ BLADERF ?= yes
 
 ifeq ($(RTLSDR), yes)
   SDR_OBJ += sdr_rtlsdr.o
-  CPPFLAGS += -DENABLE_RTLSDR
+  DUMP1090_CPPFLAGS += -DENABLE_RTLSDR
 
   ifdef RTLSDR_PREFIX
-    CPPFLAGS += -I$(RTLSDR_PREFIX)/include
+    DUMP1090_CPPFLAGS += -I$(RTLSDR_PREFIX)/include
     ifeq ($(STATIC), yes)
       LIBS_SDR += -L$(RTLSDR_PREFIX)/lib -Wl,-Bstatic -lrtlsdr -Wl,-Bdynamic $(LIBS_USB)
     else
@@ -127,7 +133,7 @@ ifeq ($(RTLSDR), yes)
     RTLSDR_CFLAGS := $(shell pkg-config --cflags librtlsdr)
     RTLSDR_CFLAGS := $(filter-out -std=%,$(RTLSDR_CFLAGS))
     RTLSDR_CFLAGS := $(filter-out -I/,$(RTLSDR_CFLAGS))
-    CFLAGS += $(RTLSDR_CFLAGS)
+    DUMP1090_CFLAGS += $(RTLSDR_CFLAGS)
 
     # some linux librtlsdr packages return a bare -L with no path in --libs
     # which horribly confuses things because it eats the next option on the command line
@@ -142,22 +148,22 @@ endif
 
 ifeq ($(BLADERF), yes)
   SDR_OBJ += sdr_bladerf.o
-  CPPFLAGS += -DENABLE_BLADERF
-  CFLAGS += $(shell pkg-config --cflags libbladeRF)
+  DUMP1090_CPPFLAGS += -DENABLE_BLADERF
+  DUMP1090_CFLAGS += $(shell pkg-config --cflags libbladeRF)
   LIBS_SDR += $(shell pkg-config --libs libbladeRF)
 endif
 
 ifeq ($(HACKRF), yes)
   SDR_OBJ += sdr_hackrf.o
-  CPPFLAGS += -DENABLE_HACKRF
-  CFLAGS += $(shell pkg-config --cflags libhackrf)
+  DUMP1090_CPPFLAGS += -DENABLE_HACKRF
+  DUMP1090_CFLAGS += $(shell pkg-config --cflags libhackrf)
   LIBS_SDR += $(shell pkg-config --libs libhackrf)
 endif
 
 ifeq ($(LIMESDR), yes)
   SDR_OBJ += sdr_limesdr.o
-  CPPFLAGS += -DENABLE_LIMESDR
-  CFLAGS += $(shell pkg-config --cflags LimeSuite)
+  DUMP1090_CPPFLAGS += -DENABLE_LIMESDR
+  DUMP1090_CFLAGS += $(shell pkg-config --cflags LimeSuite)
   LIBS_SDR += $(shell pkg-config --libs LimeSuite)
 endif
 
@@ -169,27 +175,33 @@ endif
 ifneq ($(CPUFEATURES),yes)
   # need to be able to detect CPU features at runtime to enable any non-standard compiler flags
   STARCH_MIX := generic
-  CPPFLAGS += -DSTARCH_MIX_GENERIC
+  DUMP1090_CPPFLAGS += -DSTARCH_MIX_GENERIC
 else
   ifeq ($(ARCH),x86_64)
     # AVX, AVX2
     STARCH_MIX := x86
-    CPPFLAGS += -DSTARCH_MIX_X86
+    DUMP1090_CPPFLAGS += -DSTARCH_MIX_X86
+  else ifeq ($(findstring aarch,$(ARCH)),aarch)
+    STARCH_MIX := aarch64
+    DUMP1090_CPPFLAGS += -DSTARCH_MIX_AARCH64
+  else ifeq ($(findstring arm64,$(ARCH)),arm64)
+    # Apple calls this arm64, not aarch64
+    STARCH_MIX := aarch64
+    DUMP1090_CPPFLAGS += -DSTARCH_MIX_AARCH64
   else ifeq ($(findstring arm,$(ARCH)),arm)
     # ARMv7 NEON
     STARCH_MIX := arm
-    CPPFLAGS += -DSTARCH_MIX_ARM
-  else ifeq ($(findstring aarch,$(ARCH)),aarch)
-    STARCH_MIX := aarch64
-    CPPFLAGS += -DSTARCH_MIX_AARCH64
+    DUMP1090_CPPFLAGS += -DSTARCH_MIX_ARM
   else
     STARCH_MIX := generic
-    CPPFLAGS += -DSTARCH_MIX_GENERIC
+    DUMP1090_CPPFLAGS += -DSTARCH_MIX_GENERIC
   endif
 endif
 all: showconfig dump1090 view1090 starch-benchmark
 
-STARCH_COMPILE := $(CC) $(CPPFLAGS) $(CFLAGS) -c
+ALL_CCFLAGS := $(CPPFLAGS) $(DUMP1090_CPPFLAGS) $(CFLAGS) $(DUMP1090_CFLAGS)
+
+STARCH_COMPILE := $(CC) $(ALL_CCFLAGS) -c
 include dsp/generated/makefile.$(STARCH_MIX)
 
 showconfig:
@@ -203,7 +215,7 @@ showconfig:
 	@echo "  LimeSDR support: $(LIMESDR)" >&2
 
 %.o: %.c *.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(ALL_CCFLAGS) -c $< -o $@
 
 dump1090: dump1090.o anet.o interactive.o mode_ac.o mode_s.o comm_b.o net_io.o crc.o demod_2400.o stats.o cpr.o icao_filter.o track.o util.o convert.o ais_charset.o adaptive.o $(SDR_OBJ) $(COMPAT) $(CPUFEATURES_OBJS) $(STARCH_OBJS)
 	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS) $(LIBS_SDR) $(LIBS_CURSES)
@@ -226,25 +238,25 @@ test: cprtests
 	./cprtests
 
 cprtests: cpr.o cprtests.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) $(ALL_CCFLAGS) -g -o $@ $^ -lm
 
 crctests: crc.c crc.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -DCRCDEBUG -o $@ $<
+	$(CC) $(ALL_CCFLAGS) -g -DCRCDEBUG -o $@ $<
 
 benchmarks: oneoff/convert_benchmark
 	oneoff/convert_benchmark
 
 oneoff/convert_benchmark: oneoff/convert_benchmark.o convert.o util.o dsp/helpers/tables.o cpu.o $(CPUFEATURES_OBJS) $(STARCH_OBJS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm -lpthread
+	$(CC) $(ALL_CCFLAGS) -g -o $@ $^ -lm -lpthread
 
 oneoff/decode_comm_b: oneoff/decode_comm_b.o comm_b.o ais_charset.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) $(ALL_CCFLAGS) -g -o $@ $^ -lm
 
 oneoff/dsp_error_measurement: oneoff/dsp_error_measurement.o dsp/helpers/tables.o cpu.o $(CPUFEATURES_OBJS) $(STARCH_OBJS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) $(ALL_CCFLAGS) -g -o $@ $^ -lm
 
 oneoff/uc8_capture_stats: oneoff/uc8_capture_stats.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -lm
+	$(CC) $(ALL_CCFLAGS) -g -o $@ $^ -lm
 
 starchgen:
 	dsp/starchgen.py .

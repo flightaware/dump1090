@@ -1109,7 +1109,11 @@ void sendBeastSettings(struct client *c, const char *settings)
     char *buf, *p;
 
     len = strlen(settings) * 3;
-    buf = p = alloca(len);
+    buf = p = malloc(len);
+    if (!buf) {
+        fprintf(stderr, "Out of memory sending beast settings string\n");
+        exit(1);
+    }
 
     while (*settings) {
         *p++ = 0x1a;
@@ -1118,6 +1122,7 @@ void sendBeastSettings(struct client *c, const char *settings)
     }
 
     anetWrite(c->fd, buf, len);
+    free(buf);
 }
 
 // Move a network client to a new service
@@ -1326,6 +1331,36 @@ static int hexDigitVal(int c) {
     else if (c >= 'a' && c <= 'f') return c-'a'+10;
     else return -1;
 }
+
+
+// decode 12 hex digits as a 48-bit timestamp
+static bool timestampFromHex(const char *hex, uint64_t *timestamp)
+{
+    uint64_t ts = 0;
+    for (unsigned i = 0; i < 12; ++i) {
+        int v = hexDigitVal(hex[i]);
+        if (v < 0)
+            return false;
+        ts = (ts << 4) | v;
+    }
+
+    *timestamp = ts;
+    return true;
+}
+
+// decode 2 hex digits as a signal level
+static bool signalFromHex(const char *hex, double *signal)
+{
+    int d1 = hexDigitVal(hex[0]);
+    int d2 = hexDigitVal(hex[1]);
+    if (d1 < 0 || d2 < 0)
+        return false;
+
+    double sig = ((d1 << 4) | d2) / 255.0;
+    *signal = sig * sig;
+    return true;
+}
+
 //
 //=========================================================================
 //
@@ -1367,26 +1402,50 @@ static int decodeHexMessage(struct client *c, char *hex) {
     // and some AVR records that we can understand
     if (hex[l-1] != ';') {return (0);} // not complete - abort
 
-    switch(hex[0]) {
-        case '<': {
-            mm.signalLevel = ((hexDigitVal(hex[13])<<4) | hexDigitVal(hex[14])) / 255.0;
-            mm.signalLevel = mm.signalLevel * mm.signalLevel;
-            hex += 15; l -= 16; // Skip <, timestamp and siglevel, and ;
-            break;}
+    switch (hex[0]) {
+        case '<':
+            // [0]       '<'
+            // [1..12]   timestamp
+            // [13..14]  signal level
+            // [15..l-2] data
+            // [l-1]     ';'
+            if (l < 18)
+                return 0; // truncated
+            if (!timestampFromHex(hex + 1, &mm.timestampMsg))
+                return 0; // malformed timestamp
+            if (!signalFromHex(hex + 13, &mm.signalLevel))
+                return 0; // malformed signal level
+            hex += 15;
+            l -= 16;
+            break;
 
         case '@':     // No CRC check
-        case '%': {   // CRC is OK
-            hex += 13; l -= 14; // Skip @,%, and timestamp, and ;
-            break;}
+        case '%':     // CRC is OK
+            // [0]       '@' or '%'
+            // [1..12]   timestamp
+            // [13..l-2] data
+            // [l-1]     ';'
+            if (l < 16)
+                return 0; // truncated
+            if (!timestampFromHex(hex + 1, &mm.timestampMsg))
+                return 0; // malformed timestamp
+            hex += 13;
+            l -= 14;
+            break;
 
         case '*':
-        case ':': {
-            hex++; l-=2; // Skip * and ;
-            break;}
+        case ':':
+            // [0]       '*' or ':'
+            // [1..l-2]  data
+            // [l-1]     ';'
+            if (l < 4)
+                return 0; // truncated
+            hex++;
+            l -= 2;
+            break;
 
-        default: {
-            return (0); // We don't know what this is, so abort
-            break;}
+        default:
+            return 0;
     }
 
     if ( (l != (MODEAC_MSG_BYTES      * 2))

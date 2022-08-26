@@ -1,8 +1,8 @@
 Source: dump1090-fa
 Section: embedded
 Priority: extra
-Maintainer: Oliver Jowett <oliver@mutability.co.uk>
-Build-Depends: debhelper(>=9), librtlsdr-dev, libusb-1.0-0-dev, pkg-config, dh-systemd, libncurses5-dev, libbladerf-dev
+Maintainer: Oliver Jowett <oliver.jowett@flightaware.com>
+Build-Depends: debhelper(>=10), librtlsdr-dev, libusb-1.0-0-dev, pkg-config, libncurses5-dev, libbladerf-dev
 Standards-Version: 3.9.3
 Homepage: http://www.flightaware.com/
 Vcs-Git: https://github.com/flightaware/dump1090.git

@@ -125,3 +125,8 @@ BingMapsAPIKey = null;
 // This is not polished yet (and so is disabled by default),
 // currently it's just a data dump of the new fields with no UX work.
 ExtendedData = false;
+
+DefaultMaxAltitudeFilter = 65000
+DefaultMinAltitudeFilter = 0
+DefaultMaxSpeedFilter = 1000
+DefaultMinSpeedFilter = 0

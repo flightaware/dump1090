@@ -81,6 +81,16 @@ case "$1" in
 
         fi
 
+        # dump1090-fa lighttpd module deprecated in 7.2
+        if dpkg --compare-versions "$2" lt "7.2"
+        then
+	        if [ -e /etc/lighttpd/conf-enabled/89-dump1090-fa.conf ]
+                then
+	            echo "Disabling deprecated lighttpd dump1090-fa module..." >&2
+	            lighty-disable-mod dump1090-fa || true
+	        fi
+	fi
+
         echo "Restarting lighttpd.." >&2
         invoke-rc.d lighttpd restart || true
     ;;

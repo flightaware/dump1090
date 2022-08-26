@@ -107,7 +107,7 @@ static void adaptive_burst_end_of_block();
 static unsigned *adaptive_range_radix;                 // radix-sort buckets for current block
 static unsigned adaptive_range_radix_counter;          // sum of all radix-sort buckets (= number of samples sorted)
 static double adaptive_range_smoothed;                 // smoothed noise floor estimate, dBFS
-static enum { RANGE_SCAN_IDLE, RANGE_SCAN_UP, RANGE_SCAN_DOWN } adaptive_range_state = RANGE_SCAN_UP;
+static enum { RANGE_SCAN_IDLE, RANGE_SCAN_UP, RANGE_SCAN_DOWN, RANGE_RESCAN_UP, RANGE_RESCAN_DOWN } adaptive_range_state = RANGE_SCAN_UP;
 static unsigned adaptive_range_change_timer;           // countdown inhibiting control after changing gain
 static unsigned adaptive_range_rescan_timer;           // countdown to next upwards gain reprobe
 static int adaptive_range_gain_limit;                  // probed maximum gain step with acceptable dynamic range
@@ -196,7 +196,7 @@ void adaptive_init()
     adaptive_burst_window_counter = 0;
 
     adaptive_range_radix = calloc(sizeof(unsigned), 65536);
-    adaptive_range_state = RANGE_SCAN_UP;
+    adaptive_range_state = RANGE_RESCAN_UP;
 
     // select and enforce gain limits
     for (adaptive_gain_min = 0; adaptive_gain_min < maxgain; ++adaptive_gain_min) {
@@ -514,7 +514,7 @@ static void adaptive_control_update()
 
             // if we're currently doing a downward scan, reducing gain further may confuse it;
             // stop that scan and restart it once we are no longer in a reduced-gain state
-            if (adaptive_range_state == RANGE_SCAN_DOWN) {
+            if (adaptive_range_state == RANGE_SCAN_DOWN || adaptive_range_state == RANGE_RESCAN_DOWN) {
                 adaptive_range_state = RANGE_SCAN_IDLE;
                 adaptive_range_rescan_timer = 0;
             }
@@ -539,12 +539,13 @@ static void adaptive_control_update()
         }
         switch (adaptive_range_state) {
         case RANGE_SCAN_UP:
+        case RANGE_RESCAN_UP:
             if (available_range < Modes.adaptive_range_target) {
                 // Current gain fails to meet our target. Switch to downward scanning.
                 fprintf(stderr, "adaptive: available dynamic range (%.1fdB) < required dynamic range (%.1fdB), switching to downward scan\n", available_range, Modes.adaptive_range_target);
                 gain_down = gain_not_up = true;
                 gain_down_reason = "probing dynamic range gain lower bound";
-                adaptive_range_state = RANGE_SCAN_DOWN;
+                adaptive_range_state = (adaptive_range_state == RANGE_RESCAN_UP ? RANGE_RESCAN_DOWN : RANGE_SCAN_DOWN);
                 if (adaptive_range_gain_limit >= current_gain) {
                     adaptive_range_gain_limit = current_gain - 1;
                 }
@@ -569,11 +570,12 @@ static void adaptive_control_update()
             break;
 
         case RANGE_SCAN_DOWN:
+        case RANGE_RESCAN_DOWN:
             if (available_range >= Modes.adaptive_range_target) {
                 // Current gain meets our target; we are done with the scan.
                 fprintf(stderr, "adaptive: available dynamic range (%.1fdB) >= required dynamic range (%.1fdB), stopping downwards scan here\n", available_range, Modes.adaptive_range_target);
                 adaptive_range_state = RANGE_SCAN_IDLE;
-                adaptive_range_rescan_timer = Modes.adaptive_range_rescan_delay;
+                adaptive_range_rescan_timer = (adaptive_range_state == RANGE_SCAN_DOWN ? Modes.adaptive_range_scan_delay : Modes.adaptive_range_rescan_delay);
                 break;
             }
 
@@ -616,7 +618,7 @@ static void adaptive_control_update()
                     fprintf(stderr, "adaptive: start periodic scan for acceptable dynamic range at increased gain\n");
                     gain_up = true;
                     gain_up_reason = "periodic re-probing of dynamic range gain upper bound";
-                    adaptive_range_state = RANGE_SCAN_UP;
+                    adaptive_range_state = RANGE_RESCAN_UP;
                     break;
                 }
 

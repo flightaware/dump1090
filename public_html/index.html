@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="utf-8"/>
-		<link rel="stylesheet" type="text/css" href="style.css?v=4.0" />
+		<link rel="stylesheet" type="text/css" href="style.css?v=8.0" />
 		<link rel="stylesheet" href="jquery/jquery-ui-1.11.4-smoothness.css" />
 		<script src="jquery/jquery-3.0.0.min.js"></script>
 		<script src="jquery/jquery-ui-1.11.4.min.js"></script>
@@ -14,15 +14,18 @@
 		<link rel="stylesheet" href="ol/ol-layerswitcher.css" type="text/css"/>
 		<script src="ol/ol-layerswitcher.js" type="text/javascript"></script>
 
-		<script type="text/javascript" src="config.js?v=4.0"></script>
-		<script type="text/javascript" src="markers.js?v=4.0"></script>
-		<script type="text/javascript" src="dbloader.js?v=4.0"></script>
-		<script type="text/javascript" src="registrations.js?v=4.0"></script>
-		<script type="text/javascript" src="planeObject.js?v=4.0"></script>
-		<script type="text/javascript" src="formatter.js?v=2?v=4.0"></script>
-		<script type="text/javascript" src="flags.js?v=4.0"></script>
-		<script type="text/javascript" src="layers.js?v=4.0"></script>
-		<script type="text/javascript" src="script.js?v=4.0"></script>
+		<script src="noUiSlider/distribute/nouislider.min.js"></script>
+		<link rel="stylesheet" href="noUiSlider/distribute/nouislider.min.css"/>
+
+		<script type="text/javascript" src="config.js?v=8.0"></script>
+		<script type="text/javascript" src="markers.js?v=8.0"></script>
+		<script type="text/javascript" src="dbloader.js?v=8.0"></script>
+		<script type="text/javascript" src="registrations.js?v=8.0"></script>
+		<script type="text/javascript" src="planeObject.js?v=8.0"></script>
+		<script type="text/javascript" src="formatter.js?v=8.0"></script>
+		<script type="text/javascript" src="flags.js?v=8.0"></script>
+		<script type="text/javascript" src="layers.js?v=8.0"></script>
+		<script type="text/javascript" src="script.js?v=8.0"></script>
 		<title>PiAware SkyAware</title>
 	</head>
 
@@ -149,6 +152,10 @@
 						<div class="settingsCheckbox" id="grouptype_checkbox"></div>
 						<div class="settingsText">Group by Data Type</div>
 					</div>
+					<div class="settingsOptionContainer">
+						<div class="settingsCheckbox" id="aircraft_label_checkbox"></div>
+						<div class="settingsText">Show Aircraft Labels</div>
+					</div>
 				</div>
 				<div id="range_ring_column" class="settingsOptionContainer">
 					<div class="infoBlockTitleText">Range Rings</div>
@@ -194,127 +201,166 @@
 									<table style="width: 100%">
 										<tr class="infoblock_heading">
 											<td>
-												<div class="button buttonTable" id="show_map_button"><span class="buttonText">Show Map</span></div>
+												<button id="stats_page_button" class="stats_button">Go to My ADS-B Statistics Page</button>
 											</td>
 											<td style="text-align: right">
-												<a href="https://github.com/flightaware/dump1090" id="dump1090_version" target="_blank"></a>
+												<a href="https://github.com/flightaware/dump1090" id="skyaware_version" target="_blank"></a>
 											</td>
 										</tr>
-			
+										<tr>
+											<div class="button buttonTable" id="show_map_button"><span class="buttonText">Show Map</span></div>
+										</tr>
 										<tr class="infoblock_body">
 											<td><span class="infoBlockTitleText">Total Aircraft:</span> <span id="dump1090_total_ac">n/a</span></td>
-											<td><span class="infoBlockTitleText">Messages:</span> <span id="dump1090_message_rate">n/a</span>/sec</td>
+											<td id="adsb_message_rate_row"><span class="infoBlockTitleText">ADS-B Message Rate:</span> <span id="dump1090_message_rate">n/a</span></td>
 										</tr>
 			
 										<tr class="infoblock_body">
 											<td><span class="infoBlockTitleText">With Positions:</span> <span id="dump1090_total_ac_positions">n/a</span></td>
-											<td><span class="infoBlockTitleText">History:</span> <span id="dump1090_total_history">n/a</span> positions</td>
+											<td id="uat_message_rate_row"><span class="infoBlockTitleText">UAT Message Rate:</span> <span id="uat_message_rate">n/a</span></td>
+										</tr>
+										<tr class="infoblock_body">
+											<td><span class="infoBlockTitleText">Position History:</span> <span id="dump1090_total_history">n/a</span></td>
 										</tr>
 									</table>
 								</div> <!-- dump1090_infoblock -->
-			
-								<form id="altitude_filter_form">
-									<label><span class="infoBlockTitleText">Filter by Altitude:</span></label>
-									<input id="altitude_filter_min" name="minAltitude" type="text" class="altitudeFilterInput" maxlength="5">
-									<label for="minAltitude" class="altitudeUnit"></label>
-									<span> to </span>
-									<input id="altitude_filter_max" name="maxAltitude" type="text" class="altitudeFilterInput" maxlength="5">
-									<label for="maxAltitude" class="altitudeUnit"></label>
-									<button type="submit">Filter</button>
-									<button id="altitude_filter_reset_button">Reset</button>
-								</form>
-			
-								<div>
-									<button id="column_select">Select Columns</button>
+
+								<div class="config_button_row">
+									<button id="filter_button" class="config_button">Filters (<span class="italicize"><span id="active_filter_count">0</span> Enabled)</span></button>
+									<button id="column_select_button" class="config_button">Select Columns</button>
 								</div>
 
-								<div id="column_select_window" class="hidden">
-									<div id="column_select_close_box"></div>
-									<div id="column_select_header">Columns</div>
-									<div class="columnOptionSelectAllContainer">
-										<div class="columnSelectAllCheckbox" id="select_all_column_checkbox"></div>
-										<div class="columnOptionText">Select/Deselect All</div>
+								<div id="filter_panel" class="panel">
+									<div class="group">
+										<label><span class="infoBlockTitleText">Filter by Altitude</span></label>
+										<div class="align_right">
+											<span id="minAltitudeText" class="infoBlockTitleText"></span>
+											<label for="minAltitude" class="altitudeUnit"></label>
+											<span> to </span>
+											<span id="maxAltitudeText" class="infoBlockTitleText"></span>
+											<label for="maxAltitude" class="altitudeUnit"></label>
+										</div>
+										<div id="altitude_slider"></div>
 									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="icao_col_checkbox"></div>
-										<div class="columnOptionText">Icao</div>
+									<div class="group">
+										<label><span class="infoBlockTitleText">Filter by Speed</span></label>
+										<div class="align_right">
+											<span id="minSpeedText" class="infoBlockTitleText"></span>
+											<label for="minSpeed" class="speedUnit"></label>
+											<span> to </span>
+											<span id="maxSpeedText" class="infoBlockTitleText"></span>
+											<label for="maxSpeed" class="speedUnit"></label>
+										</div>
+										<div id="speed_slider"></div>
 									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="flag_col_checkbox"></div>
-										<div class="columnOptionText">Flag</div>
+									<div class="group">
+										<form id="aircraft_type_filter_form">
+											<label><span class="infoBlockTitleText">Filter by Aircraft Type</span></label>
+											<div class="align_right">
+												<input id="aircraft_type_filter" name="aircraftTypeFilter" type="text" class="aircraftFilterInput" maxlength="5">
+												<button type="submit">Filter</button>
+												<button id="aircraft_type_filter_reset_button">Reset</button>
+											</div>
+										</form>
 									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="ident_col_checkbox"></div>
-										<div class="columnOptionText">Ident</div>
+									<div class="group">
+										<form id="aircraft_ident_filter_form">
+											<label><span class="infoBlockTitleText">Filter by Aircraft Ident</span></label>
+											<div class="align_right">
+												<input id="aircraft_ident_filter" name="aircraftIdentFilter" type="text" class="aircraftFilterInput" maxlength="10">
+												<button type="submit">Filter</button>
+												<button id="aircraft_ident_filter_reset_button">Reset</button>
+											</div>
+										</form>
 									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="reg_col_checkbox"></div>
-										<div class="columnOptionText">Registration</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="ac_col_checkbox"></div>
-										<div class="columnOptionText">Aircraft Type</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="squawk_col_checkbox"></div>
-										<div class="columnOptionText">Squawk</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="alt_col_checkbox"></div>
-										<div class="columnOptionText">Altitude</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="speed_col_checkbox"></div>
-										<div class="columnOptionText">Speed</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="vrate_col_checkbox"></div>
-										<div class="columnOptionText">Vertical Rate</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="distance_col_checkbox"></div>
-										<div class="columnOptionText">Distance</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="heading_col_checkbox"></div>
-										<div class="columnOptionText">Heading</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="messages_col_checkbox"></div>
-										<div class="columnOptionText">Messages</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="msg_age_col_checkbox"></div>
-										<div class="columnOptionText">Message Age</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="rssi_col_checkbox"></div>
-										<div class="columnOptionText">RSSI</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="lat_col_checkbox"></div>
-										<div class="columnOptionText">Latitude</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="lon_col_checkbox"></div>
-										<div class="columnOptionText">Longitude</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="datasource_col_checkbox"></div>
-										<div class="columnOptionText">Data Source</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="airframes_col_checkbox"></div>
-										<div class="columnOptionText">Airframes.org</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="fa_modes_link_checkbox"></div>
-										<div class="columnOptionText">FlightAware</div>
-									</div>
-									<div class="columnOptionContainer">
-										<div class="columnSelectCheckbox" id="fa_photo_link_checkbox"></div>
-										<div class="columnOptionText">Photos</div>
-									</div>
+								</div>
+								<div id="column_select_panel" class="panel">
+										<div class="columnOptionSelectAllContainer">
+											<div class="columnSelectAllCheckbox" id="select_all_column_checkbox"></div>
+											<div class="columnOptionText">Select/Deselect All</div>
+										</div>
+										<div class="wrapper">
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="icao_col_checkbox"></div>
+												<div class="columnOptionText">Icao</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="flag_col_checkbox"></div>
+												<div class="columnOptionText">Flag</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="ident_col_checkbox"></div>
+												<div class="columnOptionText">Ident</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="reg_col_checkbox"></div>
+												<div class="columnOptionText">Registration</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="ac_col_checkbox"></div>
+												<div class="columnOptionText">Aircraft Type</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="squawk_col_checkbox"></div>
+												<div class="columnOptionText">Squawk</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="alt_col_checkbox"></div>
+												<div class="columnOptionText">Altitude</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="speed_col_checkbox"></div>
+												<div class="columnOptionText">Speed</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="vrate_col_checkbox"></div>
+												<div class="columnOptionText">Vertical Rate</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="distance_col_checkbox"></div>
+												<div class="columnOptionText">Distance</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="heading_col_checkbox"></div>
+												<div class="columnOptionText">Heading</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="messages_col_checkbox"></div>
+												<div class="columnOptionText">Messages</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="msg_age_col_checkbox"></div>
+												<div class="columnOptionText">Message Age</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="rssi_col_checkbox"></div>
+												<div class="columnOptionText">RSSI</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="lat_col_checkbox"></div>
+												<div class="columnOptionText">Latitude</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="lon_col_checkbox"></div>
+												<div class="columnOptionText">Longitude</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="datasource_col_checkbox"></div>
+												<div class="columnOptionText">Data Source</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="airframes_col_checkbox"></div>
+												<div class="columnOptionText">Airframes.org</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="fa_modes_link_checkbox"></div>
+												<div class="columnOptionText">FlightAware</div>
+											</div>
+											<div class="columnOptionContainer">
+												<div class="columnSelectCheckbox" id="fa_photo_link_checkbox"></div>
+												<div class="columnOptionText">Photos</div>
+											</div>
+										</div>
 								</div>
 
 								<div id="planes_table_container">
@@ -372,14 +418,16 @@
 									</div> <!-- planes_table -->
 									<div>
 										<div class="legend">
-											<div class="legendBox vPosition"></div>
-											<div class="legendTitle">ADS-B</div>
-											<div class="legendBox mlat"></div>
-											<div class="legendTitle">MLAT</div>
-											<div class="legendBox other"></div>
-											<div class="legendTitle">Other</div>
-											<div class="legendBox tisb"></div>
-											<div class="legendTitle">TIS-B</div>
+											<div class="sourceCheckbox" id="adsb_datasource_checkbox"></div>
+											<div class="legendTitle vPosition" id="adsb_datasource_label">ADS-B</div>
+											<div class="sourceCheckbox" id="uat_datasource_checkbox"></div>
+											<div class="legendTitle uat" id="uat_datasource_label">UAT</div>
+											<div class="sourceCheckbox" id="mlat_datasource_checkbox"></div>
+											<div class="legendTitle mlat">MLAT</div>
+											<div class="sourceCheckbox" id="other_datasource_checkbox"></div>
+											<div class="legendTitle other">Other</div>
+											<div class="sourceCheckbox" id="tisb_datasource_checkbox"></div>
+											<div class="legendTitle tisb">TIS-B</div>
 										</div>
 									</div>
 								</div> <!-- planes_table_container -->
@@ -661,6 +709,14 @@
 									</div>
 									<div class="infoRowLine">
 										<div class="infoHeading infoRowFluid fourColumnSection1">
+											<span title="For UAT-equipped aircraft, the version of UAT ADS-B to which the aircraft conforms, as reported by the aircraft.">UAT Version</span>:
+										</div>
+										<div class="infoData infoRowFluid fourColumnSection2">
+											<span id="selected_uat_version">n/a</span>
+										</div>
+									</div>
+									<div class="infoRowLine">
+										<div class="infoHeading infoRowFluid fourColumnSection1">
 											<span title="Indicated signal strength of the signal received by your ADS-B site from the aircraft.">RSSI</span>:
 										</div>
 										<div class="infoData infoRowFluid fourColumnSection2">
@@ -778,13 +834,14 @@
 			Please do not call the local authorities, they already know about it if it is a valid squawk.
 		</div>
 
-		<div id="DeprecatedSkyAwareMessage">
-			<b>This version of SkyAware will soon be deprecated. Visit URL: [local IP Address]/skyaware for the most up-to-date SkyAware interface.</b>
-		</div>
-
 		<div id="update_error" class="hidden">
 			<b>Problem fetching data from dump1090.</b><br>
 			<span id="update_error_detail"></span><br>
+			The displayed map data will be out of date.
+		</div>
+		<div id="uat_update_error" class="hidden">
+			<b>Problem fetching data from SkyAware978.</b><br>
+			<span id="uat_update_error_detail"></span><br>
 			The displayed map data will be out of date.
 		</div>
 

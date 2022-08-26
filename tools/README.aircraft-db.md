@@ -35,7 +35,7 @@ To regenerate the json database from these input files:
 ```sh
 $ rm ../public_html/db/*.json
 $ xzcat vrs.csv.xz | nodejs ./filter-regs.js >vrs-filtered.csv
-$ xzcat flightaware-20210817.csv.xz | nodejs ./filter-regs.js >fa-filtered.csv
+$ xzcat flightaware-20211210.csv.xz | nodejs ./filter-regs.js >fa-filtered.csv
 $ ./csv-to-json.py vrs-filtered.csv fa-filtered.csv ../public_html/db
 ```
 
@@ -43,7 +43,7 @@ Additional CSV files can be given to `csv-to-json.py` if desired.
 
 The contents of public_html/db should be installed where the webmap can find
 them; the Debian packaging puts these in
-/usr/share/dump1090-fa/html/db
+/usr/share/skyaware/html/db
 
 The CSV format is very simple. The first line must be a header line that names
 the columns. These columns are understood:

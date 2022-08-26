@@ -1,8 +1,35 @@
-dump1090-fa (7.0~dev) UNRELEASED; urgency=medium
+dump1090-fa (8.0~dev) UNRELEASED; urgency=medium
 
   * in development
 
- -- Oliver Jowett <oliver.jowett@flightaware.com>  Thu, 23 Sep 2021 13:13:45 +0800
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Thu, 09 Jun 2022 17:05:29 +0800
+
+dump1090-fa (7.2) stable; urgency=medium
+
+  * dump1090: Fix Makefile syntax error for Darwin OS build (courtesy @CodyCodeman, PR #170)
+  * dump1090: set _POSIX_C_SOURCE to fix build failure with uclibc-ng (courtesy @ffontaine, PR #169)
+  * SkyAware: Remove obselete map interface at /dump1090-fa
+  * SkyAware: Remove OSM Black & White layer which is no longer in service
+
+ -- Eric Tran <eric.tran@flightaware.com>  Wed, 09 Mar 2022 20:09:55 -0600
+
+dump1090-fa (7.1) stable; urgency=medium
+
+  * Preserve start/upgrade postinst logic for pre 7.1 updates until we support compat 10 behavior
+
+ -- Eric Tran <eric.tran@flightaware.com>  Wed, 12 Jan 2022 11:37:20 -0600
+
+dump1090-fa (7.0) stable; urgency=medium
+
+  * dump1090: Allow env vars (not only command line overrdies) to set CPU_FEATURES_{ARCH,UNAME}
+  * dump1090: Treat ARCH=arm64 like ARCH=aarch64
+  * dump1090: Try to respect CFLAGS/CPPFLAGS as far as possible; move required extra flags into a separate var
+  * dump1090: Adaptive gain - more aggressively re-probe for higher gain after a decrease in gain due to increased noise floor
+  * dump1090: Cleanup AVR parsing
+  * SkyAware: Update aircraft db to 20211210
+  * SkyAware: Cleanup unused Openlayers files
+
+ -- Eric Tran <eric.tran@flightaware.com>  Mon, 20 Dec 2021 11:00:00 -0600
 
 dump1090-fa (6.1) stable; urgency=medium
 

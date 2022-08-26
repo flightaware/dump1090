@@ -159,6 +159,9 @@ struct mag_buf *fifo_acquire(uint32_t timeout_ms)
         result->sampleTimestamp = 0;
         result->sysTimestamp = 0;
         result->flags = 0;
+        result->mean_level = 0;
+        result->mean_power = 0;
+        result->dropped = 0;
         result->next = NULL;
     }
 

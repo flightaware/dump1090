@@ -1,18 +1,18 @@
-# SkyAware 4.0 Features
+# SkyAware Features
 
 ## Customize display via URL query strings
 
-Syntax: <ip_address>/dump1090-fa/?parameter=value
+Syntax: <ip_address>/skyaware/?parameter=value
 
 Examples:
 
-    http://192.0.0.1/dump1090-fa/?sidebar=hide
+    http://<ip_address>/skyaware/?sidebar=hide
 
-    http://192.0.0.1/dump1090-fa/?altitudeChart=hide
+    http://<ip_address>/skyaware/?altitudeChart=hide
 
-    http://192.0.0.1/dump1090-fa/?rangeRings=hide
+    http://<ip_address>/skyaware/?rangeRings=hide
 
-    http://192.0.0.1/dump1090-fa/?ringCount=3?ringBaseDistance=100?ringInterval=50
+    http://<ip_address>/skyaware/?ringCount=3&ringBaseDistance=100&ringInterval=50
 
 | Parameter | Possible Values |
 | :---------: | :---------: |
@@ -31,7 +31,7 @@ Examples:
 | rangeRings | show/hide | 
 | ringCount | integer |
 | ringBaseDistance | integer |
-| ringInteval | integer | 
+| ringInterval | integer |
 
 
 

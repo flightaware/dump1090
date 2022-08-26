@@ -64,7 +64,7 @@ struct mag_buf {
     mag_buf_flags   flags;           // bitwise flags for this buffer
     double          mean_level;      // Mean of normalized (0..1) signal level
     double          mean_power;      // Mean of normalized (0..1) power level
-    unsigned        dropped;         // (approx) number of dropped samples, if flag MAGBUF_DISCONTINUOUS is set
+    unsigned        dropped;         // (approx) number of dropped samples, if flag MAGBUF_DISCONTINUOUS is set; zero if not discontinuous
 
     struct mag_buf *next;            // linked list forward link
 };

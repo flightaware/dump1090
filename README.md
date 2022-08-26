@@ -16,31 +16,18 @@ it can be used to contribute crowd-sourced flight tracking data to FlightAware.
 It is designed to build as a Debian package, but should also be buildable on
 many other Linux or Unix-like systems.
 
-## Building under buster
+## Building under bullseye, buster, or stretch
 
 ```bash
-$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev
-$ ./prepare-build.sh buster
-$ cd buster
+$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev
+$ ./prepare-build.sh bullseye    # or buster, or stretch
+$ cd package-bullseye            # or buster, or stretch
 $ dpkg-buildpackage -b --no-sign
 ```
-
-## Building under stretch
-
-```bash
-$ sudo apt-get install build-essential debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev
-$ ./prepare-build.sh stretch
-$ cd stretch
-$ dpkg-buildpackage -b --no-sign
-```
-
-### Actually building it
-
-Nothing special, just build it (`dpkg-buildpackage -b`)
 
 ## Building with limited dependencies
 
-(Supported for buster builds only)
+(Supported for bullseye and buster builds only)
 
 The package supports some build profiles to allow building without all
 required SDR libraries being present. This will produce a package with

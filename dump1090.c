@@ -143,6 +143,7 @@ static void modesInitConfig(void) {
     Modes.adaptive_range_alpha = 2.0 / (5 + 1);
     Modes.adaptive_range_percentile = 40;
     Modes.adaptive_range_change_delay = 10;
+    Modes.adaptive_range_scan_delay = 300;
     Modes.adaptive_range_rescan_delay = 3600;
 
     sdrInitConfig();
@@ -373,8 +374,11 @@ static void showHelp(void)
 "--adaptive-range-percentile <p>       Set dynamic range noise percentile\n"
 "--adaptive-range-change-delay <s>     Set delay after changing gain before\n"
 "                                       resuming dynamic range control (seconds)\n"
-"--adaptive-range-rescan-delay <s>     Set rescan interval for dynamic range\n"
-"                                       gain scanning (seconds)\n"
+"--adaptive-range-scan-delay <s>       Set scan interval for dynamic range\n"
+"                                       gain scanning following a gain decrease\n"
+"                                       due to an increase in noise (seconds)\n"
+"--adaptive-range-rescan-delay <s>     Set periodic rescan interval for dynamic\n"
+"                                       range gain scanning (seconds)\n"
 "--adaptive-min-gain <g>              Set gain adjustment range lower limit (dB)\n"
 "--adaptive-max-gain <g>              Set gain adjustment range upper limit (dB)\n"
 "--adaptive-duty-cycle <p>            Set adaptive gain duty cycle %% (1..100)\n"
@@ -796,6 +800,8 @@ int main(int argc, char **argv) {
             Modes.adaptive_range_target = atof(argv[++j]);
         } else if (!strcmp(argv[j], "--adaptive-range-change-delay") && more) {
             Modes.adaptive_range_change_delay = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-range-scan-delay") && more) {
+            Modes.adaptive_range_scan_delay = atoi(argv[++j]);
         } else if (!strcmp(argv[j], "--adaptive-range-rescan-delay") && more) {
             Modes.adaptive_range_rescan_delay = atoi(argv[++j]);
         } else if (sdrHandleOption(argc, argv, &j)) {
