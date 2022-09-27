@@ -28,7 +28,14 @@ void sdrShowHelp();
 bool sdrHandleOption(int argc, char **argv, int *jptr);
 bool sdrOpen();
 void sdrRun();
+void sdrStop();
 void sdrClose();
+
+// Gain control
+int sdrGetGain();              // return current gain step 0..N, or -1 if gain control is not supported
+int sdrGetMaxGain();           // return maximum gain step, or -1 if gain control is not supported
+double sdrGetGainDb(int step); // return gain in dB for the given gain step, or 0.0 if gain control is not supported
+int sdrSetGain(int step);      // set gain step; return actual gain step used, or -1 if gain control is not supported
 
 // Call periodically from the SDR read thread to update reader thread CPU stats:
 void sdrMonitor();

@@ -16,48 +16,18 @@ it can be used to contribute crowd-sourced flight tracking data to FlightAware.
 It is designed to build as a Debian package, but should also be buildable on
 many other Linux or Unix-like systems.
 
-## Building under buster
+## Building under bullseye, buster, or stretch
 
 ```bash
-$ sudo apt-get install build-essential debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev
+$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev
+$ ./prepare-build.sh bullseye    # or buster, or stretch
+$ cd package-bullseye            # or buster, or stretch
 $ dpkg-buildpackage -b --no-sign
 ```
-
-## Building under stretch
-
-```bash
-$ sudo apt-get install build-essential debhelper librtlsdr-dev pkg-config dh-systemd libncurses5-dev libbladerf-dev
-$ dpkg-buildpackage -b --no-sign
-```
-
-## Building under jessie
-
-### Dependencies - bladeRF
-
-You will need a build of libbladeRF. You can build packages from source:
-
-```bash
-$ git clone https://github.com/Nuand/bladeRF.git  
-$ cd bladeRF  
-$ git checkout 2017.12-rc1  
-$ dpkg-buildpackage -b
-```
-
-Or Nuand has some build/install instructions including an Ubuntu PPA
-at https://github.com/Nuand/bladeRF/wiki/Getting-Started:-Linux
-
-Or FlightAware provides armhf packages as part of the piaware repository;
-see https://flightaware.com/adsb/piaware/install
-
-### Dependencies - rtlsdr
-
-This is packaged with jessie. `sudo apt-get install librtlsdr-dev`
-
-### Actually building it
-
-Nothing special, just build it (`dpkg-buildpackage -b`)
 
 ## Building with limited dependencies
+
+(Supported for bullseye and buster builds only)
 
 The package supports some build profiles to allow building without all
 required SDR libraries being present. This will produce a package with
@@ -115,3 +85,38 @@ Minimal testing on 12.1-RELEASE, YMMV.
 # pkg install hackrf
 $ gmake
 ```
+
+## Generating wisdom files
+
+dump1090-fa uses [starch](https://github.com/flightaware/starch) to build
+multiple versions of the DSP code and choose the fastest supported by the
+hardware at runtime. The implementations chosen can been seen by running
+`dump1090-fa --version`.
+
+The implementations used are controlled by "wisdom files", a list of
+implementations to use in order of priority. For each DSP function, the first
+implementation listed that's supported by the current hardware is used.
+By default dump1090-fa provides compiled-in wisdom for [x86](wisdom.x86),
+[ARM 32-bit](wisdom.arm), and [ARM 64-bit](wisdom.aarch64). If the defaults
+are not suitable for your hardware or if you're building on a different
+architecture, you may want to generate your own external wisdom file.
+
+Ideally, to get stable results, you want to do this on an idle system
+with CPU frequency scaling disabled. Running the benchmarks will take
+some time (10s of minutes).
+
+### Package installs
+
+Run `/usr/share/dump1090-fa/generate-wisdom`. Wait.
+
+Follow the instructions to copy the resulting wisdom file to `/etc/dump1090-fa/wisdom.local`.
+
+Restart dump1090.
+
+### Manual installs
+
+Run `make wisdom.local`. Wait.
+
+Copy the resulting `wisdom.local` file somewhere appropriate.
+
+Update the dump1090-fa command-line options to include `--wisdom /path/to/wisdom.local`

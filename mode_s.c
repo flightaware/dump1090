@@ -3,6 +3,7 @@
 // mode_s.c: Mode S message decoding.
 //
 // Copyright (c) 2014-2016 Oliver Jowett <oliver@mutability.co.uk>
+// Copyright (c) 2021 FlightAware LLC
 //
 // This file is free software: you may copy, redistribute and/or modify it
 // under the terms of the GNU General Public License as published by the
@@ -224,77 +225,162 @@ static float decodeMovementFieldV0(unsigned movement) {
     else                       return 0;
 }
 
-// Correct a decoded native-endian Address Announced field
-// (from bits 8-31) if it is affected by the given error
-// syndrome. Updates *addr and returns >0 if changed, 0 if
-// it was unaffected.
-static int correct_aa_field(uint32_t *addr, struct errorinfo *ei)
+// Apply possible corrections to the 14-byte message in "in", storing the result in "out"
+//
+// If the message has a correct CRC, copies in to out unchanged and returns 0
+// If the message has correctable errors, applies the corrections to out and returns the number of corrected errors
+// If the message is uncorrectable (this may mean the message type does not have CRC coverage), returns -1
+
+// is this message a long-form message with a DF that uses Parity/Interrogator?
+static bool isLongPIMessage(const unsigned char *msg)
 {
-    int i;
-    int addr_errors = 0;
+    const unsigned df = getbits(msg, 1, 5);
+    if (df == 17 || df == 18)
+        return true;
+    return false;
+}
 
-    if (!ei)
-        return 0;
+// is this message a short-form message with a DF that uses Parity/Interrogator?
+static bool isShortPIMessage(const unsigned char *msg)
+{
+    const unsigned df = getbits(msg, 1, 5);
+    return (df == 11); // assume IID==0
+}
 
-    for (i = 0; i < ei->errors; ++i) {
-        if (ei->bit[i] >= 8 && ei->bit[i] <= 31) {
-            *addr ^= 1 << (31 - ei->bit[i]);
-            ++addr_errors;
+#define UNCHECKED_SYNDROME 0xFFFFFFFFU
+
+static int correctMessage(const unsigned char *in, unsigned char *out, uint32_t *short_syndrome, uint32_t *long_syndrome)
+{
+    // Possible DF values of the first byte of a message that could be a valid DF11/17/18
+    // message after correction. See tools/df-correction-arrays.py for generator code.
+    // This is used to shortcut message correction so that we don't bother computing a CRC over
+    // messages that couldn't possibly become one of those message types.
+
+    // These are bitsets, where the bit with value 1<<N represents a match for DF N
+    static const uint32_t df_correctable_short[MODES_MAX_BITERRORS + 1] = {
+        0x00000800, 0x08008e08, 0x08008e08
+    };
+    static const uint32_t df_correctable_long[MODES_MAX_BITERRORS + 1] = {
+        0x00060000, 0x066f0006, 0x6fff066f
+    };
+
+    *short_syndrome = UNCHECKED_SYNDROME;
+    *long_syndrome = UNCHECKED_SYNDROME;
+
+    // Try to correct, including corrections to the initial 5 bit DF field
+    // that determines message format
+
+    const unsigned uncorrected_df = getbits(in, 1, 5);
+    const uint32_t df_bit = 1 << uncorrected_df;
+
+    // Select the right bitset based on the maximum number of bit errors in the DF field that we could correct.
+    // nb: strictly speaking, --no-fix-df doesn't _entirely_ disable correction of the DF field when nfix_crc == 2
+    // (DF17 could be corrected to DF18 or vice versa), but it does disable the CPU hungry part of it.
+    const unsigned fix_df_bits = (Modes.fix_df ? Modes.nfix_crc : 0);
+
+    struct errorinfo *long_ei = NULL;
+    if (df_correctable_long[fix_df_bits] & df_bit) {
+        *long_syndrome = modesChecksum(in, MODES_LONG_MSG_BITS);
+        if (isLongPIMessage(in) && *long_syndrome == 0) {
+            // DF17/18 message with correct checksum
+            memcpy(out, in, MODES_LONG_MSG_BYTES);
+            return 0;
+        }
+
+        long_ei = modesChecksumDiagnose(*long_syndrome, MODES_LONG_MSG_BITS);
+    }
+
+    struct errorinfo *short_ei = NULL;
+    if (df_correctable_short[fix_df_bits] & df_bit) {
+        *short_syndrome = modesChecksum(in, MODES_SHORT_MSG_BITS);
+        if (isShortPIMessage(in) && (*short_syndrome & 0xFFFF80) == 0) {
+            // DF11 message with correct checksum
+            // (low 7 bits may be IID)
+            memcpy(out, in, MODES_SHORT_MSG_BYTES);
+            return 0;
+        }
+
+        short_ei = modesChecksumDiagnose(*short_syndrome, MODES_SHORT_MSG_BITS); // assume IID == 0
+    }
+
+    // Might be a damaged DF11/17/18, or might be another message type that doesn't have a full CRC
+
+    unsigned long_errors = (long_ei ? long_ei->errors : 999);
+    unsigned short_errors = (short_ei ? short_ei->errors : 999);
+
+    // If both 56-bit and 112-bit corrections are possible:
+    //   try the correction with fewer error bits first
+    //   if there's a tie, try the 112-bit version first
+
+    if (long_ei && long_errors <= short_errors) {
+        memcpy(out, in, MODES_LONG_MSG_BYTES);
+        modesChecksumFix(out, long_ei);
+        if (isLongPIMessage(out)) {
+            // valid DF17/18 message after corrections
+            return long_errors;
         }
     }
 
-    return addr_errors;
+    // Don't try to correct >1 error in DF11 (see crc.c)
+    if (short_ei && short_errors == 1) {
+        memcpy(out, in, MODES_SHORT_MSG_BYTES);
+        modesChecksumFix(out, short_ei);
+        if (isShortPIMessage(out)) {
+            // valid DF11 message after corrections
+            return short_errors;
+        }
+    }
+
+    if (long_ei && long_errors > short_errors) {
+        memcpy(out, in, MODES_LONG_MSG_BYTES);
+        modesChecksumFix(out, long_ei);
+        if (isLongPIMessage(out)) {
+            // valid DF17/18 message after corrections
+            return long_errors;
+        }
+    }
+
+    // Nothing more to try, we can't correct this one further
+    memcpy(out, in, MODES_LONG_MSG_BYTES);
+    return -1;
 }
 
 // Score how plausible this ModeS message looks.
-// The more positive, the more reliable the message is
-
-// 1000: DF 0/4/5/16/24 with a CRC-derived address matching a known aircraft
-
-// 1800: DF17/18 with good CRC and an address matching a known aircraft
-// 1400: DF17/18 with good CRC and an address not matching a known aircraft
-//  900: DF17/18 with 1-bit error and an address matching a known aircraft
-//  700: DF17/18 with 1-bit error and an address not matching a known aircraft
-//  450: DF17/18 with 2-bit error and an address matching a known aircraft
-//  350: DF17/18 with 2-bit error and an address not matching a known aircraft
-
-// 1600: DF11 with IID==0, good CRC and an address matching a known aircraft
-// 1000: DF11 with IID!=0, good CRC and an address matching a known aircraft
-//  800: DF11 with 1-bit error and an address matching a known aircraft
-//  750: DF11 with IID==0, good CRC and an address not matching a known aircraft
-
-// 1000: DF20/21 with a CRC-derived address matching a known aircraft
-//  500: DF20/21 with a CRC-derived address matching a known aircraft (bottom 16 bits only - overlay control in use)
-
-//   -1: message might be valid, but we couldn't validate the CRC against a known ICAO
-//   -2: bad message or unrepairable CRC error
-
-static unsigned char all_zeros[14] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-int scoreModesMessage(unsigned char *msg, int validbits)
+// The more positive, the more reliable the message is.
+score_rank scoreModesMessage(const unsigned char *uncorrected)
 {
-    int msgtype, msgbits, crc, iid;
-    uint32_t addr;
-    struct errorinfo *ei;
+    // This is a "valid" DF0 message, but it's not useful; we discard these messages
+    static const unsigned char all_zeros[MODES_SHORT_MSG_BYTES] = { 0, 0, 0, 0, 0, 0, 0 };
+    if (!memcmp(all_zeros, uncorrected, sizeof(all_zeros)))
+        return SR_ALL_ZEROS;
 
-    if (validbits < 56)
-        return -2;
+    // try to produce a corrected DF11/17/18, including correcting the DF bits
+    unsigned char corrected[14];
+    uint32_t short_syndrome, long_syndrome;
+    int corrections = correctMessage(uncorrected, corrected, &short_syndrome, &long_syndrome);
 
-    msgtype = getbits(msg, 1, 5); // Downlink Format
-    msgbits = modesMessageLenByType(msgtype);
+    unsigned df = getbits(corrected, 1, 5); // Downlink Format
+    switch (df) {
+    case 0:  // short air-air surveillance
+    case 4:  // surveillance, altitude reply
+    case 5:  // surveillance, altitude reply
+        {
+            if (short_syndrome == UNCHECKED_SYNDROME)
+                short_syndrome = modesChecksum(corrected, MODES_SHORT_MSG_BITS);
+            bool recent = icaoFilterTest(short_syndrome);
+            return recent ? SR_UNRELIABLE_KNOWN : SR_UNRELIABLE_UNKNOWN;
+        }
 
-    if (validbits < msgbits)
-        return -2;
-
-    if (!memcmp(all_zeros, msg, msgbits/8))
-        return -2;
-
-    crc = modesChecksum(msg, msgbits);
-
-    switch (msgtype) {
-    case 0: // short air-air surveillance
-    case 4: // surveillance, altitude reply
-    case 5: // surveillance, altitude reply
     case 16: // long air-air surveillance
+    case 20: // Comm-B, altitude reply
+    case 21: // Comm-B, identity reply
+        {
+            if (long_syndrome == UNCHECKED_SYNDROME)
+                long_syndrome = modesChecksum(corrected, MODES_LONG_MSG_BITS);
+            bool recent = icaoFilterTest(long_syndrome);
+            return recent ? SR_UNRELIABLE_KNOWN : SR_UNRELIABLE_UNKNOWN;
+        }
+
     case 24: // Comm-D (ELM)
     case 25: // Comm-D (ELM)
     case 26: // Comm-D (ELM)
@@ -303,82 +389,124 @@ int scoreModesMessage(unsigned char *msg, int validbits)
     case 29: // Comm-D (ELM)
     case 30: // Comm-D (ELM)
     case 31: // Comm-D (ELM)
-        return icaoFilterTest(crc) ? 1000 : -1;
-
-    case 11: // All-call reply
-        iid = crc & 0x7f;
-        addr = getbits(msg, 9, 32);
-
-        if (crc & 0xffff80) {
-            // Try to diagnose based on the _full_ CRC
-            // i.e. under the assumption that IID = 0
-            ei = modesChecksumDiagnose(crc, msgbits);
-            if (!ei)
-                return -2; // can't correct errors
-
-            // see crc.c comments: we do not attempt to fix
-            // more than single-bit errors, as two-bit
-            // errors are ambiguous in DF11.
-            if (ei->errors > 1)
-                return -2; // can't correct errors
-
-            // fix any errors in the address field
-            correct_aa_field(&addr, ei);
-
-            // here, IID = 0 implicitly
-            if (icaoFilterTest(addr))
-                return 800;
-            else
-                return -1;
+        {
+            if (!Modes.enable_df24)
+                return SR_UNCORRECTABLE;
+            if (long_syndrome == UNCHECKED_SYNDROME)
+                long_syndrome = modesChecksum(corrected, MODES_LONG_MSG_BITS);
+            bool recent = icaoFilterTest(long_syndrome);
+            return recent ? SR_UNRELIABLE_KNOWN : SR_UNRELIABLE_UNKNOWN;
         }
 
-        // CRC was correct (ish)
-        if (iid == 0) {
-            if (icaoFilterTest(addr))
-                return 1600;
-            else
-                return 750;
-        } else { // iid != 0
-            if (icaoFilterTest(addr))
-                return 1000;
-            else
-                return -1;
+    case 11:
+        {
+            // DF11 All-call reply
+            uint32_t addr = getbits(corrected, 9, 32);
+            if (short_syndrome == UNCHECKED_SYNDROME)
+                short_syndrome = modesChecksum(corrected, MODES_SHORT_MSG_BITS);
+            uint32_t iid = short_syndrome & 0x7F;
+            bool recent = icaoFilterTest(addr);
+
+            switch (corrections) {
+            case 0:
+                if (iid == 0)
+                    return recent ? SR_DF11_ACQ_KNOWN : SR_DF11_ACQ_UNKNOWN;
+                else
+                    return recent ? SR_DF11_IID_KNOWN : SR_DF11_IID_UNKNOWN;
+            case 1:
+                if (iid == 0)
+                    return recent ? SR_DF11_ACQ_1ERROR_KNOWN : SR_DF11_ACQ_1ERROR_UNKNOWN;
+                else
+                    return recent ? SR_DF11_IID_1ERROR_KNOWN : SR_DF11_IID_1ERROR_UNKNOWN;
+            default:
+                return SR_UNCORRECTABLE;
+            }
         }
 
     case 17:   // Extended squitter
+        {
+            uint32_t addr = getbits(corrected, 9, 32);
+            bool recent = icaoFilterTest(addr);
+
+            switch (corrections) {
+            case 0:
+                return recent ? SR_DF17_KNOWN : SR_DF17_UNKNOWN;
+            case 1:
+                return recent ? SR_DF17_1ERROR_KNOWN : SR_DF17_1ERROR_UNKNOWN;
+            case 2:
+                return recent ? SR_DF17_2ERROR_KNOWN : SR_DF17_2ERROR_UNKNOWN;
+            default:
+                return SR_UNCORRECTABLE;
+            }
+        }
+
     case 18:   // Extended squitter/non-transponder
-        ei = modesChecksumDiagnose(crc, msgbits);
-        if (!ei)
-            return -2; // can't correct errors
+        {
+            uint32_t addr = getbits(corrected, 9, 32);
+            bool recent = icaoFilterTest(addr | ICAO_FILTER_ADSB_NT); // only look for previous DF18 activity
 
-        // fix any errors in the address field
-        addr = getbits(msg, 9, 32);
-        correct_aa_field(&addr, ei);
+            switch (corrections) {
+            case 0:
+                return recent ? SR_DF18_KNOWN : SR_DF18_UNKNOWN;
+            case 1:
+                return recent ? SR_DF18_1ERROR_KNOWN : SR_DF18_1ERROR_UNKNOWN;
+            case 2:
+                return recent ? SR_DF18_2ERROR_KNOWN : SR_DF18_2ERROR_UNKNOWN;
+            default:
+                return SR_UNCORRECTABLE;
+            }
+        }
 
-        if (icaoFilterTest(addr))
-            return 1800 / (ei->errors+1);
-        else
-            return 1400 / (ei->errors+1);
 
-    case 20:   // Comm-B, altitude reply
-    case 21:   // Comm-B, identity reply
-        if (icaoFilterTest(crc))
-            return 1000; // Address/Parity
-
-#if 0
-        // This doesn't seem useful, as we mistake a lot of CRC errors
-        // for overlay control
-        if (icaoFilterTestFuzzy(crc))
-            return 500;  // Data/Parity
-#endif
-
-        return -2;
 
     default:
         // unknown message type
-        return -2;
+        return SR_UNKNOWN_DF;
     }
 }
+
+static const char *score_to_string(score_rank score)
+{
+    switch (score) {
+    case SR_NOT_SET: return "NOT_SET";
+    case SR_UNKNOWN_THRESHOLD: return "UNKNOWN_THRESHOLD";
+    case SR_ACCEPT_THRESHOLD: return "ACCEPT_THRESHOLD";
+
+    case SR_ALL_ZEROS: return "ALL_ZEROS";
+    case SR_UNKNOWN_DF: return "UNKNOWN_DF";
+    case SR_UNCORRECTABLE: return "UNCORRECTABLE";
+
+    case SR_UNRELIABLE_UNKNOWN: return "UNRELIABLE_UNKNOWN";
+    case SR_UNRELIABLE_KNOWN: return "UNRELIABLE_KNOWN";
+
+    case SR_DF11_IID_1ERROR_UNKNOWN: return "DF11_IID_1ERROR_UNKNOWN";
+    case SR_DF11_ACQ_1ERROR_UNKNOWN: return "DF11_ACQ_1ERROR_UNKNOWN";
+    case SR_DF11_IID_UNKNOWN: return "DF11_IID_UNKNOWN";
+    case SR_DF11_ACQ_UNKNOWN: return "DF11_ACQ_UNKNOWN";
+    case SR_DF11_IID_1ERROR_KNOWN: return "DF11_IID_1ERROR_KNOWN";
+    case SR_DF11_ACQ_1ERROR_KNOWN: return "DF11_ACQ_1ERROR_KNOWN";
+    case SR_DF11_IID_KNOWN: return "DF11_IID_KNOWN";
+    case SR_DF11_ACQ_KNOWN: return "DF11_ACQ_KNOWN";
+
+    case SR_DF17_2ERROR_UNKNOWN: return "DF17_2ERROR_UNKNOWN";
+    case SR_DF17_2ERROR_KNOWN: return "DF17_2ERROR_KNOWN";
+    case SR_DF17_1ERROR_UNKNOWN: return "DF17_1ERROR_UNKNOWN";
+    case SR_DF17_1ERROR_KNOWN: return "DF17_1ERROR_KNOWN";
+    case SR_DF17_UNKNOWN: return "DF17_UNKNOWN";
+    case SR_DF17_KNOWN: return "DF17_KNOWN";
+
+    case SR_DF18_2ERROR_UNKNOWN: return "DF18_2ERROR_UNKNOWN";
+    case SR_DF18_2ERROR_KNOWN: return "DF18_2ERROR_KNOWN";
+    case SR_DF18_1ERROR_UNKNOWN: return "DF18_1ERROR_UNKNOWN";
+    case SR_DF18_1ERROR_KNOWN: return "DF18_1ERROR_KNOWN";
+    case SR_DF18_UNKNOWN: return "DF18_UNKNOWN";
+    case SR_DF18_KNOWN: return "DF18_KNOWN";
+    }
+
+    return "<bad value>";
+}
+
+static void decodeExtendedSquitter(struct modesMessage *mm);
 
 //
 //=========================================================================
@@ -386,54 +514,55 @@ int scoreModesMessage(unsigned char *msg, int validbits)
 // Decode a raw Mode S message demodulated as a stream of bytes by detectModeS(),
 // and split it into fields populating a modesMessage structure.
 //
-
-static void decodeExtendedSquitter(struct modesMessage *mm);
-
 // return 0 if all OK
-//   -1: message might be valid, but we couldn't validate the CRC against a known ICAO
-//   -2: bad message or unrepairable CRC error
-
-int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
+// <0 if it's a bad message
+//
+int decodeModesMessage(struct modesMessage *mm, const unsigned char *in)
 {
-    // Preserve the original uncorrected copy for later forwarding
-    memcpy(mm->verbatim, msg, MODES_LONG_MSG_BYTES);
-    // Work on our local copy.
-    memcpy(mm->msg, msg, MODES_LONG_MSG_BYTES);
-    msg = mm->msg;
+    // score the message if needed (it might be coming off the network)
+    if (mm->score == SR_NOT_SET)
+        mm->score = scoreModesMessage(in);
 
-    // don't accept all-zeros messages
-    if (!memcmp(all_zeros, msg, 7))
+    if (mm->score < SR_UNKNOWN_THRESHOLD)
+        return -1;
+    if (mm->score < SR_ACCEPT_THRESHOLD)
         return -2;
+
+    // Preserve the original uncorrected copy for later forwarding
+    memcpy(mm->verbatim, in, MODES_LONG_MSG_BYTES);
+
+    // Apply corrections to our local copy
+    uint32_t short_syndrome, long_syndrome;
+    int corrections = correctMessage(in, mm->msg, &short_syndrome, &long_syndrome);
+    const unsigned char *msg = mm->msg;
 
     // Get the message type ASAP as other operations depend on this
     mm->msgtype         = getbits(msg, 1, 5); // Downlink Format
     mm->msgbits         = modesMessageLenByType(mm->msgtype);
-    mm->crc             = modesChecksum(msg, mm->msgbits);
-    mm->correctedbits   = 0;
+    if (mm->msgtype & 16) {
+        if (long_syndrome == UNCHECKED_SYNDROME)
+            long_syndrome = modesChecksum(mm->msg, MODES_LONG_MSG_BITS);
+        mm->crc = long_syndrome;
+    } else {
+        if (short_syndrome == UNCHECKED_SYNDROME)
+            short_syndrome = modesChecksum(mm->msg, MODES_SHORT_MSG_BITS);
+        mm->crc = short_syndrome;
+    }
+
+    mm->correctedbits   = corrections > 0 ? corrections : 0;
     mm->addr            = 0;
 
     // Do checksum work and set fields that depend on the CRC
     switch (mm->msgtype) {
     case 0: // short air-air surveillance
     case 4: // surveillance, altitude reply
-    case 5: // surveillance, altitude reply
+    case 5: // surveillance, identity reply
     case 16: // long air-air surveillance
-    case 24: // Comm-D (ELM)
-    case 25: // Comm-D (ELM)
-    case 26: // Comm-D (ELM)
-    case 27: // Comm-D (ELM)
-    case 28: // Comm-D (ELM)
-    case 29: // Comm-D (ELM)
-    case 30: // Comm-D (ELM)
-    case 31: // Comm-D (ELM)
-        // These message types use Address/Parity, i.e. our CRC syndrome is the sender's ICAO address.
-        // We can't tell if the CRC is correct or not as we don't know the correct address.
-        // Accept the message if it appears to be from a previously-seen aircraft
-        if (!icaoFilterTest(mm->crc)) {
-           return -1;
-        }
+        // These message types use Address/Parity
+        // so we can't check the CRC and must infer the transmitter's address
         mm->source = SOURCE_MODE_S;
         mm->addr = mm->crc;
+        mm->reliable = 0;
         break;
 
     case 11: // All-call reply
@@ -442,65 +571,14 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
         //
         // however! CL + IC only occupy the lower 7 bits of the CRC. So if we ignore those bits when testing
         // the CRC we can still try to detect/correct errors.
-
         mm->IID = mm->crc & 0x7f;
-        if (mm->crc & 0xffff80) {
-            // Try to diagnose based on the _full_ CRC
-            // i.e. under the assumption that IID = 0
-
-            int addr;
-            struct errorinfo *ei = modesChecksumDiagnose(mm->crc, mm->msgbits);
-            if (!ei) {
-                return -2; // couldn't fix it
-            }
-
-            // see crc.c comments: we do not attempt to fix
-            // more than single-bit errors, as two-bit
-            // errors are ambiguous in DF11.
-            if (ei->errors > 1)
-                return -2; // can't correct errors
-
-            mm->correctedbits = ei->errors;
-            mm->IID = 0;
-            modesChecksumFix(msg, ei);
-
-            // check whether the corrected message looks sensible
-            // we are conservative here: only accept corrected messages that
-            // match an existing aircraft.
-            addr = getbits(msg, 9, 32);
-            if (!icaoFilterTest(addr)) {
-                return -1;
-            }
-        }
         mm->source = SOURCE_MODE_S_CHECKED;
         mm->reliable = (mm->IID == 0 && mm->correctedbits == 0);
         break;
 
     case 17:   // Extended squitter
     case 18: { // Extended squitter/non-transponder
-        struct errorinfo *ei;
-        int addr1, addr2;
-
         // These message types use Parity/Interrogator, but are specified to set II=0
-
-        if (mm->crc != 0) {
-            ei = modesChecksumDiagnose(mm->crc, mm->msgbits);
-            if (!ei) {
-                return -2; // couldn't fix it
-            }
-
-            addr1 = getbits(msg, 9, 32);
-            mm->correctedbits = ei->errors;
-            modesChecksumFix(msg, ei);
-            addr2 = getbits(msg, 9, 32);
-
-            // we are conservative here: only accept corrected messages that
-            // match an existing aircraft.
-            if (addr1 != addr2 && !icaoFilterTest(addr2)) {
-                return -1;
-            }
-        }
-
         mm->source = SOURCE_ADSB; // TIS-B decoding will override this if needed
         mm->reliable = (mm->correctedbits == 0);
         break;
@@ -508,22 +586,32 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
 
     case 20: // Comm-B, altitude reply
     case 21: // Comm-B, identity reply
-        // These message types either use Address/Parity (see DF0 etc)
+        // These message types either use Address/Parity
         // or Data Parity where the requested BDS is also xored into the top byte.
         // So not only do we not know whether the CRC is right, we also don't know if
         // the ICAO is right! Ow.
 
-        // Try an exact match
-        if (icaoFilterTest(mm->crc)) {
-            // OK.
-            mm->source = SOURCE_MODE_S;
-            mm->addr = mm->crc;
-            break;
-        }
+        mm->source = SOURCE_MODE_S;
+        mm->addr = mm->crc;
+        mm->reliable = 0;
+        break;
 
-        // BDS / overlay control just doesn't work out.
-
-        return -1; // no good
+    case 24: // Comm-D (ELM)
+    case 25: // Comm-D (ELM)
+    case 26: // Comm-D (ELM)
+    case 27: // Comm-D (ELM)
+    case 28: // Comm-D (ELM)
+    case 29: // Comm-D (ELM)
+    case 30: // Comm-D (ELM)
+    case 31: // Comm-D (ELM)
+        // These messages use Address/Parity,
+        // and also use some of the DF bits to carry data. Remap them all to a single
+        // DF for simplicity.
+        mm->msgtype = 24;
+        mm->source = SOURCE_MODE_S;
+        mm->addr = mm->crc;
+        mm->reliable = 0;
+        break;
 
     default:
         // All other message types, we don't know how to handle their CRCs, give up
@@ -635,7 +723,7 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
     }
 
     // KE (Control, ELM)
-    if (mm->msgtype >= 24 && mm->msgtype <= 31) {
+    if (mm->msgtype == 24) {
         mm->KE = getbit(msg, 4);
     }
 
@@ -646,7 +734,7 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
     }
 
     // MD (message, Comm-D)
-    if (mm->msgtype >= 24 && mm->msgtype <= 31) {
+    if (mm->msgtype == 24) {
         memcpy(mm->MD, &msg[1], 10);
     }
 
@@ -662,7 +750,7 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
     }
 
     // ND (number of D-segment, Comm-D)
-    if (mm->msgtype >= 24 && mm->msgtype <= 31) {
+    if (mm->msgtype == 24) {
         mm->ND = getbits(msg, 5, 8);
     }
 
@@ -691,14 +779,12 @@ int decodeModesMessage(struct modesMessage *mm, unsigned char *msg)
     }
 
     if (!mm->correctedbits && (mm->msgtype == 17 || (mm->msgtype == 11 && mm->IID == 0))) {
-        // No CRC errors seen, and either it was an DF17 extended squitter
-        // or a DF11 acquisition squitter with II = 0. We probably have the right address.
-
-        // Don't do this for DF18, as a DF18 transmitter doesn't necessarily have a
-        // Mode S transponder.
-
-        // NB this is the only place that adds addresses!
+        // DF17 ADS-B or DF11 acquisition squitter. Mark as known Mode-S source
         icaoFilterAdd(mm->addr);
+    }
+    if (!mm->correctedbits && mm->msgtype == 18) {
+         // Mark as known ADS-B (NT) source
+       icaoFilterAdd(mm->addr | ICAO_FILTER_ADSB_NT);
     }
 
     // MLAT overrides all other sources
@@ -987,6 +1073,11 @@ static void decodeESAirbornePosition(struct modesMessage *mm, int check_imf)
         altitude_unit_t unit;
         int alt = decodeAC12Field(AC12Field, &unit);
         if (alt != INVALID_ALTITUDE) {
+            // If we haven't set airground yet (e.g. DF18)
+            // then we can at least set it to UNCERTAIN here
+            if (mm->airground == AG_INVALID)
+                mm->airground = AG_UNCERTAIN;
+
             if (mm->metype == 20 || mm->metype == 21 || mm->metype == 22) {
                 mm->altitude_geom = alt;
                 mm->altitude_geom_unit = unit;
@@ -1590,6 +1681,8 @@ static const char *commb_format_to_string(commb_format_t format) {
         return "empty response";
     case COMMB_AMBIGUOUS:
         return "ambiguous format";
+    case COMMB_NOT_DECODED:
+        return "not decoded";
     case COMMB_DATALINK_CAPS:
         return "BDS1,0 Datalink capabilities";
     case COMMB_GICB_CAPS:
@@ -1604,6 +1697,10 @@ static const char *commb_format_to_string(commb_format_t format) {
         return "BDS5,0 Track and turn report";
     case COMMB_HEADING_SPEED:
         return "BDS6,0 Heading and speed report";
+    case COMMB_MRAR:
+        return "BDS4,4 Meterological routine air report";
+    case COMMB_AIRBORNE_POSITION:
+        return "BDS0,5 Extended squitter airborne position";
     default:
         return "unknown format";
     }
@@ -1654,6 +1751,29 @@ static const char *emergency_to_string(emergency_t emergency)
     case EMERGENCY_UNLAWFUL:  return "unlawful interference (7500)";
     case EMERGENCY_DOWNED:    return "downed aircraft";
     default:                  return "reserved";
+    }
+}
+
+static const char *mrar_source_to_string(mrar_source_t source)
+{
+    switch (source) {
+    case MRAR_SOURCE_INVALID: return "invalid";
+    case MRAR_SOURCE_INS:     return "INS";
+    case MRAR_SOURCE_GNSS:    return "GNSS";
+    case MRAR_SOURCE_DMEDME:  return "DME/DME";
+    case MRAR_SOURCE_VORDME:  return "VOR/DME";
+    default:                  return "reserved";
+    }
+}
+
+static const char *hazard_to_string(hazard_t hazard)
+{
+    switch (hazard) {
+    case HAZARD_NIL:      return "nil";
+    case HAZARD_LIGHT:    return "light";
+    case HAZARD_MODERATE: return "moderate";
+    case HAZARD_SEVERE:   return "severe";
+    default:              return "invalid hazard severity";
     }
 }
 
@@ -1798,7 +1918,7 @@ void displayModesMessage(struct modesMessage *mm) {
         printf("RSSI: %.1f dBFS\n", 10 * log10(mm->signalLevel));
 
     if (mm->score)
-        printf("Score: %d\n", mm->score);
+        printf("Score: %d (%s)\n", mm->score, score_to_string(mm->score));
 
     if (mm->timestampMsg) {
         if (mm->timestampMsg == MAGIC_MLAT_TIMESTAMP)
@@ -1864,17 +1984,15 @@ void displayModesMessage(struct modesMessage *mm) {
         break;
 
     case 24:
-    case 25:
-    case 26:
-    case 27:
-    case 28:
-    case 29:
-    case 30:
-    case 31:
+        /* 25 .. 31 also remapped to 24 during decoding */
         printf("DF:24 addr:%06x KE:%u ND:%u MD:",
                mm->addr, mm->KE, mm->ND);
         print_hex_bytes(mm->MD, sizeof(mm->MD));
         printf("\n");
+        break;
+
+    default:
+        printf("DF:%u", mm->msgtype);
         break;
     }
 
@@ -2124,6 +2242,21 @@ void displayModesMessage(struct modesMessage *mm) {
         printf("  Emergency/priority:      %s\n", emergency_to_string(mm->emergency));
     }
 
+    if (mm->mrar_source_valid)
+        printf("  MRAR FOM/Source:         %s\n", mrar_source_to_string(mm->mrar_source));
+    if (mm->wind_valid) {
+        printf("  Wind speed:              %.0f kt\n", mm->wind_speed);
+        printf("  Wind direction:          %.1f degrees\n", mm->wind_dir);
+    }
+    if (mm->temperature_valid)
+        printf("  Air temperature:         %.1f degrees C\n", mm->temperature);
+    if (mm->pressure_valid)
+        printf("  Static pressure:         %.0f hPa\n", mm->pressure);
+    if (mm->turbulence_valid)
+        printf("  Turbulence:              %s\n", hazard_to_string(mm->turbulence));
+    if (mm->humidity_valid)
+        printf("  Humidity:                %.0f%%\n", mm->humidity);
+
     printf("\n");
     fflush(stdout);
 }
@@ -2142,6 +2275,9 @@ void useModesMessage(struct modesMessage *mm) {
     struct aircraft *a;
 
     ++Modes.stats_current.messages_total;
+    if (mm->msgtype >= 0 && mm->msgtype < 32) {
+        ++Modes.stats_current.messages_by_df[mm->msgtype];
+    }
 
     // Track aircraft state
     a = trackUpdateFromMessage(mm);

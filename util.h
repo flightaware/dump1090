@@ -21,6 +21,7 @@
 #define DUMP1090_UTIL_H
 
 #include <stdint.h>
+#include <pthread.h>
 
 /* Returns system time in milliseconds */
 uint64_t mstime(void);
@@ -59,5 +60,10 @@ void update_cpu_timing(struct timespec *start_time, struct timespec *add_to);
 
 /* set current thread name, if supported */
 void set_thread_name(const char *name);
+
+/* wait for the given thread to terminate, like pthread_join. If supported,
+ * if the thread has not terminated within `timeout_ms` milliseconds, return ETIMEDOUT.
+ */
+int join_thread(pthread_t thread, void **retval, uint32_t timeout_ms);
 
 #endif

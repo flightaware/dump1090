@@ -48,6 +48,7 @@
 //   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "dump1090.h"
+#include "cpu.h"
 
 #include <stdarg.h>
 
@@ -109,15 +110,41 @@ static void modesInitConfig(void) {
     memset(&Modes, 0, sizeof(Modes));
 
     // Now initialise things that should not be 0/NULL to their defaults
-    Modes.gain                    = MODES_MAX_GAIN;
+    Modes.gain                    = MODES_DEFAULT_GAIN;
     Modes.freq                    = MODES_DEFAULT_FREQ;
     Modes.check_crc               = 1;
-    Modes.net_heartbeat_interval  = MODES_NET_HEARTBEAT_INTERVAL;
+    Modes.fix_df                  = 1;
     Modes.interactive_display_ttl = MODES_INTERACTIVE_DISPLAY_TTL;
     Modes.json_interval           = 1000;
+    Modes.json_stats_interval     = 60000;
     Modes.json_location_accuracy  = 1;
     Modes.maxRange                = 1852 * 300; // 300NM default max range
     Modes.mode_ac_auto            = 1;
+
+    Modes.net_heartbeat_interval = MODES_NET_HEARTBEAT_INTERVAL;
+    Modes.net_output_flush_size = 1300;
+    Modes.net_output_flush_interval = 500;
+
+    // adaptive
+    Modes.adaptive_min_gain_db = 0;
+    Modes.adaptive_max_gain_db = 99999;
+
+    Modes.adaptive_duty_cycle = 0.5;
+
+    Modes.adaptive_burst_control = false;
+    Modes.adaptive_burst_alpha = 2.0 / (5 + 1);
+    Modes.adaptive_burst_change_delay = 5;
+    Modes.adaptive_burst_loud_runlength = 10;
+    Modes.adaptive_burst_loud_rate = 5.0;
+    Modes.adaptive_burst_quiet_runlength = 10;    
+    Modes.adaptive_burst_quiet_rate = 5.0;
+
+    Modes.adaptive_range_control = false;
+    Modes.adaptive_range_alpha = 2.0 / (5 + 1);
+    Modes.adaptive_range_percentile = 40;
+    Modes.adaptive_range_change_delay = 10;
+    Modes.adaptive_range_scan_delay = 300;
+    Modes.adaptive_range_rescan_delay = 3600;
 
     sdrInitConfig();
 }
@@ -258,16 +285,36 @@ static void showVersion()
 #ifdef ENABLE_LIMESDR
            "ENABLE_LIMESDR "
 #endif
-#ifdef SC16Q11_TABLE_BITS
-    // This is a little silly, but that's how the preprocessor works..
-#define _stringize(x) #x
-#define stringize(x) _stringize(x)
-           "SC16Q11_TABLE_BITS=" stringize(SC16Q11_TABLE_BITS)
-#undef stringize
-#undef _stringize
-#endif
            );
     printf("-----------------------------------------------------------------------------\n");
+}
+
+static void showDSP()
+{
+    printf("  detected runtime CPU features: ");
+    if (cpu_supports_avx())
+        printf("AVX ");
+    if (cpu_supports_avx2())
+        printf("AVX2 ");
+    if (cpu_supports_armv7_neon_vfpv4())
+        printf("ARMv7+NEON+VFPv4 ");
+    printf("\n");
+
+    printf("  selected DSP implementations: \n");
+#define SHOW(x) do {                                                    \
+        printf("    %-40s %s\n", #x , starch_ ## x ## _select()->name);  \
+        printf("    %-40s %s\n", #x "_aligned", starch_ ## x ## _aligned_select()->name); \
+    } while(0)
+
+    SHOW(magnitude_uc8);
+    SHOW(magnitude_power_uc8);
+    SHOW(magnitude_sc16);
+    SHOW(magnitude_sc16q11);
+    SHOW(mean_power_u16);
+    SHOW(count_above_u16);
+
+#undef SHOW
+
     printf("\n");
 }
 
@@ -278,62 +325,128 @@ static void showHelp(void)
     sdrShowHelp();
 
     printf(
-"      Common options\n"
+"      Output modes\n"
 "\n"
-"--gain <db>              Set gain (default: max gain. Use -10 for auto-gain)\n"
-"--freq <hz>              Set frequency (default: 1090 Mhz)\n"
-"--interactive            Interactive mode refreshing data on screen. Implies --throttle\n"
-"--interactive-ttl <sec>  Remove from list if idle for <sec> (default: 60)\n"
+// ------ 80 char limit ----------------------------------------------------------|
 "--raw                    Show only messages hex values\n"
-"--net                    Enable networking with default ports unless overridden\n"
 "--modeac                 Enable decoding of SSR Modes 3/A & 3/C\n"
-"--no-modeac-auto         Don't enable Mode A/C if requested by a Beast connection\n"
+"--mlat                   display raw messages in Beast ascii mode\n"
+"--onlyaddr               Show only ICAO addresses (testing purposes)\n"
+"--metric                 Use metric units (meters, km/h, ...)\n"
+"--gnss                   Show altitudes as HAE/GNSS when available\n"
+"--quiet                  Disable output to stdout. Use for daemon applications\n"
+"--show-only <addr>       Show only messages from the given ICAO on stdout\n"
+"--snip <level>           Strip IQ file removing samples < level\n"
+"\n"
+"      Decoder settings\n"
+"\n"
+// ------ 80 char limit ----------------------------------------------------------|
+"--gain <db>              Set gain in dB (default: varies by SDR type)\n"
+"--freq <hz>              Set frequency (default: 1090 Mhz)\n"
+"--fix                    Enable single-bit error correction using CRC\n"
+"--fix-2bit               Enable two-bit error correction using CRC\n"
+"                          (use with caution!)\n"
+"--no-fix                 Disable error correction using CRC\n"
+"--no-fix-df              Disable error correction of the DF message field\n"
+"                          (reduces CPU requirements)\n"
+"--no-crc-check           Disable messages with broken CRC (discouraged)\n"
+"--enable-df24            Enable decoding of DF24 Comm-D ELM messages\n"
+"--lat <latitude>         Reference/receiver latitude for surface positions\n"
+"--lon <longitude>        Reference/receiver longitude for surface positions\n"
+"--max-range <distance>   Absolute maximum range for position decoding (in NM)\n"
+"\n"
+// ------ 80 char limit ----------------------------------------------------------|
+"      Adaptive gain\n"
+"\n"
+"--adaptive-burst                     Adjust gain for too-loud message bursts\n"
+"--adaptive-burst-change-delay <s>     Set delay after changing gain before\n"
+"                                       resuming burst control (seconds)\n"
+"--adaptive-burst-alpha <a>            Set burst rate smoothing factor\n"
+"                                       (0..1, smaller=more smoothing)\n"
+"--adaptive-burst-loud-rate <r>        Set burst rate for gain decrease\n"
+"--adaptive-burst-loud-runlength <l>   Set burst runlength for gain decrease\n"
+"--adaptive-burst-quiet-rate <r>       Set burst rate for gain increase\n"
+"--adaptive-burst-quiet-runlength <l>  Set burst runlength for gain increase\n"
+"--adaptive-range                     Adjust gain for target dynamic range\n"
+"--adaptive-range-target <db>          Set target dynamic range in dB\n"
+"--adaptive-range-alpha <a>            Set dynamic range noise smoothing factor\n"
+"                                       (0..1, smaller=more smoothing)\n"
+"--adaptive-range-percentile <p>       Set dynamic range noise percentile\n"
+"--adaptive-range-change-delay <s>     Set delay after changing gain before\n"
+"                                       resuming dynamic range control (seconds)\n"
+"--adaptive-range-scan-delay <s>       Set scan interval for dynamic range\n"
+"                                       gain scanning following a gain decrease\n"
+"                                       due to an increase in noise (seconds)\n"
+"--adaptive-range-rescan-delay <s>     Set periodic rescan interval for dynamic\n"
+"                                       range gain scanning (seconds)\n"
+"--adaptive-min-gain <g>              Set gain adjustment range lower limit (dB)\n"
+"--adaptive-max-gain <g>              Set gain adjustment range upper limit (dB)\n"
+"--adaptive-duty-cycle <p>            Set adaptive gain duty cycle %% (1..100)\n"
+"\n"
+// ------ 80 char limit ----------------------------------------------------------|
+"      Network connections\n"
+"\n"
+"--net                    Enable networking with default ports unless overridden\n"
+"--no-modeac-auto         Don't enable Mode A/C if requested by a net connection\n"
 "--net-only               Enable just networking, no RTL device or file used\n"
-"--net-bind-address <ip>  IP address to bind to (default: Any; Use 127.0.0.1 for private)\n"
+"--net-bind-address <ip>  IP address to bind to (use 127.0.0.1 for private)\n"
 "--net-ri-port <ports>    TCP raw input listen ports  (default: 30001)\n"
 "--net-ro-port <ports>    TCP raw output listen ports (default: 30002)\n"
 "--net-sbs-port <ports>   TCP BaseStation output listen ports (default: 30003)\n"
 "--net-bi-port <ports>    TCP Beast input listen ports  (default: 30004,30104)\n"
 "--net-bo-port <ports>    TCP Beast output listen ports (default: 30005)\n"
-"--net-stratux-port <ports>   TCP Stratux output listen ports (default: disabled)\n"
+"--net-stratux-port <ports>  TCP Stratux output listen ports (default: disabled)\n"
 "--net-ro-size <size>     TCP output minimum size (default: 0)\n"
 "--net-ro-interval <rate> TCP output memory flush rate in seconds (default: 0)\n"
-"--net-heartbeat <rate>   TCP heartbeat rate in seconds (default: 60 sec; 0 to disable)\n"
+"--net-heartbeat <rate>   TCP heartbeat rate in seconds\n"
+"                          (default: 60 sec; 0 to disable)\n"
 "--net-buffer <n>         TCP buffer size 64Kb * (2^n) (default: n=0, 64Kb)\n"
-"--net-verbatim           Make Beast-format output connections default to verbatim mode\n"
-"                         (forward all messages, without applying CRC corrections)\n"
-"--forward-mlat           Allow forwarding of received mlat results to output ports\n"
-"--lat <latitude>         Reference/receiver latitude for surface posn (opt)\n"
-"--lon <longitude>        Reference/receiver longitude for surface posn (opt)\n"
-"--max-range <distance>   Absolute maximum range for position decoding (in nm, default: 300)\n"
-"--fix                    Enable single-bit error correction using CRC\n"
-"--fix-2bit               Enable two-bit error correction using CRC (use with caution)\n"
-"--no-fix                 Disable error correction using CRC\n"
-"--no-crc-check           Disable messages with broken CRC (discouraged)\n"
-"--mlat                   display raw messages in Beast ascii mode\n"
-"--stats                  With --ifile print stats at exit. No other output\n"
-"--stats-range            Collect/show range histogram\n"
+"--net-verbatim           Make output connections default to verbatim mode\n"
+"                           (forward all messages without correction)\n"
+"--forward-mlat           Allow forwarding of received mlat results\n"
+"\n"
+// ------ 80 char limit ----------------------------------------------------------|
+"      Stats and json output\n"
+"\n"
+"--stats                  Show stats summary at exit.\n"
 "--stats-every <seconds>  Show and reset stats every <seconds> seconds\n"
-"--onlyaddr               Show only ICAO addresses (testing purposes)\n"
-"--metric                 Use metric units (meters, km/h, ...)\n"
-"--gnss                   Show altitudes as HAE/GNSS (with H suffix) when available\n"
-"--snip <level>           Strip IQ file removing samples < level\n"
-"--quiet                  Disable output to stdout. Use for daemon applications\n"
-"--show-only <addr>       Show only messages from the given ICAO on stdout\n"
-"--write-json <dir>       Periodically write json output to <dir> (for serving by a separate webserver)\n"
-"--write-json-every <t>   Write json output every t seconds (default 1)\n"
-"--json-location-accuracy <n>  Accuracy of receiver location in json metadata: 0=no location, 1=approximate, 2=exact\n"
-"--dcfilter               Apply a 1Hz DC filter to input data (requires more CPU)\n"
-"--version                Show version and build options\n"
+"--stats-range            Collect/show range histogram\n"
+"--write-json <dir>       Periodically write json output to <dir>\n"
+"                          (for serving by a separate webserver)\n"
+"--write-json-every <t>   Write json aircraft output every t seconds (default 1)\n"
+"--json-stats-every <t>   Write json stats output every t seconds (default 60)\n"
+"--json-location-accuracy <n>  Accuracy of receiver location in json metadata\n"
+"                          (0=no location, 1=approximate, 2=exact)\n"
+"\n"
+"      Interactive mode\n"
+"\n"
+"--interactive                       Interactive mode refreshing data on screen.\n"
+"                                     Implies --throttle\n"
+"--interactive-ttl <sec>             Remove from list if idle for <sec>\n"
+"--interactive-show-distance         Show aircraft distance and bearing\n"
+"                                     (requires --lat and --lon)\n"
+"--interactive-distance-units <u>    Distance units ('km', 'sm', 'nm')\n"
+"--interactive-callsign-filter <r>   Filter rows by callsign against regex\n"
+"\n"
+"      Misc\n"
+"\n"
+"--wisdom <path>          Read DSP wisdom from given path\n"
+"--version                Show version, build and DSP options\n"
 "--help                   Show this help\n"
     );
 }
 
-static void display_total_stats(void)
+// Accumulate stats data from stats_current to stats_periodic, stats_alltime and stats_latest;
+// reset stats_current
+void flush_stats(uint64_t now);
+void flush_stats(uint64_t now)
 {
-    struct stats added;
-    add_stats(&Modes.stats_alltime, &Modes.stats_current, &added);
-    display_stats(&added);
+    add_stats(&Modes.stats_current, &Modes.stats_periodic, &Modes.stats_periodic);
+    add_stats(&Modes.stats_current, &Modes.stats_alltime, &Modes.stats_alltime);
+    add_stats(&Modes.stats_current, &Modes.stats_latest, &Modes.stats_latest);
+
+    reset_stats(&Modes.stats_current);
+    Modes.stats_current.start = Modes.stats_current.end = now;
 }
 
 //
@@ -346,12 +459,16 @@ static void display_total_stats(void)
 static void backgroundTasks(void) {
     static uint64_t next_stats_display;
     static uint64_t next_stats_update;
+    static uint64_t next_json_stats_update;
     static uint64_t next_json, next_history;
 
     uint64_t now = mstime();
 
-    icaoFilterExpire();
-    trackPeriodicUpdate();
+    if (Modes.sdr_type != SDR_IFILE) {
+        // don't run these if processing data from a file
+        icaoFilterExpire();
+        trackPeriodicUpdate();
+    }
 
     if (Modes.net) {
         modesNetPeriodicWork();
@@ -369,41 +486,41 @@ static void backgroundTasks(void) {
     // always update end time so it is current when requests arrive
     Modes.stats_current.end = mstime();
 
+    // 1-minute stats update
     if (now >= next_stats_update) {
         int i;
 
         if (next_stats_update == 0) {
             next_stats_update = now + 60000;
         } else {
-            Modes.stats_latest_1min = (Modes.stats_latest_1min + 1) % 15;
-            Modes.stats_1min[Modes.stats_latest_1min] = Modes.stats_current;
+            flush_stats(now); // Ensure stats_latest is up to date
 
-            add_stats(&Modes.stats_current, &Modes.stats_alltime, &Modes.stats_alltime);
-            add_stats(&Modes.stats_current, &Modes.stats_periodic, &Modes.stats_periodic);
+            // move stats_latest into 1-min ring buffer
+            Modes.stats_newest_1min = (Modes.stats_newest_1min + 1) % 15;
+            Modes.stats_1min[Modes.stats_newest_1min] = Modes.stats_latest;
+            reset_stats(&Modes.stats_latest);
 
+            // recalculate 5-min window
             reset_stats(&Modes.stats_5min);
             for (i = 0; i < 5; ++i)
-                add_stats(&Modes.stats_1min[(Modes.stats_latest_1min - i + 15) % 15], &Modes.stats_5min, &Modes.stats_5min);
+                add_stats(&Modes.stats_1min[(Modes.stats_newest_1min - i + 15) % 15], &Modes.stats_5min, &Modes.stats_5min);
 
+            // recalculate 15-min window
             reset_stats(&Modes.stats_15min);
             for (i = 0; i < 15; ++i)
                 add_stats(&Modes.stats_1min[i], &Modes.stats_15min, &Modes.stats_15min);
-
-            reset_stats(&Modes.stats_current);
-            Modes.stats_current.start = Modes.stats_current.end = now;
-
-            if (Modes.json_dir)
-                writeJsonToFile("stats.json", generateStatsJson);
 
             next_stats_update += 60000;
         }
     }
 
+    // --stats-every display
     if (Modes.stats && now >= next_stats_display) {
         if (next_stats_display == 0) {
             next_stats_display = now + Modes.stats;
         } else {
-            add_stats(&Modes.stats_periodic, &Modes.stats_current, &Modes.stats_periodic);
+            flush_stats(now); // Ensure stats_periodic is up to date
+
             display_stats(&Modes.stats_periodic);
             reset_stats(&Modes.stats_periodic);
 
@@ -412,6 +529,17 @@ static void backgroundTasks(void) {
                 /* something has gone wrong, perhaps the system clock jumped */
                 next_stats_display = now + Modes.stats;
             }
+        }
+    }
+
+    // json stats update
+    if (Modes.json_dir && now >= next_json_stats_update) {
+        if (next_json_stats_update == 0) {
+            next_json_stats_update = now + Modes.json_stats_interval;
+        } else {
+            flush_stats(now); // Ensure everything we'll write is up to date
+            writeJsonToFile("stats.json", generateStatsJson);
+            next_json_stats_update += Modes.json_stats_interval;
         }
     }
 
@@ -482,9 +610,13 @@ int main(int argc, char **argv) {
         } else if ( (!strcmp(argv[j], "--device") || !strcmp(argv[j], "--device-index")) && more) {
             Modes.dev_name = strdup(argv[++j]);
         } else if (!strcmp(argv[j],"--gain") && more) {
-            Modes.gain = (int) (atof(argv[++j])*10); // Gain is in tens of DBs
+            Modes.gain = atof(argv[++j]);
         } else if (!strcmp(argv[j],"--dcfilter")) {
+#if 0
             Modes.dc_filter = 1;
+#else
+            fprintf(stderr, "--dcfilter option ignored (please raise an issue on github if you have a usecase that needs this)\n");
+#endif
         } else if (!strcmp(argv[j],"--measure-noise")) {
             // Ignored
         } else if (!strcmp(argv[j],"--fix")) {
@@ -492,8 +624,12 @@ int main(int argc, char **argv) {
                 Modes.nfix_crc = 1;
         } else if (!strcmp(argv[j],"--fix-2bit")) {
             Modes.nfix_crc = 2;
+        } else if (!strcmp(argv[j],"--enable-df24")) {
+            Modes.enable_df24 = 1;
         } else if (!strcmp(argv[j],"--no-fix")) {
             Modes.nfix_crc = 0;
+        } else if (!strcmp(argv[j],"--no-fix-df")) {
+            Modes.fix_df = 0;
         } else if (!strcmp(argv[j],"--no-crc-check")) {
             Modes.check_crc = 0;
         } else if (!strcmp(argv[j],"--phase-enhance")) {
@@ -566,12 +702,25 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[j],"--hae") || !strcmp(argv[j],"--gnss")) {
             Modes.use_gnss = 1;
         } else if (!strcmp(argv[j],"--aggressive")) {
-            fprintf(stderr, "warning: --aggressive not supported in this build, option ignored (consider '--fix --fix' instead)\n");
+            fprintf(stderr, "warning: --aggressive not supported in this build, option ignored (consider '--fix-2bit' instead)\n");
         } else if (!strcmp(argv[j],"--interactive")) {
             Modes.interactive = 1;
         } else if (!strcmp(argv[j],"--interactive-ttl") && more) {
             Modes.interactive_display_ttl = (uint64_t)(1000 * atof(argv[++j]));
-        } else if (!strcmp(argv[j],"--lat") && more) {
+        } else if (!strcmp(argv[j],"--interactive-show-distance")) {
+            Modes.interactive_show_distance = 1;
+        } else if (!strcmp(argv[j], "--interactive-distance-units") && more) {
+            char *units = argv[++j];
+            if (!strcmp(units, "km")) {
+                Modes.interactive_distance_units = UNIT_KILOMETERS;
+            } else if (!strcmp(units, "sm")) {
+                Modes.interactive_distance_units = UNIT_STATUTE_MILES;
+            } else {
+                Modes.interactive_distance_units = UNIT_NAUTICAL_MILES;
+            }
+        } else if (!strcmp(argv[j], "--interactive-callsign-filter") && more) {
+            Modes.interactive_callsign_filter = strdup(argv[++j]);
+        } else if (!strcmp(argv[j], "--lat") && more) {
             Modes.fUserLat = atof(argv[++j]);
         } else if (!strcmp(argv[j],"--lon") && more) {
             Modes.fUserLon = atof(argv[++j]);
@@ -587,6 +736,8 @@ int main(int argc, char **argv) {
             Modes.stats_range_histo = 1;
         } else if (!strcmp(argv[j],"--stats-every") && more) {
             Modes.stats = (uint64_t) (1000 * atof(argv[++j]));
+        } else if (!strcmp(argv[j],"--json-stats-every") && more) {
+            Modes.json_stats_interval = (uint64_t) (1000 * atof(argv[++j]));
         } else if (!strcmp(argv[j],"--snip") && more) {
             snipMode(atoi(argv[++j]));
             exit(0);
@@ -595,6 +746,7 @@ int main(int argc, char **argv) {
             exit(0);
         } else if (!strcmp(argv[j],"--version")) {
             showVersion();
+            showDSP();
             exit(0);
         } else if (!strcmp(argv[j],"--quiet")) {
             Modes.quiet = 1;
@@ -612,6 +764,46 @@ int main(int argc, char **argv) {
                 Modes.json_interval = 100;
         } else if (!strcmp(argv[j], "--json-location-accuracy") && more) {
             Modes.json_location_accuracy = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--wisdom") && more) {
+            if (starch_read_wisdom (argv[++j]) < 0) {
+                fprintf(stderr,
+                        "Failed to read wisdom file %s: %s\n", argv[j], strerror(errno));
+                exit(1);
+            }            
+        } else if (!strcmp(argv[j], "--adaptive-min-gain") && more) {
+            Modes.adaptive_min_gain_db = atof(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-max-gain") && more) {
+            Modes.adaptive_max_gain_db = atof(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-duty-cycle") && more) {
+            Modes.adaptive_duty_cycle = atof(argv[++j]) / 100.0;
+        } else if (!strcmp(argv[j], "--adaptive-burst")) {
+            Modes.adaptive_burst_control = true;
+        } else if (!strcmp(argv[j], "--adaptive-burst-alpha") && more) {
+            Modes.adaptive_burst_alpha = atof(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-burst-change-delay") && more) {
+            Modes.adaptive_burst_change_delay = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-burst-loud-rate") && more) {
+            Modes.adaptive_burst_loud_rate = atof(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-burst-loud-runlength") && more) {
+            Modes.adaptive_burst_loud_runlength = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-burst-quiet-rate") && more) {
+            Modes.adaptive_burst_quiet_rate = atof(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-burst-quiet-runlength") && more) {
+            Modes.adaptive_burst_quiet_runlength = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-range")) {
+            Modes.adaptive_range_control = true;
+        } else if (!strcmp(argv[j], "--adaptive-range-alpha") && more) {
+            Modes.adaptive_range_alpha = atof(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-range-percentile") && more) {
+            Modes.adaptive_range_percentile = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-range-target") && more) {
+            Modes.adaptive_range_target = atof(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-range-change-delay") && more) {
+            Modes.adaptive_range_change_delay = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-range-scan-delay") && more) {
+            Modes.adaptive_range_scan_delay = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--adaptive-range-rescan-delay") && more) {
+            Modes.adaptive_range_rescan_delay = atoi(argv[++j]);
         } else if (sdrHandleOption(argc, argv, &j)) {
             /* handled */
         } else {
@@ -642,7 +834,7 @@ int main(int argc, char **argv) {
     if (!sdrOpen()) {
         exit(1);
     }
-
+   
     if (Modes.net) {
         modesInitNet();
     }
@@ -651,11 +843,14 @@ int main(int argc, char **argv) {
     Modes.stats_current.start = Modes.stats_current.end =
         Modes.stats_alltime.start = Modes.stats_alltime.end =
         Modes.stats_periodic.start = Modes.stats_periodic.end =
+        Modes.stats_latest.start = Modes.stats_latest.end =
         Modes.stats_5min.start = Modes.stats_5min.end =
         Modes.stats_15min.start = Modes.stats_15min.end = mstime();
 
     for (j = 0; j < 15; ++j)
         Modes.stats_1min[j].start = Modes.stats_1min[j].end = Modes.stats_current.start;
+
+    adaptive_init();
 
     // write initial json files so they're not missing
     writeJsonToFile("receiver.json", generateReceiverJson);
@@ -678,7 +873,7 @@ int main(int argc, char **argv) {
             nanosleep(&slp, NULL);
         }
     } else {
-        int watchdogCounter = 10; // about 1 second
+        int watchdogCounter = 300; // about 30 seconds
 
         // Create the thread that will read the data from the device.
         pthread_create(&Modes.reader_thread, NULL, readerThreadEntryPoint, NULL);
@@ -698,7 +893,7 @@ int main(int argc, char **argv) {
                     demodulate2400AC(buf);
                 }
 
-                Modes.stats_current.samples_processed += buf->validLength;
+                Modes.stats_current.samples_processed += buf->validLength - buf->overlap;
                 Modes.stats_current.samples_dropped += buf->dropped;
                 end_cpu_timing(&start_time, &Modes.stats_current.demod_cpu);
 
@@ -706,12 +901,12 @@ int main(int argc, char **argv) {
                 fifo_release(buf);
 
                 // We got something so reset the watchdog
-                watchdogCounter = 10;
+                watchdogCounter = 300;
             } else {
                 // Nothing to process this time around.
                 if (--watchdogCounter <= 0) {
-                    log_with_timestamp("No data received from the SDR for a long time, it may have wedged");
-                    watchdogCounter = 600;
+                    log_with_timestamp("No samples received from the SDR for a long time. Maybe the hardware is wedged? Giving up.");
+                    Modes.exit = 2; // abnormal exit
                 }
             }
 
@@ -721,15 +916,23 @@ int main(int argc, char **argv) {
         }
 
         log_with_timestamp("Waiting for receive thread termination");
+        sdrStop();   // tell reader thread to wake up and exit
         fifo_halt(); // Reader thread should do this anyway, but just in case..
-        pthread_join(Modes.reader_thread,NULL);     // Wait on reader thread exit
+
+        // Wait on reader thread exit
+        if (join_thread(Modes.reader_thread, NULL, 30000) == ETIMEDOUT) {
+            log_with_timestamp("Receive thread did not shut down cleanly in 30 seconds, aborting.");
+            abort(); // Can't complete cleanup while the receive thread is active; bail out.
+        }
     }
 
     interactiveCleanup();
 
-    // If --stats were given, print statistics
+    // Write final stats
+    flush_stats(0);
+    writeJsonToFile("stats.json", generateStatsJson);
     if (Modes.stats) {
-        display_total_stats();
+        display_stats(&Modes.stats_alltime);
     }
 
     sdrClose();

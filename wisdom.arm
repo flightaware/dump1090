@@ -1,0 +1,37 @@
+# derived from wisdom.pi4b and wisdom.pi0w
+
+magnitude_power_uc8                      neon_vrsqrte_armv7a_neon_vfpv4            # 225511 ns/call
+magnitude_power_uc8                      lookup_unroll_4_generic                   # 5464685 ns/call
+
+magnitude_power_uc8_aligned              neon_vrsqrte_armv7a_neon_vfpv4_aligned    # 212204 ns/call
+magnitude_power_uc8_aligned              lookup_unroll_4_generic                   # 5516196 ns/call
+
+magnitude_sc16                           neon_vrsqrte_armv7a_neon_vfpv4            # 684978 ns/call
+magnitude_sc16                           exact_float_generic                       # 28623479 ns/call
+
+magnitude_sc16_aligned                   neon_vrsqrte_armv7a_neon_vfpv4_aligned    # 639779 ns/call
+magnitude_sc16_aligned                   exact_float_generic                       # 28613950 ns/call
+
+magnitude_sc16q11                        neon_vrsqrte_armv7a_neon_vfpv4            # 166113 ns/call
+magnitude_sc16q11                        exact_float_generic                       # 7131190 ns/call
+
+magnitude_sc16q11_aligned                neon_vrsqrte_armv7a_neon_vfpv4_aligned    # 155221 ns/call
+magnitude_sc16q11_aligned                exact_float_generic                       # 7124159 ns/call
+
+magnitude_uc8                            neon_vrsqrte_armv7a_neon_vfpv4            # 188746 ns/call
+magnitude_uc8                            lookup_unroll_4_generic                   # 4179036 ns/call
+
+magnitude_uc8_aligned                    neon_vrsqrte_armv7a_neon_vfpv4_aligned    # 187209 ns/call
+magnitude_uc8_aligned                    lookup_unroll_4_generic                   # 4445877 ns/call
+
+mean_power_u16                           u32_armv7a_neon_vfpv4                     # 45484 ns/call
+mean_power_u16                           u64_generic                               # 990367 ns/call
+
+mean_power_u16_aligned                   u32_armv7a_neon_vfpv4_aligned             # 44929 ns/call
+mean_power_u16_aligned                   u64_generic                               # 934445 ns/call
+
+count_above_u16                          neon_armv7a_neon_vfpv4                    # 35 ns/call
+count_above_u16                          generic_generic                           # 178 ns/call
+
+count_above_u16_aligned                  neon_armv7a_neon_vfpv4                    # 34 ns/call
+count_above_u16_aligned                  generic_generic                           # 179 ns/call

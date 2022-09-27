@@ -108,6 +108,7 @@ struct aircraft {
 
     data_validity callsign_valid;
     char          callsign[9];     // Flight number
+    int           callsign_matched;   // Interactive callsign filter matched
 
     data_validity altitude_baro_valid;
     int           altitude_baro;   // Altitude (Baro)
@@ -225,6 +226,22 @@ struct aircraft {
     unsigned      gva : 2;        // GVA from opstatus
     unsigned      sda : 2;        // SDA from opstatus
 
+    // data extracted from MRAR
+    data_validity mrar_source_valid;
+    data_validity wind_valid; // speed and direction
+    data_validity pressure_valid;
+    data_validity temperature_valid;
+    data_validity turbulence_valid;
+    data_validity humidity_valid;
+
+    mrar_source_t mrar_source;
+    float         wind_speed;
+    float         wind_dir;
+    float         pressure;
+    float         temperature;
+    hazard_t      turbulence;
+    float         humidity;
+
     int           modeA_hit;   // did our squawk match a possible mode A reply in the last check period?
     int           modeC_hit;   // did our altitude match a possible mode C reply in the last check period?
 
@@ -249,7 +266,9 @@ struct aircraft {
     nav_modes_t   fatsv_emitted_nav_modes;        //      -"-         enabled navigation modes
     float         fatsv_emitted_nav_qnh;          //      -"-         altimeter setting
     unsigned char fatsv_emitted_bds_10[7];        //      -"-         BDS 1,0 message
+    unsigned char fatsv_emitted_bds_17[7];        //      -"-         BDS 1,7 message
     unsigned char fatsv_emitted_bds_30[7];        //      -"-         BDS 3,0 message
+    unsigned char fatsv_emitted_unknown_commb[7]; //      -"-         unrecognized Comm-B message
     unsigned char fatsv_emitted_es_status[7];     //      -"-         ES operational status message
     unsigned char fatsv_emitted_es_acas_ra[7];    //      -"-         ES ACAS RA report message
     char          fatsv_emitted_callsign[9];      //      -"-         callsign
@@ -320,5 +339,12 @@ static inline unsigned indexToModeA(unsigned index)
 {
     return (index & 0007) | ((index & 0070) << 1) | ((index & 0700) << 2) | ((index & 07000) << 3);
 }
+
+/* Great Circle distance in m */
+double greatcircle(double lat0, double lon0, double lat1, double lon1);
+
+/* Get bearing from 2 points */
+double get_bearing(double lat0, double lon0, double lat1, double lon1);
+
 
 #endif

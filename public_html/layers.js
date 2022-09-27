@@ -48,16 +48,6 @@ function createBaseLayers() {
         }));
 
         world.push(new ol.layer.Tile({
-                source: new ol.source.XYZ({
-			"url" : "http://tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png",
-			"attributions" : "© <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">OpenStreetMap</a>  contributors."
-                }),
-                name: 'osm_blackwhite',
-                title: 'OSM Black and White',
-                type: 'base',
-        }));
-
-        world.push(new ol.layer.Tile({
                 source: new ol.source.OSM({
                         "url" : "https://{a-z}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
                         "attributions" : 'Courtesy of <a href="https://carto.com">CARTO.com</a>'
@@ -149,12 +139,16 @@ function createBaseLayers() {
                 }
         }
 
+        var nexrad_bottomLeft = ol.proj.fromLonLat([-171.0,9.0]);
+        var nexrad_topRight = ol.proj.fromLonLat([-51.0,69.0]);
+        var nexrad_extent = [nexrad_bottomLeft[0], nexrad_bottomLeft[1], nexrad_topRight[0], nexrad_topRight[1]];
         var nexrad = new ol.layer.Tile({
                 name: 'nexrad',
                 title: 'NEXRAD',
                 type: 'overlay',
                 opacity: 0.5,
-                visible: false
+                visible: false,
+                extent: nexrad_extent,
         });
         us.push(nexrad);
 
@@ -210,6 +204,9 @@ function createBaseLayers() {
                 });
             };
 
+        var dwd_bottomLeft = ol.proj.fromLonLat([1.9,46.2]);
+        var dwd_topRight = ol.proj.fromLonLat([16.0,55.0]);
+        var dwd_extent = [dwd_bottomLeft[0], dwd_bottomLeft[1], dwd_topRight[0], dwd_topRight[1]];
         var dwd = new ol.layer.Tile({
                 source: new ol.source.TileWMS({
                         url: 'https://maps.dwd.de/geoserver/wms',
@@ -224,6 +221,7 @@ function createBaseLayers() {
                 visible: false,
                 zIndex: 99,
                 maxZoom: 14,
+                exent: dwd_extent,
         });
 
         var refreshDwd = function () {

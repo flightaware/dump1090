@@ -111,6 +111,7 @@ static struct aircraft *trackCreateAircraft(struct modesMessage *mm) {
     F(baro_rate,       60, 70);  // ADS-B or Comm-B
     F(geom_rate,       60, 70);  // ADS-B or Comm-B
     F(squawk,          15, 70);  // ADS-B or Mode S
+    F(emergency,       60, 70);  // ADS-B only
     F(airground,       15, 70);  // ADS-B or Mode S
     F(nav_qnh,         60, 70);  // Comm-B only
     F(nav_altitude_mcp, 60, 70);  // ADS-B or Comm-B
@@ -129,6 +130,12 @@ static struct aircraft *trackCreateAircraft(struct modesMessage *mm) {
     F(sil,             60, 70);  // ADS-B only
     F(gva,             60, 70);  // ADS-B only
     F(sda,             60, 70);  // ADS-B only
+    F(mrar_source,     60, 70);  // Comm-B only
+    F(wind,            60, 70);  // Comm-B only
+    F(temperature,     60, 70);  // Comm-B only
+    F(pressure,        60, 70);  // Comm-B only
+    F(turbulence,      60, 70);  // Comm-B only
+    F(humidity,        60, 70);  // Comm-B only
 #undef F
 
     Modes.stats_current.unique_aircraft++;
@@ -207,7 +214,7 @@ static int compare_validity(const data_validity *lhs, const data_validity *rhs) 
 // Distance between points on a spherical earth.
 // This has up to 0.5% error because the earth isn't actually spherical
 // (but we don't use it in situations where that matters)
-static double greatcircle(double lat0, double lon0, double lat1, double lon1)
+double greatcircle(double lat0, double lon0, double lat1, double lon1)
 {
     double dlat, dlon;
 
@@ -227,6 +234,25 @@ static double greatcircle(double lat0, double lon0, double lat1, double lon1)
 
     // spherical law of cosines
     return 6371e3 * acos(sin(lat0) * sin(lat1) + cos(lat0) * cos(lat1) * cos(dlon));
+}
+
+double get_bearing(double lat0, double lon0, double lat1, double lon1)
+{
+    double dlon;
+
+    lat0 = lat0 * M_PI / 180.0;
+    lon0 = lon0 * M_PI / 180.0;
+    lat1 = lat1 * M_PI / 180.0;
+    lon1 = lon1 * M_PI / 180.0;
+
+    dlon = (lon1 - lon0);
+
+    double x = (cos(lat0) * sin(lat1)) -
+                     (sin(lat0) * cos(lat1) * cos(dlon));
+    double y = sin(dlon) * cos(lat1);
+    double degree = atan2(y, x) * 180 / M_PI;
+
+    return (degree >= 0)? degree : (degree + 360);
 }
 
 static void update_range_histogram(double lat, double lon)
@@ -1128,6 +1154,11 @@ struct aircraft *trackUpdateFromMessage(struct modesMessage *mm)
     }
 
     if (mm->callsign_valid && accept_data(&a->callsign_valid, mm->source)) {
+        if (strcmp(a->callsign, mm->callsign) != 0) {
+            // The callsign changed so tell interactive to
+            // re-evaluate its callsign filter regex if it has one
+            a->callsign_matched = 0;
+        }
         memcpy(a->callsign, mm->callsign, sizeof(a->callsign));
     }
 
@@ -1210,6 +1241,31 @@ struct aircraft *trackUpdateFromMessage(struct modesMessage *mm)
 
     if (mm->accuracy.sda_valid && accept_data(&a->sda_valid, mm->source)) {
         a->sda = mm->accuracy.sda;
+    }
+
+    if (mm->mrar_source_valid && accept_data(&a->mrar_source_valid, mm->source)) {
+        a->mrar_source = mm->mrar_source;
+    }
+
+    if (mm->wind_valid && accept_data(&a->wind_valid, mm->source)) {
+        a->wind_speed = mm->wind_speed;
+        a->wind_dir = mm->wind_dir;
+    }
+
+    if (mm->temperature_valid && accept_data(&a->temperature_valid, mm->source)) {
+        a->temperature = mm->temperature;
+    }
+
+    if (mm->pressure_valid && accept_data(&a->pressure_valid, mm->source)) {
+        a->pressure = mm->pressure;
+    }
+
+    if (mm->turbulence_valid && accept_data(&a->turbulence_valid, mm->source)) {
+        a->turbulence = mm->turbulence;
+    }
+
+    if (mm->humidity_valid && accept_data(&a->humidity_valid, mm->source)) {
+        a->humidity = mm->humidity;
     }
 
     // Now handle derived data
@@ -1356,6 +1412,7 @@ static void trackRemoveStaleAircraft(uint64_t now)
             EXPIRE(baro_rate);
             EXPIRE(geom_rate);
             EXPIRE(squawk);
+            EXPIRE(emergency);
             EXPIRE(airground);
             EXPIRE(nav_qnh);
             EXPIRE(nav_altitude_mcp);
@@ -1370,9 +1427,16 @@ static void trackRemoveStaleAircraft(uint64_t now)
             EXPIRE(nic_c);
             EXPIRE(nic_baro);
             EXPIRE(nac_p);
+            EXPIRE(nac_v);
             EXPIRE(sil);
             EXPIRE(gva);
             EXPIRE(sda);
+            EXPIRE(mrar_source);
+            EXPIRE(wind);
+            EXPIRE(temperature);
+            EXPIRE(pressure);
+            EXPIRE(turbulence);
+            EXPIRE(humidity);
 #undef EXPIRE
             prev = a; a = a->next;
         }

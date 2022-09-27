@@ -27,6 +27,7 @@ static struct {
     hackrf_device *device;
     uint64_t freq;
     int enable_amp;
+    int enable_ant_pwr;
     int lna_gain;
     int vga_gain;
     int rate;
@@ -41,6 +42,7 @@ void hackRFInitConfig()
     HackRF.device = NULL;
     HackRF.freq = 1090000000;
     HackRF.enable_amp = 0;
+    HackRF.enable_ant_pwr = 0;
     HackRF.lna_gain = 32;
     HackRF.vga_gain = 50;
     HackRF.rate = 2400000;
@@ -84,7 +86,10 @@ bool hackRFHandleOption(int argc, char **argv, int *jptr)
         HackRF.rate = atoi(argv[++j]);
     } else if (!strcmp(argv[j], "--enable-amp")) {
         HackRF.enable_amp = 1;
-    } else {
+    } else if (!strcmp(argv[j], "--enable-antenna-power")) {
+        HackRF.enable_ant_pwr = 1;
+    }
+     else {
         return false;
     }
 
@@ -98,6 +103,7 @@ void hackRFShowHelp()
     printf("      HackRF-specific options (use with --device-type hackrf)\n");
     printf("\n");
     printf("--enable-amp             enable amplifier)\n");
+    printf("--enable-antenna-power   enable DC power to the antenna connector\n");
     printf("--lna-gain               set LNA gain (Range 0-40 in 8dB steps))\n");
     printf("--vga-gain               set VGA gain (Range 0-62 in 2dB steps))\n");
     printf("--samplerate             set sample rate)\n");
@@ -180,6 +186,15 @@ bool hackRFOpen()
         hackrf_exit();
         return false;
     }
+
+    status = hackrf_set_antenna_enable(HackRF.device, HackRF.enable_ant_pwr);
+    if (status != 0) {
+        fprintf(stderr, "HackRF: hackrf_set_antenna_enable failed with code %d\n", status);
+        hackrf_close(HackRF.device);
+        hackrf_exit();
+        return false;
+    }
+
 
     show_config();
 

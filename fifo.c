@@ -140,11 +140,13 @@ struct mag_buf *fifo_acquire(uint32_t timeout_ms)
         }
 
         // No free buffers, wait for one
-        if (pthread_cond_timedwait(&fifo_free_cond, &fifo_mutex, &deadline) < 0) {
-            if (errno != ETIMEDOUT)
-                return NULL; // unexpected error, mutex no longer held!
+        int err = pthread_cond_timedwait(&fifo_free_cond, &fifo_mutex, &deadline);
+        if (err) {
+            if (err != ETIMEDOUT) {
+                fprintf(stderr, "fifo_acquire: pthread_cond_timedwait unexpectedly returned %s\n", strerror(err));
+            }
 
-            goto done; // timed out
+            goto done; // done waiting
         }
     }
 
@@ -197,6 +199,7 @@ void fifo_enqueue(struct mag_buf *buf)
         pthread_cond_signal(&fifo_notempty_cond);
     } else {
         fifo_tail->next = buf;
+        fifo_tail = buf;
     }
 
  done:
@@ -219,11 +222,13 @@ struct mag_buf *fifo_dequeue(uint32_t timeout_ms)
         }
 
         // No data pending, wait for some
-        if (pthread_cond_timedwait(&fifo_notempty_cond, &fifo_mutex, &deadline) < 0) {
-            if (errno != ETIMEDOUT)
-                return NULL; // unexpected error, mutex no longer held!
+        int err = pthread_cond_timedwait(&fifo_notempty_cond, &fifo_mutex, &deadline);
+        if (err) {
+            if (err != ETIMEDOUT) {
+                fprintf(stderr, "fifo_dequeue: pthread_cond_timedwait unexpectedly returned %s\n", strerror(err));
+            }
 
-            goto done; // timed out
+            goto done; // done waiting
         }
     }
 

@@ -1,0 +1,42 @@
+# -*- makefile -*-
+
+
+# starch generated makefile fragment. do not edit.
+# 
+# This makefile is designed to be included in a surrounding makefile. The including makefile
+# should set $(STARCH_COMPILE) to a (partial) command line that provides suitable cflags etc
+# and handles the following appended things:
+#   * a C source filename to compile to the corresponding .o file
+#   * a -o option to specify the output object file
+#   * additional command-line arguments to set compile flags as defined in each flavor
+#
+# Including the makefile fragment provides these variables/rules:
+#
+#  $(STARCH_CFLAGS): additional cflags that may be used when compiling other code that uses starch.h
+#    (not required - if omitted, the only change is that flavor-specific prototypes are unavailable)
+#  $(STARCH_OBJS): a list of object files to link to the main binary
+#  $(STARCH_BENCHMARK_OBJ): object files providing a standalone benchmarking app (link all of $(STARCH_OBJS) too)
+#  explicit build rules for each object file listed in $(STARCH_OBJS)
+
+STARCH_CFLAGS := -DSTARCH_MIX_ARM
+
+
+generated/flavor.armv7a_vfpv4.o: generated/flavor.armv7a_vfpv4.c impl/subtract_n.c
+	$(STARCH_COMPILE) $(STARCH_CFLAGS) -march=armv7-a+neon-vfpv4 -mfpu=neon-vfpv4 -ffast-math generated/flavor.armv7a_vfpv4.c -o generated/flavor.armv7a_vfpv4.o
+
+generated/flavor.armv7a_vfpv3.o: generated/flavor.armv7a_vfpv3.c impl/subtract_n.c
+	$(STARCH_COMPILE) $(STARCH_CFLAGS) -march=armv7-a+neon-vfpv3 -mfpu=neon-vfpv3 -ffast-math generated/flavor.armv7a_vfpv3.c -o generated/flavor.armv7a_vfpv3.o
+
+generated/flavor.generic.o: generated/flavor.generic.c impl/subtract_n.c
+	$(STARCH_COMPILE) $(STARCH_CFLAGS)  generated/flavor.generic.c -o generated/flavor.generic.o
+
+generated/dispatcher.o: generated/dispatcher.c impl/subtract_n.c
+	$(STARCH_COMPILE) $(STARCH_CFLAGS) generated/dispatcher.c -o generated/dispatcher.o
+
+STARCH_OBJS := generated/flavor.armv7a_vfpv4.o generated/flavor.armv7a_vfpv3.o generated/flavor.generic.o generated/dispatcher.o
+
+
+generated/benchmark.o: generated/benchmark.c benchmark/subtract_n_benchmark.c
+	$(STARCH_COMPILE) $(STARCH_CFLAGS) generated/benchmark.c -o generated/benchmark.o
+
+STARCH_BENCHMARK_OBJ := generated/benchmark.o

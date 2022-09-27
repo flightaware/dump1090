@@ -254,7 +254,7 @@ bool bladeRFOpen()
         goto error;
     }
 
-    if ((status = bladerf_set_gain(BladeRF.device, BLADERF_MODULE_RX, Modes.gain / 10.0)) < 0) {
+    if ((status = bladerf_set_gain(BladeRF.device, BLADERF_MODULE_RX, Modes.gain)) < 0) {
         fprintf(stderr, "bladerf_set_gain(RX) failed: %s\n", bladerf_strerror(status));
         goto error;
     }

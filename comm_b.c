@@ -29,8 +29,10 @@ static int decodeBDS17(struct modesMessage *mm, bool store);
 static int decodeBDS20(struct modesMessage *mm, bool store);
 static int decodeBDS30(struct modesMessage *mm, bool store);
 static int decodeBDS40(struct modesMessage *mm, bool store);
+static int decodeBDS44(struct modesMessage *mm, bool store);
 static int decodeBDS50(struct modesMessage *mm, bool store);
 static int decodeBDS60(struct modesMessage *mm, bool store);
+static int decodeBDS05(struct modesMessage *mm, bool store);
 
 static CommBDecoderFn comm_b_decoders[] = {
     &decodeEmptyResponse,
@@ -40,17 +42,18 @@ static CommBDecoderFn comm_b_decoders[] = {
     &decodeBDS17,
     &decodeBDS40,
     &decodeBDS50,
-    &decodeBDS60
+    &decodeBDS60,
+    &decodeBDS44,
+    &decodeBDS05
 };
 
 void decodeCommB(struct modesMessage *mm)
 {
-    mm->commb_format = COMMB_UNKNOWN;
-
     // If DR or UM are set, this message is _probably_ noise
     // as nothing really seems to use the multisite broadcast stuff?
     // Also skip anything that had errors corrected
     if (mm->DR != 0 || mm->UM != 0 || mm->correctedbits > 0) {
+        mm->commb_format = COMMB_NOT_DECODED;
         return;
     }
 
@@ -77,12 +80,39 @@ void decodeCommB(struct modesMessage *mm)
             // decode it
             bestDecoder(mm, true);
         }
+    } else {
+        mm->commb_format = COMMB_UNKNOWN;
     }
 }
 
 static int decodeEmptyResponse(struct modesMessage *mm, bool store)
 {
-    for (unsigned i = 0; i < 7; ++i) {
+    // 00000000000000 is a common response. Ignore it.
+    //
+    // Also, it's common to see responses that look like this:
+    //    40000000000000
+    //    50000000000000
+    //    60000000000000
+    // typically in grouped bursts (one of each message) from
+    // the same aircraft.
+    //
+    // I speculate that these are response to interrogations for
+    // BDS 4,0 5,0 and 6,0 respectively where the transponder
+    // doesn't support the register or has no data loaded for it.
+    // Treat them like empty responses.
+
+    switch (mm->MB[0]) {
+    case 0x00:
+    case 0x40:
+    case 0x50:
+    case 0x60:
+        break;
+
+    default:
+        return 0;
+    }
+
+    for (unsigned i = 1; i < 7; ++i) {
         if (mm->MB[i] != 0) {
             return 0;
         }
@@ -148,10 +178,10 @@ static int decodeBDS17(struct modesMessage *mm, bool store)
         score -= 2;
     }
     if (getbit(msg, 13)) { // 4,4 meterological routine report
-        score -= 2;
+        score -= 1;
     }
     if (getbit(msg, 14)) { // 4,4 meterological hazard report
-        score -= 2;
+        score -= 1;
     }
     if (getbit(msg, 20)) { // 5,4 waypoint 1
         score -= 2;
@@ -173,8 +203,11 @@ static int decodeBDS17(struct modesMessage *mm, bool store)
     } else if (!getbit(msg, 1) && !getbit(msg, 2) && !getbit(msg, 3) && !getbit(msg, 4) && !getbit(msg, 5) && !getbit(msg, 6)) {
         // not ES capable
         score += 1;
+    } else if (!getbit(msg, 1) && !getbit(msg, 2) && getbit(msg, 3) && getbit(msg, 4) && getbit(msg, 5)) {
+        // ES with no position data
+        score += 3;
     } else {
-        // partial ES support, unlikely
+        // other combinations, unlikely
         score -= 12;
     }
 
@@ -739,4 +772,214 @@ static int decodeBDS60(struct modesMessage *mm, bool store)
     }
 
     return score;
+}
+
+// BDS4,4 Meterological routine air report
+static int decodeBDS44(struct modesMessage *mm, bool store)
+{
+    unsigned char *msg = mm->MB;
+
+    unsigned source = getbits(msg, 1, 4);
+
+    unsigned wind_valid = getbit(msg, 5);
+    unsigned windspeed_raw = getbits(msg, 6, 14);
+    unsigned winddir_raw = getbits(msg, 15, 23);
+
+    // ICAO 9871 is inconsistent, it claims:
+    //  bit 24       sign
+    //  bits 25..34  static air temperature, MSB = 64C, LSB=0.25C, range -128C..+128C
+    //
+    // .. but this does not actually work, there is one too many bits in the bitfield
+    // for the claimed values.
+    //
+    // Based on observed data, the most plausible actual layout is:
+    //
+    //   bit 24       status
+    //   bit 25       sign
+    //   bits 26..34  static air temperature, MSB=64C, LSB=0.25C, range -128C..+128C
+
+    unsigned sat_valid = getbit(msg, 24);
+    unsigned sat_sign = getbit(msg, 25);
+    unsigned sat_raw = getbits(msg, 26, 34);
+
+    unsigned asp_valid = getbit(msg, 35);
+    unsigned asp_raw = getbits(msg, 36, 46);
+
+    unsigned turbulence_valid = getbit(msg, 47);
+    unsigned turbulence_raw = getbits(msg, 48, 49);
+
+    unsigned humidity_valid = getbit(msg, 50);
+    unsigned humidity_raw = getbits(msg, 51, 56);
+
+    if (source == MRAR_SOURCE_INVALID || source >= MRAR_SOURCE_RESERVED)
+        return 0; // invalid or reserved source
+
+    if (!wind_valid || !sat_valid)
+        return 0; // all valid messages seen in the wild have at least temp + wind
+
+    if (!asp_valid && asp_raw != 0)
+        return 0; // ASP not valid, but non-zero values in the ASP field
+
+    if (!turbulence_valid && turbulence_raw != 0)
+        return 0; // turbulence not valid, but non-zero values in the turbulence field
+
+    if (!humidity_valid && humidity_raw != 0)
+        return 0; // humidity not valid, but non-zero values in the humidity field
+
+    int score = 0;
+
+    float wind_speed = 0;
+    float wind_dir = 0;
+    if (wind_valid) {
+        wind_dir = winddir_raw * (180.0 / 256.0);
+        wind_speed = windspeed_raw;
+
+        if (windspeed_raw == 0) // possible but uncommon
+            score += 2;
+        else if (wind_speed <= 250)
+            score += 19;
+        else
+            return 0;
+    } else {
+        score += 1;
+    }
+
+    float sat = 0;
+    if (sat_valid) {
+        sat = sat_raw * 0.25;
+        if (sat_sign)
+            sat -= 128;
+        if (sat == 0) // possible but uncommon
+            score += 2;
+        else if (sat >= -80 && sat <= 60)
+            score += 11;
+        else
+            return 0;
+    } else {
+        score += 1;
+    }
+
+    float asp = 0;
+    if (asp_valid) {
+        asp = asp_raw;
+        if (asp >= 25 && asp <= 1100)
+            score += 12;
+        else
+            return 0;
+    } else {
+        score += 1;
+    }
+
+    hazard_t turbulence = HAZARD_NIL;
+    if (turbulence_valid) {
+        turbulence = (hazard_t) turbulence_raw;
+        score += 3;
+    } else {
+        score += 1;
+    }
+
+    float humidity = 0;
+    if (humidity_valid) {
+        humidity = humidity_raw * (100.0 / 64.0);
+        score += 7;
+    } else {
+        score += 1;
+    }
+
+    if (source == MRAR_SOURCE_DMEDME && wind_valid && sat_valid && score > 0) {
+        // Some GICB messages can be easily mistaken for a MRAR:
+        //
+        //   GICB bit 1: BDS 0,5 ES airborne position      = 0 ]
+        //   GICB bit 2: BDS 0,6 ES surface position       = 0 ]
+        //   GICB bit 3: BDS 0,7 ES status                 = 1 ]
+        //   GICB bit 4: BDS 0,8 ES type & identification  = 1 ] -> MRAR source = 3
+        //   GICB bit 5: BDS 0,9 ES airborne velocity      = 1   -> MRAR wind valid bit
+        //   GICB bit 24: BDS 6,0 heading and speed report = 1   -> MRAR temp valid bit
+        //   most trailing bits = 0
+        //
+        // so only treat this as MRAR as a last resort
+        score = 1;
+    }
+
+    if (store) {
+        mm->commb_format = COMMB_MRAR;
+        mm->mrar_source_valid = 1;
+        mm->mrar_source = (mrar_source_t) source;
+
+        if (wind_valid) {
+            mm->wind_valid = 1;
+            mm->wind_speed = wind_speed;
+            mm->wind_dir = wind_dir;
+        }
+
+        if (sat_valid) {
+            mm->temperature_valid = 1;
+            mm->temperature = sat;
+        }
+
+        if (asp_valid) {
+            mm->pressure_valid = 1;
+            mm->pressure = asp;
+        }
+
+        if (turbulence_valid) {
+            mm->turbulence_valid = 1;
+            mm->turbulence = turbulence;
+        }
+
+        if (humidity_valid) {
+            mm->humidity_valid = 1;
+            mm->humidity = humidity;
+        }
+    }
+
+    return score;
+}
+
+// BDS0,5 extended squitter airborne position
+// (apparently this gets queried via comm-b sometimes??)
+// We don't try to _use_ this as a position, but we can
+// at least try to recognize it, to exclude other
+// comm-b types (in particular they can be mistaken for MRAR)
+static int decodeBDS05(struct modesMessage *mm, bool store)
+{
+    // We recognize these by matching the position altitude against
+    // the altitude in the surrounding message, so we need a
+    // DF20 not a DF21
+    if (mm->msgtype != 20)
+        return 0;
+
+    unsigned char *msg = mm->MB;
+
+    unsigned typecode = getbits(msg, 1, 5);
+    if (typecode < 9 || typecode > 18)
+        return 0; // only consider typecodes that could be an airborne position with baro altitude
+
+    unsigned t_bit = getbit(msg, 21);
+    if (t_bit)  // unlikely
+        return 0;
+
+    unsigned ac12 = getbits(msg, 9, 20);
+    if (!ac12)
+        return 0;
+
+    // Insert M=0 to make an AC13 value, match against the
+    // AC13 value in the surrounding message
+    unsigned ac13 = ((ac12 & 0x0FC0) << 1) | (ac12 & 0x003F);
+    if (mm->AC != ac13)
+        return 0; // no altitude match
+
+    unsigned lat = getbits(msg, 23, 39);
+    unsigned lon = getbits(msg, 40, 56);
+    if (lat == 0 || lon == 0) // unlikely position
+        return 0;
+
+    if (store) {
+        mm->commb_format = COMMB_AIRBORNE_POSITION;
+        // No further decoding done, we don't really trust this
+        // enough to use as real input to CPR
+    }
+
+    // Score this high enough to override everything else
+    return 100;
 }

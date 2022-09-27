@@ -80,7 +80,7 @@ int64_t receiveclock_ms_elapsed(uint64_t t1, uint64_t t2)
 
 void normalize_timespec(struct timespec *ts)
 {
-    if (ts->tv_nsec > 1000000000) {
+    if (ts->tv_nsec >= 1000000000) {
         ts->tv_sec += ts->tv_nsec / 1000000000;
         ts->tv_nsec = ts->tv_nsec % 1000000000;
     } else if (ts->tv_nsec < 0) {
@@ -93,7 +93,8 @@ void normalize_timespec(struct timespec *ts)
 void get_deadline(uint32_t timeout_ms, struct timespec *ts)
 {
     clock_gettime(CLOCK_REALTIME, ts);
-    ts->tv_nsec += timeout_ms * 1000000;
+    ts->tv_sec += timeout_ms / 1000;
+    ts->tv_nsec += (timeout_ms % 1000) * 1000000;
     normalize_timespec(ts);
 }
 
@@ -130,5 +131,17 @@ void set_thread_name(const char *name)
     pthread_setname_np(pthread_self(), name);
 #else
     MODES_NOTUSED(name);
+#endif
+}
+
+int join_thread(pthread_t thread, void **retval, uint32_t timeout_ms)
+{
+#if (__GLIBC__ > 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 3)
+    struct timespec abstime;
+    get_deadline(timeout_ms, &abstime);
+    return pthread_timedjoin_np(thread, retval, &abstime);
+#else
+    MODES_NOTUSED(timeout_ms);
+    return pthread_join(thread, retval);
 #endif
 }

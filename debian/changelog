@@ -1,3 +1,98 @@
+dump1090-fa (7.2) stable; urgency=medium
+
+  * dump1090: Fix Makefile syntax error for Darwin OS build (courtesy @CodyCodeman, PR #170)
+  * dump1090: set _POSIX_C_SOURCE to fix build failure with uclibc-ng (courtesy @ffontaine, PR #169)
+  * SkyAware: Remove obselete map interface at /dump1090-fa
+  * SkyAware: Remove OSM Black & White layer which is no longer in service
+
+ -- Eric Tran <eric.tran@flightaware.com>  Wed, 09 Mar 2022 20:09:55 -0600
+
+dump1090-fa (7.1) stable; urgency=medium
+
+  * Preserve start/upgrade postinst logic for pre 7.1 updates until we support compat 10 behavior
+
+ -- Eric Tran <eric.tran@flightaware.com>  Wed, 12 Jan 2022 11:37:20 -0600
+
+dump1090-fa (7.0) stable; urgency=medium
+
+  * dump1090: Allow env vars (not only command line overrdies) to set CPU_FEATURES_{ARCH,UNAME}
+  * dump1090: Treat ARCH=arm64 like ARCH=aarch64
+  * dump1090: Try to respect CFLAGS/CPPFLAGS as far as possible; move required extra flags into a separate var
+  * dump1090: Adaptive gain - more aggressively re-probe for higher gain after a decrease in gain due to increased noise floor
+  * dump1090: Cleanup AVR parsing
+  * SkyAware: Update aircraft db to 20211210
+  * SkyAware: Cleanup unused Openlayers files
+
+ -- Eric Tran <eric.tran@flightaware.com>  Mon, 20 Dec 2021 11:00:00 -0600
+
+dump1090-fa (6.1) stable; urgency=medium
+
+  * No-change 6.1 release for PiAware 6.1
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 06 Sep 2021 16:06:00 +0800
+
+dump1090-fa (6.0) stable; urgency=medium
+
+  * dump1090: Adaptive gain feature with associated dump1090-fa config parameters
+  * dump1090: Add support for decoding BDS 4,4 - Meteorological Routine Air Report (MRAR) Comm-B messages
+  * dump1090: Stratux output: include current receiver gain (courtesy @b3nn0, PR #144)
+  * dump1090: Enable rtlsdr bounce buffers on aarch64 (courtesy @wiedehopf for suggestion)
+  * dump1090: New default dump1090-fa config file format
+  * dump1090: Use compat/compat.h for endian-swapping functions in DSP code
+  * dump1090: Report json write errors, with some rate limiting (fixes issue #129)
+  * starch: Update starch to upstream commit 0c8249fa4bc523345c156885542e9192e8bf68fd
+  * SkyAware: restrict overlay rendering to covered areas (reduce source load) (courtesy @wiedehopf, PR #137)
+  * SkyAware: Fix ignored DisplayUnits in config.js (courtesy @paulyc, PR #76)
+  * SkyAware: Update aircraft db to 20210817 with better Australian aircraft & types
+
+ -- Eric Tran <eric.tran@flightaware.com>  Tue, 31 Aug 2021 12:41:06 -0600
+
+dump1090-fa (5.0) stable; urgency=medium
+
+  * SkyAware: New Altitude, Speed, Aircraft Ident, and Aircraft Type filters to fine tune the select aircraft you want see
+  * SkyAware: Ability to toggle visibility of ADS-B, MLAT, UAT, TIS-B, and Other aircraft on SkyAware using the check boxes under the aircraft table
+  * SkyAware: Ability to show Aircraft Ident labels for all aircraft on your display (found in the View Toggles list in the settings menu)
+  * SkyAware: A merged SkyAware map of 1090 and UAT aircraft for those with dual 1090/978 setups.
+  * SkyAware: Direct link on the SkyAware map to go to your My ADS-B statistics page on FlightAware.com or a direct link to claim your receiver if it has not been claimed
+  * SkyAware: Bold aircraft Idents are used to indicate tail numbers in the aircraft table rather than using the previous prepended underscore syntax
+  * SkyAware: Default SkyAware link now at <local ip>/skyaware
+
+  * dump1090: limesdr: use --gain value if --limesdr-gain is not specified
+  * dump1090: Switch sample-conversion DSP code to use starch. Provide NEON implementations for ARM when the
+    hardware supports it. Update 8-bit unsigned zero offset to reflect actual rtlsdr behavior. This gives a
+    substantial speedup to sample processing for the 12/16-bit case, and a small speedup for the 8-bit case.
+    Default wisdom provided for arm, aarch64, and x86; see the README for details on generating hardware-
+    specific wisdom files.
+  * dump1090: Make console stats display fixed-width (courtesy @gtjoseph)
+  * dump1090: Add `--json-stats-every` option to control the update cycle of `stats.json`
+  * dump1090: Don't expire data when reading a capture at full speed via `--ifile`
+  * dump1090: Count received messages for each DF type, emit in console stats / `stats.json`
+  * dump1090: Write final stats.json on process exit (mostly useful for `--ifile`)
+  * dump1090: Attempt to correct DF11/17/18 messages where the DF field itself is damaged. This requires
+    a lot more CRC checks when receiving messages off-the-air, but slightly increases the decode rate for
+    DF11/17/18.
+  * dump1090: Add a `--no-df-fix` option to disable the extra DF field correction, for cases where the extra
+    messages are not worth the extra CPU
+  * dump1090: Track recently-seen DF18 addresses, but only count them as recently-seen for DF18 decoding,
+    not for Mode S / DF17
+
+  * dump1090: Support `--stats-every` intervals of less than 1 minute correctly
+  * dump1090: Don't erroneously consider ICAO 000000 as "recently seen" when decoding
+  * dump1090: Fix rare hang (1 in 1e9) in FIFO code due to an off-by-one error in normalize_timespec
+  * dump1090: Correctly expire stale emergency, nac_v data (courtesy @wiedehopf, issue #96)
+  * dump1090: Fix FIFO bounded memory leak / effective reduction in size of the FIFO, triggered if the
+    demodulator couldn't keep up with the input rate
+  * dump1090: Set at least airground = AG_UNCERTAIN for airborne position messages with valid altitudes (issue #113)
+
+  * view1090: Interactive mode enhancements to show min/max RSSI, distances (courtesy @gtjoseph, PR #81)
+  * view1090: Fix table alignment with `--interactive-ttl` > 99 (courtesy @MavEtJu, PR #99)
+  * view1090: Tweak Mode column to display more data-source info
+  * view1090: Fix librtlsdr output interfering with interactive mode display (courtesy @VasiliyTurchenko, PR #116)
+
+  * general:  Fix linking against NetBSD curses library (courtesy @jvanwouw, PR #111)
+
+ -- Eric Tran <eric.tran@flightaware.com>  Thu, 11 Mar 2021 19:26:07 -6000
+
 dump1090-fa (4.0) stable; urgency=medium
 
   * dump1090: Build support for OS X, FreeBSD, OpenBSD [courtesy @mikenor / @apparentorder on Github, PRs #33 / #38]
