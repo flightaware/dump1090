@@ -1,0 +1,43 @@
+bladeRF support
+---------------
+
+There is basic support for the bladeRF included in dump1090-fa.
+It uses the same demodulator as the regular rtlsdr version and it does not
+take advantage of the bladeRF's improved sampling rate or FPGA (but see below)
+
+To use it:
+
+$ dump1090-fa --device-type bladerf --gain 66 (.. other options ..)
+
+The bladeRF has sensitivity problems when receiving ADS-B and will benefit
+from all the gain you can give it. 66dB is the maximum configurable gain on
+the board itself, you may want to add an external LNA too.
+
+
+bladeRF custom FPGA bitstream
+-----------------------------
+
+The package includes a custom FPGA bitstream for the bladeRF which can
+improve ADS-B reception with dump1090.
+
+It adds a Fs/4 mixer step to avoid the DC offset of the bladeRF, and
+decimate-by-8 downsampling step to improve sensitivity. Some of the bladeRF
+parameters need to be adjusted so that it produces correctly tuned/downsampled
+data in the form that dump1090 is expecting.
+
+To use it:
+
+$ dump1090-fa --device-type bladerf --gain 66 \
+   --bladerf-fpga /usr/share/dump1090-fa/bladerf/decimate8-x40.rbf \
+   --bladerf-decimation 8 \
+   --bladerf-bandwidth 14000000 \
+   --freq 1085200000 \
+   (other options ...)
+
+The bladeRF will be configured for a 19.2MHz sampling rate and will tune to
+1085.2MHz so that the 1090MHz signal appears around 4.8MHz in the baseband
+samples. The FPGA Fs/4 mixing step shifts the baseband signal so that it is centered
+around 0, and the FPGA downsampling step produces samples at 2.4MHz, which is what
+dump1090 is expecting.
+
+This FPGA bitstream is built for the 40kLE bladeRF.

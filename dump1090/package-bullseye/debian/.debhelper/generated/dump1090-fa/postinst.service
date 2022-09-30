@@ -1,0 +1,8 @@
+# Automatically added by dh_installinit/12.10ubuntu1
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	if [ -x "/etc/init.d/dump1090-fa" ]; then
+		update-rc.d dump1090-fa defaults >/dev/null
+		invoke-rc.d dump1090-fa start || exit 1
+	fi
+fi
+# End automatically added section

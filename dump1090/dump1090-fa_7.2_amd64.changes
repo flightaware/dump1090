@@ -1,0 +1,31 @@
+Format: 1.8
+Date: Wed, 09 Mar 2022 20:09:55 -0600
+Source: dump1090-fa
+Binary: dump1090-fa
+Architecture: amd64
+Version: 7.2
+Distribution: stable
+Urgency: medium
+Maintainer: Oliver Jowett <oliver.jowett@flightaware.com>
+Changed-By: Eric Tran <eric.tran@flightaware.com>
+Description:
+ dump1090-fa - FlightAware ADS-B Ground Station System for SDRs
+Changes:
+ dump1090-fa (7.2) stable; urgency=medium
+ .
+   * dump1090: Fix Makefile syntax error for Darwin OS build (courtesy @CodyCodeman, PR #170)
+   * dump1090: set _POSIX_C_SOURCE to fix build failure with uclibc-ng (courtesy @ffontaine, PR #169)
+   * SkyAware: Remove obselete map interface at /dump1090-fa
+   * SkyAware: Remove OSM Black & White layer which is no longer in service
+Checksums-Sha1:
+ 09c71b23f8434d65856aa6602fd5641f6b6f70e8 703360 dump1090-fa-dbgsym_7.2_amd64.ddeb
+ 1af5ba3f22243daf9502998790fe27916ef937e1 5756 dump1090-fa_7.2_amd64.buildinfo
+ d442bc6e68b9acf0ae15f60f5a626460cbcbfbef 2183552 dump1090-fa_7.2_amd64.deb
+Checksums-Sha256:
+ e46df79fe3023f1579c49cbd46906e7d958e2fb154d180f6a369bd5efe1252e4 703360 dump1090-fa-dbgsym_7.2_amd64.ddeb
+ 366a41b51648670813cc93e2eed0cda3ee8ffb591ee221c8c12b9b3b8a8ee03d 5756 dump1090-fa_7.2_amd64.buildinfo
+ a2464e373f616c575fb6c709b095645c280e5c6fcd3c6490df76ea84ae576827 2183552 dump1090-fa_7.2_amd64.deb
+Files:
+ baea884251391a96d2e2b4f5800c478a 703360 debug optional dump1090-fa-dbgsym_7.2_amd64.ddeb
+ f39d3f7612b46a30f4eece429725dec3 5756 embedded extra dump1090-fa_7.2_amd64.buildinfo
+ 6d15da1a01eee8f0570b5a3cac5e1657 2183552 embedded extra dump1090-fa_7.2_amd64.deb

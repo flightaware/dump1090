@@ -1,0 +1,62 @@
+# dump1090-fa configuration
+# This is sourced by /usr/share/dump1090-fa/start-dump1090-fa as a
+# shellscript fragment.
+
+# dump1090-fa won't automatically start unless ENABLED=yes
+ENABLED=yes
+
+# SDR device type. Use "none" for a net-only configuration
+RECEIVER=rtlsdr
+# serial number or device index of device to use (only needed if there is more than one SDR connected)
+RECEIVER_SERIAL=
+# Initial receiver gain, in dB. If adaptive gain is enabled (see below) the actual gain
+# may change over time
+RECEIVER_GAIN=60
+
+# Adjust gain to try to achieve optimal dynamic range / noise floor?
+ADAPTIVE_DYNAMIC_RANGE=yes
+# Target dynamic range in dB (leave blank to autoselect based on SDR type)
+ADAPTIVE_DYNAMIC_RANGE_TARGET=
+# Reduce gain when loud message bursts from nearby aircraft are seen?
+ADAPTIVE_BURST=no
+# Gain range to allow when changing gain, in dB (empty = no limit)
+ADAPTIVE_MIN_GAIN=
+ADAPTIVE_MAX_GAIN=
+
+# Turn on options to reduce load on slower CPUs, at the expense of slightly worse decoder performance.
+# Setting "auto" will enable these options only if the CPU appears to be a slow CPU (currently this
+# means armv6 only, e.g. Pi Zero)
+SLOW_CPU=auto
+# Local wisdom file used to select DSP implementations; uses built-in ranking if the file is missing
+WISDOM=/etc/dump1090-fa/wisdom.local
+
+# Correct CRC errors where possible
+ERROR_CORRECTION=yes
+
+# Receiver location, used for some types of position decoding. Provide the location as
+# signed decimal degrees. If not given here, dump1090 will also try to read a receiver
+# location from /var/cache/piaware/location.env (written automatically by PiAware, if installed)
+RECEIVER_LAT=
+RECEIVER_LON=
+# Maximum range, in NM. Positions more distant than this are ignored. No limit if not set.
+MAX_RANGE=360
+
+# Network ports to listen on for connections
+NET_RAW_INPUT_PORTS=
+NET_RAW_OUTPUT_PORTS=30002
+NET_SBS_OUTPUT_PORTS=30003
+NET_BEAST_INPUT_PORTS=30004,30104
+NET_BEAST_OUTPUT_PORTS=30005
+
+# Accuracy of location written to JSON output
+JSON_LOCATION_ACCURACY=1
+
+# Additional options can be added here:
+EXTRA_OPTIONS=""
+
+# If OVERRIDE_OPTIONS is set, only those options are used; all other options
+# in this config file are ignored.
+OVERRIDE_OPTIONS=""
+
+# This is a marker to make it easier for scripts to identify a v6-style config file
+CONFIG_STYLE=6

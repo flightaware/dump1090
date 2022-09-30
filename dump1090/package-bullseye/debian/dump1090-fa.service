@@ -1,0 +1,22 @@
+# dump1090-fa service for systemd
+
+[Unit]
+Description=dump1090 ADS-B receiver (FlightAware customization)
+Documentation=https://flightaware.com/adsb/piaware/
+Wants=network.target
+After=network.target
+
+[Service]
+User=dump1090
+RuntimeDirectory=dump1090-fa
+RuntimeDirectoryMode=0755
+ExecStart=/usr/share/dump1090-fa/start-dump1090-fa --write-json %t/dump1090-fa
+SyslogIdentifier=dump1090-fa
+Type=simple
+Restart=on-failure
+RestartSec=30
+RestartPreventExitStatus=64
+Nice=-5
+
+[Install]
+WantedBy=default.target

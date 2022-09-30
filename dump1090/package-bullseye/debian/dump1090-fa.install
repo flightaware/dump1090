@@ -1,0 +1,8 @@
+public_html/* usr/share/skyaware/html
+debian/lighttpd/* etc/lighttpd/conf-available
+bladerf/* usr/share/dump1090-fa/bladerf
+debian/start-dump1090-fa usr/share/dump1090-fa/
+debian/generate-wisdom usr/share/dump1090-fa/
+debian/upgrade-config usr/share/dump1090-fa/
+debian/dump1090-fa.default usr/share/dump1090-fa/
+starch-benchmark /usr/lib/dump1090-fa/

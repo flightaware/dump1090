@@ -1,0 +1,37 @@
+# derived from wisdom.i7-6500u / wisdom.i7-6500u.generic
+
+magnitude_power_uc8                      twopass_x86_avx2                          # 65331 ns/call
+magnitude_power_uc8                      twopass_generic                           # 72679 ns/call
+
+magnitude_power_uc8_aligned              twopass_x86_avx2_aligned                  # 66294 ns/call
+magnitude_power_uc8_aligned              twopass_generic                           # 68415 ns/call
+
+magnitude_sc16                           exact_float_x86_avx2                      # 238602 ns/call
+magnitude_sc16                           exact_float_generic                       # 1359997 ns/call
+
+magnitude_sc16_aligned                   exact_float_x86_avx2_aligned              # 202484 ns/call
+magnitude_sc16_aligned                   exact_float_generic                       # 1351564 ns/call
+
+magnitude_sc16q11                        exact_float_x86_avx2                      # 65311 ns/call
+magnitude_sc16q11                        exact_float_generic                       # 513012 ns/call
+
+magnitude_sc16q11_aligned                exact_float_x86_avx2_aligned              # 56217 ns/call
+magnitude_sc16q11_aligned                exact_float_generic                       # 510226 ns/call
+
+magnitude_uc8                            lookup_unroll_4_x86_avx2                  # 53581 ns/call
+magnitude_uc8                            lookup_unroll_4_generic                   # 52709 ns/call
+
+magnitude_uc8_aligned                    lookup_unroll_4_x86_avx2                  # 53870 ns/call
+magnitude_uc8_aligned                    lookup_unroll_4_generic                   # 54033 ns/call
+
+mean_power_u16                           u32_x86_avx2                              # 11627 ns/call
+mean_power_u16                           u32_generic                               # 18252 ns/call
+
+mean_power_u16_aligned                   u32_x86_avx2_aligned                      # 11572 ns/call
+mean_power_u16_aligned                   u32_generic                               # 18207 ns/call
+
+count_above_u16                          generic_x86_avx2                          # 20 ns/call
+count_above_u16                          generic_generic                           # 30 ns/call
+
+count_above_u16_aligned                  generic_x86_avx2_aligned                  # 15 ns/call
+count_above_u16_aligned                  generic_generic                           # 31 ns/call

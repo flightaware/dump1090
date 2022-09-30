@@ -1,0 +1,3 @@
+dump1090-fa-dbgsym_7.2_amd64.ddeb debug optional automatic=yes
+dump1090-fa_7.2_amd64.buildinfo embedded extra
+dump1090-fa_7.2_amd64.deb embedded extra

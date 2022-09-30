@@ -1,0 +1,425 @@
+dump1090-fa (7.2) stable; urgency=medium
+
+  * dump1090: Fix Makefile syntax error for Darwin OS build (courtesy @CodyCodeman, PR #170)
+  * dump1090: set _POSIX_C_SOURCE to fix build failure with uclibc-ng (courtesy @ffontaine, PR #169)
+  * SkyAware: Remove obselete map interface at /dump1090-fa
+  * SkyAware: Remove OSM Black & White layer which is no longer in service
+
+ -- Eric Tran <eric.tran@flightaware.com>  Wed, 09 Mar 2022 20:09:55 -0600
+
+dump1090-fa (7.1) stable; urgency=medium
+
+  * Preserve start/upgrade postinst logic for pre 7.1 updates until we support compat 10 behavior
+
+ -- Eric Tran <eric.tran@flightaware.com>  Wed, 12 Jan 2022 11:37:20 -0600
+
+dump1090-fa (7.0) stable; urgency=medium
+
+  * dump1090: Allow env vars (not only command line overrdies) to set CPU_FEATURES_{ARCH,UNAME}
+  * dump1090: Treat ARCH=arm64 like ARCH=aarch64
+  * dump1090: Try to respect CFLAGS/CPPFLAGS as far as possible; move required extra flags into a separate var
+  * dump1090: Adaptive gain - more aggressively re-probe for higher gain after a decrease in gain due to increased noise floor
+  * dump1090: Cleanup AVR parsing
+  * SkyAware: Update aircraft db to 20211210
+  * SkyAware: Cleanup unused Openlayers files
+
+ -- Eric Tran <eric.tran@flightaware.com>  Mon, 20 Dec 2021 11:00:00 -0600
+
+dump1090-fa (6.1) stable; urgency=medium
+
+  * No-change 6.1 release for PiAware 6.1
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 06 Sep 2021 16:06:00 +0800
+
+dump1090-fa (6.0) stable; urgency=medium
+
+  * dump1090: Adaptive gain feature with associated dump1090-fa config parameters
+  * dump1090: Add support for decoding BDS 4,4 - Meteorological Routine Air Report (MRAR) Comm-B messages
+  * dump1090: Stratux output: include current receiver gain (courtesy @b3nn0, PR #144)
+  * dump1090: Enable rtlsdr bounce buffers on aarch64 (courtesy @wiedehopf for suggestion)
+  * dump1090: New default dump1090-fa config file format
+  * dump1090: Use compat/compat.h for endian-swapping functions in DSP code
+  * dump1090: Report json write errors, with some rate limiting (fixes issue #129)
+  * starch: Update starch to upstream commit 0c8249fa4bc523345c156885542e9192e8bf68fd
+  * SkyAware: restrict overlay rendering to covered areas (reduce source load) (courtesy @wiedehopf, PR #137)
+  * SkyAware: Fix ignored DisplayUnits in config.js (courtesy @paulyc, PR #76)
+  * SkyAware: Update aircraft db to 20210817 with better Australian aircraft & types
+
+ -- Eric Tran <eric.tran@flightaware.com>  Tue, 31 Aug 2021 12:41:06 -0600
+
+dump1090-fa (5.0) stable; urgency=medium
+
+  * SkyAware: New Altitude, Speed, Aircraft Ident, and Aircraft Type filters to fine tune the select aircraft you want see
+  * SkyAware: Ability to toggle visibility of ADS-B, MLAT, UAT, TIS-B, and Other aircraft on SkyAware using the check boxes under the aircraft table
+  * SkyAware: Ability to show Aircraft Ident labels for all aircraft on your display (found in the View Toggles list in the settings menu)
+  * SkyAware: A merged SkyAware map of 1090 and UAT aircraft for those with dual 1090/978 setups.
+  * SkyAware: Direct link on the SkyAware map to go to your My ADS-B statistics page on FlightAware.com or a direct link to claim your receiver if it has not been claimed
+  * SkyAware: Bold aircraft Idents are used to indicate tail numbers in the aircraft table rather than using the previous prepended underscore syntax
+  * SkyAware: Default SkyAware link now at <local ip>/skyaware
+
+  * dump1090: limesdr: use --gain value if --limesdr-gain is not specified
+  * dump1090: Switch sample-conversion DSP code to use starch. Provide NEON implementations for ARM when the
+    hardware supports it. Update 8-bit unsigned zero offset to reflect actual rtlsdr behavior. This gives a
+    substantial speedup to sample processing for the 12/16-bit case, and a small speedup for the 8-bit case.
+    Default wisdom provided for arm, aarch64, and x86; see the README for details on generating hardware-
+    specific wisdom files.
+  * dump1090: Make console stats display fixed-width (courtesy @gtjoseph)
+  * dump1090: Add `--json-stats-every` option to control the update cycle of `stats.json`
+  * dump1090: Don't expire data when reading a capture at full speed via `--ifile`
+  * dump1090: Count received messages for each DF type, emit in console stats / `stats.json`
+  * dump1090: Write final stats.json on process exit (mostly useful for `--ifile`)
+  * dump1090: Attempt to correct DF11/17/18 messages where the DF field itself is damaged. This requires
+    a lot more CRC checks when receiving messages off-the-air, but slightly increases the decode rate for
+    DF11/17/18.
+  * dump1090: Add a `--no-df-fix` option to disable the extra DF field correction, for cases where the extra
+    messages are not worth the extra CPU
+  * dump1090: Track recently-seen DF18 addresses, but only count them as recently-seen for DF18 decoding,
+    not for Mode S / DF17
+
+  * dump1090: Support `--stats-every` intervals of less than 1 minute correctly
+  * dump1090: Don't erroneously consider ICAO 000000 as "recently seen" when decoding
+  * dump1090: Fix rare hang (1 in 1e9) in FIFO code due to an off-by-one error in normalize_timespec
+  * dump1090: Correctly expire stale emergency, nac_v data (courtesy @wiedehopf, issue #96)
+  * dump1090: Fix FIFO bounded memory leak / effective reduction in size of the FIFO, triggered if the
+    demodulator couldn't keep up with the input rate
+  * dump1090: Set at least airground = AG_UNCERTAIN for airborne position messages with valid altitudes (issue #113)
+
+  * view1090: Interactive mode enhancements to show min/max RSSI, distances (courtesy @gtjoseph, PR #81)
+  * view1090: Fix table alignment with `--interactive-ttl` > 99 (courtesy @MavEtJu, PR #99)
+  * view1090: Tweak Mode column to display more data-source info
+  * view1090: Fix librtlsdr output interfering with interactive mode display (courtesy @VasiliyTurchenko, PR #116)
+
+  * general:  Fix linking against NetBSD curses library (courtesy @jvanwouw, PR #111)
+
+ -- Eric Tran <eric.tran@flightaware.com>  Thu, 11 Mar 2021 19:26:07 -6000
+
+dump1090-fa (4.0) stable; urgency=medium
+
+  * dump1090: Build support for OS X, FreeBSD, OpenBSD [courtesy @mikenor / @apparentorder on Github, PRs #33 / #38]
+  * dump1090: Overhaul of SDR / ring buffer / demodulator interface to make it easier to add new SDR types
+  * dump1090: LimeSDR support [courtesy @Glutton on Github, PR #75]
+  * dump1090: HackRF support [courtesy @kr105 on Github, PR #57]
+  * dump1090: Stratux-compatible network output [courtesy @Determinant on Github, PR #61]
+  * dump1090: Change option syntax for 2-bit correction from --fix --fix (introduced in 3.8.0) to --fix-2bit. Any number of --fix options now yields 1-bit correction.
+  * dump1090: Support building under GCC 10 (github issue #65)
+  * dump1090: Include a (disabled by default) example HTTPS configuration [courtesy @jwbernin on Github, PR #66)
+  * dump1090: For manual builds, if no explicit SDR choice is made, autodetect available libraries via pkg-config
+  * dump1090: Add a --version command-line option that shows just the version without needing to show the full help screen
+  * dump1090: Only emit verbose command-line option help if --help is requested, not on any error
+  * dump1090: List supported device types if --device-type is given without a device type
+  * dump1090: Removed Debian Wheezy support (distribution is no longer supported upstream)
+  * dump1090: Remove the "dump1090" Debian metapackage that exists only to provide an upgrade path from very very old installs
+  * dump1090: Add package profiles to selectively build packages with reduced SDR library dependencies. See the README for details.
+  * dump1090: If a network port option (--net-bo-port et al) is given on the command line, implicitly enable networking, but don't enable the default port assignments
+  * dump1090: Provide Mode A / Mode C hit count in aircraft.json
+  * SkyAware: Update aircraft registry to 20200924
+  * SkyAware: Update to OpenLayers6
+  * SkyAware: New basemap layers added/enabled
+  * SkyAware: Added customizable aircraft table columns
+  * SkyAware: Added URL query parameter feature to customize display [courtesy @sigwx on Github, PR #58)
+  * SkyAware: Display registration number in aircraft table if ident is not present
+  * SkyAware: Fix duplicated Access-Control-Allow-Origin header [courtesy @ianrenton on Github, PR #74)
+
+ -- Eric Tran <eric.tran@flightaware.com>  Thu, 24 Sep 2020 10:21:00 -6000
+
+dump1090-fa (3.8.1) stable; urgency=medium
+
+  * SkyAware: Fixed SkyAware banner aspect ratio
+  * SkyAware: Fixed issue with "Group By Data Type" and "All Aircraft Trails" checkboxes
+    not saving across browser refreshes
+  * SkyAware: Fixed bug with ShowFlags=False config.js setting
+  * SkyAware: Added position age to aircraft detail pane
+  * SkyAware: Added ability to customize range ring distances in SkyAware
+
+ -- Eric Tran <eric.tran@flightaware.com>  Thu, 19 Mar 2020 09:20:00 -6000
+
+dump1090-fa (3.8.0) stable; urgency=medium
+
+  * general: Added support for building on Buster.
+  * general: Replace use of usleep with nanosleep (PR #53)
+
+  * dump1090: When applying CRC correction to a DF11 message, assume that the interrogator
+    overlay value was 0 (e.g. as in an acquisiton squitter) and use the full 24-bit syndrome
+    to correct errors; do not zero out the low 7 bits of the syndrome.
+  * dump1090: Changes in aircraft tracking to try to reduce the number of bogus aircraft seen
+    due to noise; this replaces the crude "require 2 messages" metric used previously.
+  * dump1090: Added a new statistic for "unreliable tracks", aircraft that were tracked but
+    which never passed the threshold for being considered a real aircraft.
+  * dump1090: Added support for per-connection verbatim mode. "--net-verbatim" now controls the
+    default connection setting, and the per-connection mode can be changed by a Beast settings
+    command.
+  * dump1090: Replaced "--aggressive" with "--fix --fix" for 2-bit CRC correction; include
+    support for this in the standard build. 2-bit corrected messages are only emitted on
+    verbatim connections.
+  * dump1090: Update package default options: include "--fix", increase "--net-ro-size",
+    decrease "--net-ro-interval", remove a duplicated "--net-bo-port" option.
+  * dump1090: Fixes to CPR decoding when multiple position sources (e.g. ADS-B and MLAT) are
+    being simultaneously received (PR #55)
+  * dump1090: Track ADS-B, ADS-R, and TIS-B versions independently; use the appropriate version
+    when decoding version-dependent messages.
+
+  * view1090: Include ADS-B version in interactive display
+  * view1090: Display a warning in the header in interactive mode if the dump1090 connection
+    has been lost
+  * view1090: Request verbatim mode when connecting to dump1090
+  * view1090: Exit on connection loss in --no-interactive mode
+
+  * SkyAware: Corrected icon selection for some aircraft types
+  * SkyAware: Fixed display of settings checkboxes on high-DPI displays (PR #54)
+  * SkyAware: Fixes to info box display (PR #51)
+  * SkyAware: Hide scroll bar when not needed (PR #22)
+  * SkyAware: Update aircraft registry to 20191216
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 30 Dec 2019 22:11:52 +0800
+
+dump1090-fa (3.7.2) stable; urgency=medium
+
+  * dump1090: Fix reversed sense of Track Angle/Heading bit in surface opstatus messages
+  * dump1090: Have filter-regs emit a special value "-COMPUTED-" for filtered data
+    values, rather than blanking them out entirely
+  * Fix registration side mappings with a non-zero offset
+  * dump1090: Update aircraft DB to 20190816
+  * dump1090: Reject outright libbladerf that's too old
+  * dump1090: Trigger build after bladeRF build; turn off build durability; turn
+    off concurrent builds
+  * SkyAware: SkyAware Renaming
+  * SkyAware: Fix some display errors for ground vehicles
+  * SkyAware: Fix aircraft trail handling
+
+ -- Eric Tran <eric.tran@flightaware.com>  Mon, 09 Sep 2019 09:25:00 -6000
+
+dump1090-fa (3.7.1) stable; urgency=medium
+
+  * dump1090: TSV buffer overflow fix/increase max TSV packet size
+  * dump1090: Fix incorrect mode_s bit number usage
+  * dump1090: Rework use of pkg-config to work around librtlsdr packaging bugs
+    in Ubuntu distro
+  * dump1090: Minimal polyfill to support building older bladeRF libs
+  * dump1090: Add COMMB_AMBIGUOUS enum type for Comm-B messages we're unsure of
+  * dump1090: Comm-b message decoding updates
+  * dump1090: Require more fields to be populated in BDS5,0/BDS6,0 before accepting
+  * dump1090: Update aircraft DB to 20190502
+  * dump1090: Doc/README updates
+
+ -- Eric Tran <eric.tran@flightaware.com>  Fri, 03 May 2019 12:35:00 -6000
+
+dump1090-fa (3.7.0.1) stable; urgency=medium
+
+  * dump1090: Fix piaware lat/lon variable
+
+ -- Eric Tran <eric.tran@flightaware.com>  Fri, 29 Mar 2019 7:04:00 -6000
+
+dump1090-fa (3.7.0) stable; urgency=medium
+
+  * dump1090: Fix Rc decoding errors
+  * dump1090: Compute ADS-B v0 NACp/SIL
+  * dump1090: When generating aircraft.json, leave space for the final line;
+    otherwise the generated json may have trailing garbage
+  * dump1090: Don't update the known-address-set from DF18 messages
+  * Skyview: use heading data for icon orientation if track data is unavailable
+  * Skyview: don't spin forever if there's no history to load / receiver.json
+    is missing
+  * dump1090: Bail out if rtlsdr_read_async() returns early; it probably means we lost
+    the USB device. There was a workaround for this (originally implemented
+    in dump1090-mutability) that got lost in the refactoring needed to support
+    different SDRs. librtlsdr can still be flaky under disconnect conditions, so
+    this won't catch everything.
+  * dump1090: add ENABLED to /etc/default/dump1090-fa
+  * dump1090: track FMS and MCP selected altitudes separately
+  * skyview: use whichever selected altitude is available
+  * faup1090: updates to support PiAware 3.7.0
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Fri, 22 Mar 2019 15:58:04 +0000
+
+dump1090-fa (3.6.3) stable; urgency=medium
+
+  * Fix port 30003 output (Basestation) timestamp formatting broken in 3.6.0
+  * Ignore altitudes in DF17 "airborne" positions with airGround = ground
+  * SkyView layout change and proper support for extended data fields
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Tue, 11 Sep 2018 14:52:20 +0100
+
+dump1090-fa (3.6.2) stable; urgency=medium
+
+  * Update SkyView flags for Libya, Serbia, Montenegro
+  * Improve handling of bad callsigns in ADS-B messages
+  * Update FlightAware aircraft static data export
+  * Add --direct option to enable rtlsdr direct sampling mode
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Fri, 27 Jul 2018 18:32:30 +0100
+
+dump1090-fa (3.6.1) stable; urgency=medium
+
+  * Fix tracking of NICbaro
+  * Don't translate 7x00 to emergency status, it obscures the source of the
+    data (squawk vs ADS-B v2)
+  * Support for building on stretch
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Mon, 16 Jul 2018 14:58:59 +0100
+
+dump1090-fa (3.6.0) stable; urgency=medium
+
+  * dump1090: implement speculative decoding for Comm-B messages, capturing
+    most of the Mode S EHS data:
+    BDS 1,0 (datalink capabilities); BDS 1,7 (GICB capabilities);
+    BDS 2,0 (aircraft identification); BDS 3,0 (ACAS RA);
+    BDS 4,0 (vertical intention); BDS 5,0 (track and turn);
+    BDS 6,0 (heading and speed)
+  * dump1090: implement decoding of most of DO-260A/DO-260B including
+    ADS-B version, autopilot settings, NIC/Rc, NAC, SIL, GVA, etc.
+  * dump1090: aircraft state tracking overhaul; track data age in milliseconds
+  * dump1090: emit newly decoded fields in aircraft.json
+  * Skyview: experimental display of new fields, disabled by default; to
+    enable, set ExtendedData = true in config.js or add #extended to the URL
+  * Skyview: Remove obsolete chartbundle WAC layer, add heli layer
+  * Skyview: Remove Mapzen layer as Mapzen is shutting down
+  * faup1090: Restructure emitted data to include data age and source
+  * faup1090: Include newly decoded fields in reports
+  * dump1090, faup1090: fix use of snprintf to correctly handle buffer overruns
+  * dump1090: don't bother tracking ICAO 000000
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Wed, 09 May 2018 22:34:24 +0100
+
+dump1090-fa (3.5.3) stable; urgency=medium
+
+  * Skip 3.5.2 to align with piaware versioning
+  * Skyview: Update OpenLayers to fix performance problems on some browsers
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Fri, 03 Nov 2017 22:44:40 +0000
+
+dump1090-fa (3.5.1) stable; urgency=medium
+
+  * Skyview: fix font mappings
+  * Skyview: mark tisb_icao and tisb_other addresses as TIS-B
+  * Skyview: fix unit selection on Firefox
+  * Skyview: report data source correctly in popup
+  * Skyview: change default color for grounded aircraft to brown
+  * Skyview: initial history load speedups (Steven Davies)
+  * Skyview: fix L2T/L2P icon selection
+  * Makefile cleanups (Michael Tatarinov)
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Mon, 31 Jul 2017 13:43:32 +0100
+
+dump1090-fa (3.5.0) stable; urgency=medium
+
+  * SkyView map UI added.
+  * Only enable lighttpd config once, not on every package upgrade in case the
+    user has deliberately disabled it.
+  * Fix AGC gain setting.
+  * Updated the FlightAware aircraft data export.
+  * Minor bugfixes.
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Mon, 03 Apr 2017 17:53:48 +0100
+
+dump1090-fa (3.4.0) stable; urgency=medium
+
+  * Add bladeRF support.
+  * Clean up the FlightAware photos link so it works for registrations containing
+    non-alphanumeric characters.
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Thu, 09 Feb 2017 17:41:43 +0000
+
+dump1090-fa (3.3.0) stable; urgency=medium
+
+  * Improvements to the Mode A/C demodulator.
+  * Automatically enable Mode A/C if a Beast command requesting it is received.
+    (disable with --no-modeac-auto)
+  * Process the radarcape position message, emit it from faup1090.
+  * If view1090 is started with --modeac, request Mode A/C data from dump1090.
+  * Remove the last traces of the internal webserver.
+  * Updated the FlightAware aircraft data export.
+  * Updated the default package-based maximum range to 360NM to match what
+    piaware-support configured for sdcard installs.
+  * Remove internal webserver code entirely (previously, it was just disabled
+    at compile time).
+  * Tweak the timing reported for Mode S and Mode A/C messages to match how
+    the Beast/Radarcape does it. This affects the interval between Mode S
+    and Mode A/C messages only; intervals between Mode S messages and other
+    Mode S messages, or A/C and other A/C, are unchanged.
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Sun, 15 Jan 2017 13:35:56 +0000
+
+dump1090-fa (3.2.0) stable; urgency=medium
+
+  * Fix a stray extra comma in port 30003 output if only GNSS altitude
+    was available
+  * Track CPR encoding type directly rather than inferring it from airground;
+    using airground meant some position messages that should be usable were
+    not used
+  * Mode A/C aircraft association tuning, allows dump1090 to handle much
+    higher A/C rates without chewing tons of CPU
+  * Map: Decrease the maximum marker size shown
+  * Map: Show additional datasource information (TIS-B etc) in table mode
+  * Map: Move the datablock so it doesn't overlap the zoom control
+  * Map: Allow skipping the history load by adding a #nohistory fragment
+    to the URL (e.g. for high latency connections)
+  * view1090-fa: Use ncurses to reduce flicker on remote connections
+  * view1090-fa:  Fix knots -> km/h conversion in interactive mode
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Tue, 25 Oct 2016 23:40:01 +0100
+
+dump1090-fa (3.1.0) stable; urgency=medium
+
+  * Update to latest dump1090-mutability master
+  * Preserve more map settings in browser local storage
+  * Add a NEXRAD weather layer (US only) to the map
+  * Decoder overhaul/cleanup
+  * Prefer ES data over Mode S data when both are available
+  * Improved air/ground detection
+  * Lots of map interface changes:
+    * aircraft info moves to a draggable popup rather than top of the sidebar
+    * sidebar is resizeable / hideable
+    * table-only (no map) mode
+    * improved FlightAware aircraft links
+    * configurable units display (metric / imperial / aeronautical)
+    * filter displayed aircraft by altitude
+    * option to show all aircraft tracks
+    * more aircraft markers
+    * use aircraft markers based on aircraft type info where available
+    * scale marker size based on zoom to avoid overlap when zoomed out
+  * Include a greatly expanded aircraft type/registration database (used by the
+    map display) based on the publically-distributable parts of FlightAware's
+    internal database
+  * Try to compute a registration from ICAO address for aircraft where there
+    is a predictable mapping (e.g. US N-registrations)
+  * Try to coexist with other packages (e.g. dump1090-mutability) that also
+    provide a lighttpd config that changes the server.stat-cache-engine setting
+  * Serve actual map data on port 8080, not just a redirect
+  * Redirect requests for /dump1090-fa to /dump1090-fa/ rather than 404ing.
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Thu, 22 Sep 2016 17:19:01 +0100
+
+dump1090-fa (3.0.5) stable; urgency=medium
+
+  * No-change release for PiAware 3.0.5
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Wed, 31 Aug 2016 13:02:42 +0100
+
+dump1090-fa (3.0.3) stable; urgency=medium
+
+  * No-change release for PiAware 3.0.3
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Mon, 01 Aug 2016 12:23:47 +0100
+
+dump1090-fa (3.0.2) stable; urgency=medium
+
+  * Release for PiAware 3.0.2
+  * Correct the radius of the receiver range circles
+  * Fix errors when selecting a positionless aircraft via the table
+  * Improve Mode A/C reception
+  * Add a Bing roadmap layer option (with a Bing API key)
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Wed, 27 Jul 2016 17:12:53 +0100
+
+dump1090-fa (3.0.1) stable; urgency=medium
+
+  * PiAware 3.0.1
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Fri, 15 Jul 2016 13:04:47 +0100
+
+dump1090-fa (3.0~flightfeeder) stable; urgency=medium
+
+  * New release series based on dump1090-mutability.
+  * Initial 3.0 release for FlightFeeder images.
+
+ -- Oliver Jowett <oliver@mutability.co.uk>  Mon, 11 Jan 2016 17:20:05 +0000

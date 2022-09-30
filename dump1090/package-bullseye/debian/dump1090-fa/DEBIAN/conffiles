@@ -1,0 +1,3 @@
+/etc/default/dump1090-fa
+/etc/lighttpd/conf-available/88-dump1090-fa-statcache.conf
+/etc/lighttpd/conf-available/89-skyaware.conf

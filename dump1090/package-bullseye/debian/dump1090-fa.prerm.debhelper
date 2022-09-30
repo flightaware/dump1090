@@ -1,0 +1,5 @@
+# Automatically added by dh_systemd_start/12.10ubuntu1
+if [ -d /run/systemd/system ] && [ "$1" = remove ]; then
+	deb-systemd-invoke stop 'dump1090-fa.service' >/dev/null || true
+fi
+# End automatically added section
