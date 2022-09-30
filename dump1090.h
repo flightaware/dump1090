@@ -326,17 +326,8 @@ struct _Modes {                             // Internal state
     // Networking
     char           aneterr[ANET_ERR_LEN];
     struct net_service *services;    // Active services
+    struct net_writer *writers[OUT_SERVICE_FORMAT_COUNT];
     struct client *clients;          // Our clients
-
-    struct net_service *beast_verbatim_service;  // Beast-format output service, verbatim mode
-    struct net_service *beast_cooked_service;    // Beast-format output service, "cooked" mode
-
-    struct net_writer raw_out;                   // AVR-format output
-    struct net_writer beast_verbatim_out;        // Beast-format output, verbatim mode
-    struct net_writer beast_cooked_out;          // Beast-format output, "cooked" mode
-    struct net_writer sbs_out;                   // SBS-format output
-    struct net_writer stratux_out;               // Stratux-format output
-    struct net_writer fatsv_out;                 // FATSV-format output
 
 #ifdef _WIN32
     WSADATA        wsaData;          // Windows socket initialisation
@@ -362,6 +353,7 @@ struct _Modes {                             // Internal state
     char *net_output_stratux_ports;  // List of Stratux output TCP ports
     char *net_input_beast_ports;     // List of Beast input TCP ports
     char *net_output_beast_ports;    // List of Beast output TCP ports
+    char *net_output_dynamic_ports;  // List of Remote configurable output TCP ports
     char *net_bind_address;          // Bind address
     int   net_sndbuf_size;           // TCP output buffer size (64Kb * 2^n)
     int   net_verbatim;              // if true, Beast output connections default to verbatim mode

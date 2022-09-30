@@ -396,6 +396,7 @@ static void showHelp(void)
 "--net-bi-port <ports>    TCP Beast input listen ports  (default: 30004,30104)\n"
 "--net-bo-port <ports>    TCP Beast output listen ports (default: 30005)\n"
 "--net-stratux-port <ports>  TCP Stratux output listen ports (default: disabled)\n"
+"--net-dynamic-port <ports>  TCP remote configurable output ports  (default: 30006)\n"
 "--net-ro-size <size>     TCP output minimum size (default: 0)\n"
 "--net-ro-interval <rate> TCP output memory flush rate in seconds (default: 0)\n"
 "--net-heartbeat <rate>   TCP heartbeat rate in seconds\n"
@@ -589,6 +590,8 @@ static void applyNetDefaults()
         Modes.net_input_beast_ports = strdup("30004,30104");
     if (!Modes.net_output_beast_ports)
         Modes.net_output_beast_ports = strdup("30005");
+    if (!Modes.net_output_dynamic_ports)
+        Modes.net_output_dynamic_ports = strdup("30006");
 }
 
 int main(int argc, char **argv) {
@@ -689,7 +692,11 @@ int main(int argc, char **argv) {
             Modes.net = 1;
             free(Modes.net_output_stratux_ports);
             Modes.net_output_stratux_ports = strdup(argv[++j]);
-        } else if (!strcmp(argv[j],"--net-buffer") && more) {
+        } else if (!strcmp(argv[j],"--net-dynamic-port") && more) {
+            Modes.net = 1;
+            free(Modes.net_output_dynamic_ports);
+            Modes.net_output_dynamic_ports = strdup(argv[++j]);
+        }  else if (!strcmp(argv[j],"--net-buffer") && more) {
             Modes.net_sndbuf_size = atoi(argv[++j]);
         } else if (!strcmp(argv[j],"--net-verbatim")) {
             Modes.net_verbatim = 1;

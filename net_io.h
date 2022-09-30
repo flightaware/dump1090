@@ -22,12 +22,27 @@
 
 // Describes a networking service (group of connections)
 
+typedef enum {
+    OUT_SERVICE_NONE = -2,
+    OUT_SERVICE_DYNAMIC = -1,
+
+    OUT_SERVICE_FORMAT_BEAST_VERBATIM,
+    OUT_SERVICE_FORMAT_BEAST_COOKED,
+    OUT_SERVICE_FORMAT_BEAST_ANTENNA,
+    OUT_SERVICE_FORMAT_RAW,
+    OUT_SERVICE_FORMAT_SBS,
+    OUT_SERVICE_FORMAT_STRATUX,
+    OUT_SERVICE_FORMAT_FATSV,
+
+    OUT_SERVICE_FORMAT_COUNT,
+} out_service_format_t;
+
 struct aircraft;
 struct modesMessage;
 struct client;
 struct net_service;
 typedef int (*read_fn)(struct client *, char *);
-typedef void (*heartbeat_fn)(struct net_service *);
+typedef void (*heartbeat_fn)(out_service_format_t);
 
 typedef enum {
     READ_MODE_IGNORE,
@@ -45,7 +60,7 @@ struct net_service {
 
     int connections;     // number of active clients
 
-    struct net_writer *writer; // shared writer state
+    out_service_format_t default_out_format;
 
     const char *read_sep;      // hander details for input data
     read_mode_t read_mode;
@@ -57,6 +72,7 @@ struct client {
     struct client*  next;                // Pointer to next client
     int    fd;                           // File descriptor
     struct net_service *service;         // Service this client is part of
+    out_service_format_t out_format;
     int    buflen;                       // Amount of data on buffer
     char   buf[MODES_CLIENT_BUF_SIZE+1]; // Read buffer
     int    modeac_requested;             // 1 if this Beast output connection has asked for A/C
@@ -64,14 +80,13 @@ struct client {
 
 // Common writer state for all output sockets of one type
 struct net_writer {
-    struct net_service *service; // owning service
     void *data;          // shared write buffer, sized MODES_OUT_BUF_SIZE
     int dataUsed;        // number of bytes of write buffer currently used
     uint64_t lastWrite;  // time of last write to clients
     heartbeat_fn send_heartbeat; // function that queues a heartbeat if needed
 };
 
-struct net_service *serviceInit(const char *descr, struct net_writer *writer, heartbeat_fn hb_handler, read_mode_t mode, const char *sep, read_fn read_handler);
+struct net_service *serviceInit(const char *descr, out_service_format_t format, read_mode_t mode, const char *sep, read_fn read_handler);
 struct client *serviceConnect(struct net_service *service, char *addr, int port);
 void serviceListen(struct net_service *service, char *bind_addr, char *bind_ports);
 struct client *createSocketClient(struct net_service *service, int fd);

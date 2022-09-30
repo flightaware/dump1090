@@ -68,19 +68,25 @@
 //    handled via non-blocking I/O and manually polling clients to see if
 //    they have something new to share with us when reading is needed.
 
+static heartbeat_fn getWriterHeartbeat(out_service_format_t format);
+static struct net_writer* getOrCreateWriter(out_service_format_t format);
+static struct net_writer* getWriter(out_service_format_t format);
+
+static int selectDynamicOutput(struct client *c, char *p);
 static int handleBeastCommand(struct client *c, char *p);
 static int decodeBinMessage(struct client *c, char *p);
 static int decodeHexMessage(struct client *c, char *hex);
 static int handleFaupCommand(struct client *c, char *hex);
 
-static void moveNetClient(struct client *c, struct net_service *new_service);
+static void modesCloseClient(struct client *c);
+static void moveNetClient(struct client *c, out_service_format_t format);
 
-static void send_raw_heartbeat(struct net_service *service);
-static void send_beast_heartbeat(struct net_service *service);
-static void send_sbs_heartbeat(struct net_service *service);
-static void send_stratux_heartbeat(struct net_service *service);
+static void send_raw_heartbeat(out_service_format_t format);
+static void send_beast_heartbeat(out_service_format_t format);
+static void send_sbs_heartbeat(out_service_format_t format);
+static void send_stratux_heartbeat(out_service_format_t format);
 
-static void writeBeastMessage(struct net_writer *writer, uint64_t timestamp, double signalLevel, unsigned char *msg, int msgLen);
+static void writeBeastMessage(out_service_format_t format, uint64_t timestamp, double signalLevel, unsigned char *msg, int msgLen);
 
 static void writeFATSVEvent(struct modesMessage *mm, struct aircraft *a);
 static void writeFATSVPositionUpdate(float lat, float lon, float alt);
@@ -98,9 +104,51 @@ static const char *jsonEscapeString(const char *str);
 // Networking "stack" initialization
 //
 
+heartbeat_fn getWriterHeartbeat(out_service_format_t format)
+{
+    switch(format)
+    {
+        case OUT_SERVICE_FORMAT_RAW: return send_raw_heartbeat;
+        case OUT_SERVICE_FORMAT_BEAST_VERBATIM: return send_beast_heartbeat;
+        case OUT_SERVICE_FORMAT_BEAST_COOKED: return send_beast_heartbeat;
+        case OUT_SERVICE_FORMAT_SBS: return send_sbs_heartbeat;
+        case OUT_SERVICE_FORMAT_STRATUX: return send_stratux_heartbeat;
+        default: return NULL;
+    }
+}
+
+struct net_writer* getOrCreateWriter(out_service_format_t format)
+{
+    if(format < 0) return NULL;
+    struct net_writer* writer = Modes.writers[format];
+    if(!writer)
+    {
+        fprintf(stderr, "creating format %d\n", format);
+        if (!(writer = calloc(sizeof(*writer), 1))) {
+            fprintf(stderr, "Out of memory allocating service\n");
+            exit(1);
+        }
+        Modes.writers[format] = writer;
+        if (! (writer->data = malloc(MODES_OUT_BUF_SIZE)) ) {
+            fprintf(stderr, "Out of memory allocating output buffer for service\n");
+            exit(1);
+        }
+        writer->dataUsed = 0;
+        writer->lastWrite = mstime();
+        writer->send_heartbeat = getWriterHeartbeat(format);
+    }
+    return writer;
+}
+
+struct net_writer* getWriter(out_service_format_t format)
+{
+    if(format < 0) return NULL;
+    return Modes.writers[format];
+}
+
 // Init a service with the given read/write characteristics, return the new service.
 // Doesn't arrange for the service to listen or connect
-struct net_service *serviceInit(const char *descr, struct net_writer *writer, heartbeat_fn hb, read_mode_t mode, const char *sep, read_fn handler)
+struct net_service *serviceInit(const char *descr, out_service_format_t default_out_format, read_mode_t mode, const char *sep, read_fn handler)
 {
     struct net_service *service;
 
@@ -115,22 +163,10 @@ struct net_service *serviceInit(const char *descr, struct net_writer *writer, he
     service->descr = descr;
     service->listener_count = 0;
     service->connections = 0;
-    service->writer = writer;
+    service->default_out_format = default_out_format;
     service->read_sep = sep;
     service->read_mode = mode;
     service->read_handler = handler;
-
-    if (service->writer) {
-        if (! (service->writer->data = malloc(MODES_OUT_BUF_SIZE)) ) {
-            fprintf(stderr, "Out of memory allocating output buffer for service %s\n", descr);
-            exit(1);
-        }
-
-        service->writer->service = service;
-        service->writer->dataUsed = 0;
-        service->writer->lastWrite = mstime();
-        service->writer->send_heartbeat = hb;
-    }
 
     return service;
 }
@@ -154,15 +190,38 @@ struct client *createGenericClient(struct net_service *service, int fd)
         exit(1);
     }
 
-    c->service    = NULL;
+    ++service->connections;
+
+    c->service    = service;
     c->next       = Modes.clients;
     c->fd         = fd;
     c->buflen     = 0;
     c->modeac_requested = 0;
+    c->out_format = service->default_out_format;
     Modes.clients = c;
 
-    moveNetClient(c, service);
-
+    if(service->default_out_format > 0)
+    {
+        getOrCreateWriter(service->default_out_format);
+    }
+    else if(service->default_out_format == OUT_SERVICE_DYNAMIC)
+    {
+        const char hello[] =
+            "{variant: \""
+            MODES_DUMP1090_VARIANT
+            "\", version: \""
+            MODES_DUMP1090_VERSION
+            "\"}\n";
+        #ifndef _WIN32
+            int nwritten = write(c->fd, hello, sizeof(hello));
+        #else
+            int nwritten = send(c->fd, hello, sizeof(hello), 0);
+        #endif
+        if (nwritten != sizeof(hello)) {
+                modesCloseClient(c);
+                return NULL;
+        }
+    }
     return c;
 }
 
@@ -243,17 +302,17 @@ void serviceListen(struct net_service *service, char *bind_addr, char *bind_port
 
 struct net_service *makeBeastInputService(void)
 {
-    return serviceInit("Beast TCP input", NULL, NULL, READ_MODE_BEAST, NULL, decodeBinMessage);
+    return serviceInit("Beast TCP input", OUT_SERVICE_NONE, READ_MODE_BEAST, NULL, decodeBinMessage);
 }
 
 struct net_service *makeFatsvOutputService(void)
 {
-    return serviceInit("FATSV TCP output", &Modes.fatsv_out, NULL, READ_MODE_IGNORE, NULL, NULL);
+    return serviceInit("FATSV TCP output", OUT_SERVICE_FORMAT_FATSV, READ_MODE_IGNORE, NULL, NULL);
 }
 
 struct net_service *makeFaCmdInputService(void)
 {
-    return serviceInit("faup Command input", NULL, NULL, READ_MODE_ASCII, "\n", handleFaupCommand);
+    return serviceInit("faup Command input", OUT_SERVICE_NONE, READ_MODE_ASCII, "\n", handleFaupCommand);
 }
 
 void modesInitNet(void) {
@@ -264,26 +323,22 @@ void modesInitNet(void) {
     Modes.services = NULL;
 
     // set up listeners
-    s = serviceInit("Raw TCP output", &Modes.raw_out, send_raw_heartbeat, READ_MODE_IGNORE, NULL, NULL);
+    s = serviceInit("Dynamic output", OUT_SERVICE_DYNAMIC, READ_MODE_ASCII, "\n", selectDynamicOutput);
+    serviceListen(s, Modes.net_bind_address, "40001");
+
+    s = serviceInit("Raw TCP output", OUT_SERVICE_FORMAT_RAW, READ_MODE_IGNORE, NULL, NULL);
     serviceListen(s, Modes.net_bind_address, Modes.net_output_raw_ports);
 
-    // we maintain two output services, one producing a stream of verbatim messages, one producing a stream of cooked messages
-    // and switch clients between them if they request a change in mode
-    Modes.beast_cooked_service = serviceInit("Beast TCP output (cooked mode)", &Modes.beast_cooked_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
-    Modes.beast_verbatim_service = serviceInit("Beast TCP output (verbatim mode)", &Modes.beast_verbatim_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
+    s = serviceInit("Beast TCP output", Modes.net_verbatim ? OUT_SERVICE_FORMAT_BEAST_VERBATIM : OUT_SERVICE_FORMAT_BEAST_COOKED, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
+    serviceListen(s, Modes.net_bind_address, Modes.net_output_beast_ports);
 
-    if (Modes.net_verbatim)
-        serviceListen(Modes.beast_verbatim_service, Modes.net_bind_address, Modes.net_output_beast_ports);
-    else
-        serviceListen(Modes.beast_cooked_service, Modes.net_bind_address, Modes.net_output_beast_ports);
-
-    s = serviceInit("Basestation TCP output", &Modes.sbs_out, send_sbs_heartbeat, READ_MODE_IGNORE, NULL, NULL);
+    s = serviceInit("Basestation TCP output", OUT_SERVICE_FORMAT_SBS, READ_MODE_IGNORE, NULL, NULL);
     serviceListen(s, Modes.net_bind_address, Modes.net_output_sbs_ports);
 
-    s = serviceInit("Stratux TCP output", &Modes.stratux_out, send_stratux_heartbeat, READ_MODE_IGNORE, NULL, NULL);
+    s = serviceInit("Stratux TCP output", OUT_SERVICE_FORMAT_STRATUX, READ_MODE_IGNORE, NULL, NULL);
     serviceListen(s, Modes.net_bind_address, Modes.net_output_stratux_ports);
 
-    s = serviceInit("Raw TCP input", NULL, NULL, READ_MODE_ASCII, "\n", decodeHexMessage);
+    s = serviceInit("Raw TCP input", OUT_SERVICE_NONE, READ_MODE_ASCII, "\n", decodeHexMessage);
     serviceListen(s, Modes.net_bind_address, Modes.net_input_raw_ports);
 
     s = makeBeastInputService();
@@ -341,13 +396,14 @@ static void modesCloseClient(struct client *c) {
 //
 // Send the write buffer for the specified writer to all connected clients
 //
-static void flushWrites(struct net_writer *writer) {
+static void flushWrites(out_service_format_t format) {
     struct client *c;
+    struct net_writer *writer = getWriter(format);
 
     for (c = Modes.clients; c; c = c->next) {
         if (!c->service)
             continue;
-        if (c->service == writer->service) {
+        if (c->out_format == format) {
 #ifndef _WIN32
             int nwritten = write(c->fd, writer->data, writer->dataUsed);
 #else
@@ -365,11 +421,10 @@ static void flushWrites(struct net_writer *writer) {
 
 // Prepare to write up to 'len' bytes to the given net_writer.
 // Returns a pointer to write to, or NULL to skip this write.
-static void *prepareWrite(struct net_writer *writer, int len) {
-    if (!writer ||
-        !writer->service ||
-        !writer->service->connections ||
-        !writer->data)
+static void *prepareWrite(out_service_format_t format, int len) {
+    struct net_writer *writer = getWriter(format);
+
+    if (!writer)
         return NULL;
 
     if (len > MODES_OUT_BUF_SIZE)
@@ -377,7 +432,7 @@ static void *prepareWrite(struct net_writer *writer, int len) {
 
     if (writer->dataUsed + len >= MODES_OUT_BUF_SIZE) {
         // Flush now to free some space
-        flushWrites(writer);
+        flushWrites(format);
     }
 
     return writer->data + writer->dataUsed;
@@ -386,32 +441,25 @@ static void *prepareWrite(struct net_writer *writer, int len) {
 // Complete a write previously begun by prepareWrite.
 // endptr should point one byte past the last byte written
 // to the buffer returned from prepareWrite.
-static void completeWrite(struct net_writer *writer, void *endptr) {
+static void completeWrite(out_service_format_t format, void *endptr) {
+    struct net_writer *writer = getWriter(format);
+
     writer->dataUsed = endptr - writer->data;
 
     if (writer->dataUsed >= Modes.net_output_flush_size) {
-        flushWrites(writer);
+        flushWrites(format);
     }
 }
 
-//
-//=========================================================================
-//
-// Write raw output in Beast Binary format with Timestamp to TCP clients
-//
-static void modesSendBeastVerbatimOutput(struct modesMessage *mm, struct aircraft __attribute__((unused)) *a) {
+static void modesSendBeastOutput(struct modesMessage *mm, struct aircraft *a) {
     // Don't forward mlat messages, unless --forward-mlat is set
     if (mm->source == SOURCE_MLAT && !Modes.forward_mlat)
         return;
 
-    // Do verbatim output for all messages
-    writeBeastMessage(&Modes.beast_verbatim_out, mm->timestampMsg, mm->signalLevel, mm->verbatim, mm->msgbits / 8);
-}
+    writeBeastMessage(OUT_SERVICE_FORMAT_BEAST_VERBATIM, mm->timestampMsg, mm->signalLevel, mm->verbatim, mm->msgbits / 8);
 
-static void modesSendBeastCookedOutput(struct modesMessage *mm, struct aircraft *a) {
-    // Don't forward mlat messages, unless --forward-mlat is set
-    if (mm->source == SOURCE_MLAT && !Modes.forward_mlat)
-        return;
+    if (!mm->remote)
+        writeBeastMessage(OUT_SERVICE_FORMAT_BEAST_ANTENNA, mm->timestampMsg, mm->signalLevel, mm->verbatim, mm->msgbits / 8);
 
     // Filter some messages from cooked output
     // Don't forward 2-bit-corrected messages
@@ -422,15 +470,15 @@ static void modesSendBeastCookedOutput(struct modesMessage *mm, struct aircraft 
     if ((a && !a->reliable) && !mm->reliable)
         return;
 
-    writeBeastMessage(&Modes.beast_cooked_out, mm->timestampMsg, mm->signalLevel, mm->msg, mm->msgbits / 8);
+    writeBeastMessage(OUT_SERVICE_FORMAT_BEAST_COOKED, mm->timestampMsg, mm->signalLevel, mm->msg, mm->msgbits / 8);
 }
 
-static void writeBeastMessage(struct net_writer *writer, uint64_t timestamp, double signalLevel, unsigned char *msg, int msgLen) {
+static void writeBeastMessage(out_service_format_t format, uint64_t timestamp, double signalLevel, unsigned char *msg, int msgLen) {
     char ch;
     int  j;
     int sig;
 
-    char *p = prepareWrite(writer, 2 + 2 * (7 + msgLen));
+    char *p = prepareWrite(format, 2 + 2 * (7 + msgLen));
     if (!p)
         return;
 
@@ -471,23 +519,20 @@ static void writeBeastMessage(struct net_writer *writer, uint64_t timestamp, dou
         if (0x1A == ch) {*p++ = ch; }
     }
 
-    completeWrite(writer, p);
+    completeWrite(format, p);
 }
 
-static void send_beast_heartbeat(struct net_service *service)
+static void send_beast_heartbeat(out_service_format_t format)
 {
     static char heartbeat_message[] = { 0x1a, '1', 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     char *data;
 
-    if (!service->writer)
-        return;
-
-    data = prepareWrite(service->writer, sizeof(heartbeat_message));
+    data = prepareWrite(format, sizeof(heartbeat_message));
     if (!data)
         return;
 
     memcpy(data, heartbeat_message, sizeof(heartbeat_message));
-    completeWrite(service->writer, data + sizeof(heartbeat_message));
+    completeWrite(format, data + sizeof(heartbeat_message));
 }
 
 //
@@ -510,7 +555,7 @@ static void modesSendRawOutput(struct modesMessage *mm, struct aircraft *a) {
         return;
 
     int msgLen = mm->msgbits / 8;
-    char *p = prepareWrite(&Modes.raw_out, msgLen*2 + 15);
+    char *p = prepareWrite(OUT_SERVICE_FORMAT_RAW, msgLen*2 + 15);
     if (!p)
         return;
 
@@ -531,24 +576,21 @@ static void modesSendRawOutput(struct modesMessage *mm, struct aircraft *a) {
     *p++ = ';';
     *p++ = '\n';
 
-    completeWrite(&Modes.raw_out, p);
+    completeWrite(OUT_SERVICE_FORMAT_RAW, p);
 }
 
-static void send_raw_heartbeat(struct net_service *service)
+static void send_raw_heartbeat(out_service_format_t format)
 {
     static char *heartbeat_message = "*0000;\n";
     char *data;
     int len = strlen(heartbeat_message);
 
-    if (!service->writer)
-        return;
-
-    data = prepareWrite(service->writer, len);
+    data = prepareWrite(format, len);
     if (!data)
         return;
 
     memcpy(data, heartbeat_message, len);
-    completeWrite(service->writer, data + len);
+    completeWrite(format, data + len);
 }
 
 //
@@ -582,7 +624,7 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     if (mm->addr & MODES_NON_ICAO_ADDRESS)
         return;
 
-    p = prepareWrite(&Modes.sbs_out, 200);
+    p = prepareWrite(OUT_SERVICE_FORMAT_SBS, 200);
     if (!p)
         return;
 
@@ -771,24 +813,21 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
 
     p += sprintf(p, "\r\n");
 
-    completeWrite(&Modes.sbs_out, p);
+    completeWrite(OUT_SERVICE_FORMAT_SBS, p);
 }
 
-static void send_sbs_heartbeat(struct net_service *service)
+static void send_sbs_heartbeat(out_service_format_t format)
 {
     static char *heartbeat_message = "\r\n";  // is there a better one?
     char *data;
     int len = strlen(heartbeat_message);
 
-    if (!service->writer)
-        return;
-
-    data = prepareWrite(service->writer, len);
+    data = prepareWrite(format, len);
     if (!data)
         return;
 
     memcpy(data, heartbeat_message, len);
-    completeWrite(service->writer, data + len);
+    completeWrite(format, data + len);
 }
 
 //
@@ -813,7 +852,7 @@ static void modesSendStratuxOutput(struct modesMessage *mm, struct aircraft *a) 
     if (!mm->reliable && !a->reliable)
         return;
 
-    p = prepareWrite(&Modes.stratux_out, STRATUX_MAX_PACKET_SIZE); // larger buffer size needed vs SBS
+    p = prepareWrite(OUT_SERVICE_FORMAT_STRATUX, STRATUX_MAX_PACKET_SIZE); // larger buffer size needed vs SBS
     if (!p)
         return;
 
@@ -974,26 +1013,23 @@ static void modesSendStratuxOutput(struct modesMessage *mm, struct aircraft *a) 
     p = safe_snprintf(p, end, "}\r\n");
 
     if (p < end)
-        completeWrite(&Modes.stratux_out, p);
+        completeWrite(OUT_SERVICE_FORMAT_STRATUX, p);
     else
         fprintf(stderr, "stratux: output too large (max %d, overran by %d)\n", STRATUX_MAX_PACKET_SIZE, (int) (p - end));
 }
 
-static void send_stratux_heartbeat(struct net_service *service)
+static void send_stratux_heartbeat(out_service_format_t format)
 {
     static char *heartbeat_message = "{\"Icao_addr\":134217727}\r\n";  // 0x07FFFFFF. Overflows 24-bit ICAO to signal invalic #, need to validate that this won't cause problems with traffic.go
     char *data;
     int len = strlen(heartbeat_message);
 
-    if (!service->writer)
-        return;
-
-    data = prepareWrite(service->writer, len);
+    data = prepareWrite(format, len);
     if (!data)
         return;
 
     memcpy(data, heartbeat_message, len);
-    completeWrite(service->writer, data + len);
+    completeWrite(format, data + len);
 }
 
 //
@@ -1005,8 +1041,7 @@ void modesQueueOutput(struct modesMessage *mm, struct aircraft *a) {
     modesSendSBSOutput(mm, a);
     modesSendStratuxOutput(mm, a);
     modesSendRawOutput(mm, a);
-    modesSendBeastVerbatimOutput(mm, a);
-    modesSendBeastCookedOutput(mm, a);
+    modesSendBeastOutput(mm, a);
     writeFATSVEvent(mm, a);
 }
 
@@ -1095,26 +1130,25 @@ void sendBeastSettings(struct client *c, const char *settings)
 }
 
 // Move a network client to a new service
-static void moveNetClient(struct client *c, struct net_service *new_service)
+static void moveNetClient(struct client *c, out_service_format_t new_format)
 {
-    if (c->service == new_service)
+    if (c->out_format == new_format)
         return;
 
     if (c->service) {
         // Flush to ensure correct message framing
-        if (c->service->writer)
-            flushWrites(c->service->writer);
-        --c->service->connections;
+        if (c->out_format >= 0)
+            flushWrites(c->out_format);
     }
 
-    if (new_service) {
+    getOrCreateWriter(new_format);
+
+    if (new_format) {
         // Flush to ensure correct message framing
-        if (new_service->writer)
-            flushWrites(new_service->writer);
-        ++new_service->connections;
+        flushWrites(new_format);
     }
 
-    c->service = new_service;
+    c->out_format = new_format;
 }
 
 static int handleFaupCommand(struct client *c, char *p) {
@@ -1156,6 +1190,29 @@ static int handleFaupCommand(struct client *c, char *p) {
     return 0;
 }
 
+static int selectDynamicOutput(struct client *c, char *p) {
+    switch (p[0]) {
+    case 's':
+        moveNetClient(c, OUT_SERVICE_FORMAT_SBS);
+        break;
+    case 'r':
+        moveNetClient(c, OUT_SERVICE_FORMAT_RAW);
+        break;
+    case 'v':
+        moveNetClient(c, OUT_SERVICE_FORMAT_BEAST_COOKED);
+        break;
+    case 'V':
+        moveNetClient(c, OUT_SERVICE_FORMAT_BEAST_VERBATIM);
+        break;
+    case 'a':
+        moveNetClient(c, OUT_SERVICE_FORMAT_BEAST_ANTENNA);
+        break;
+    default:
+        return 1;
+    }
+    return 0;
+}
+
 //
 // Handle a Beast command message.
 // Currently, we just look for the Mode A/C command message
@@ -1177,10 +1234,10 @@ static int handleBeastCommand(struct client *c, char *p) {
         autoset_modeac();
         break;
     case 'v':
-        moveNetClient(c, Modes.beast_cooked_service);
+        moveNetClient(c, OUT_SERVICE_FORMAT_BEAST_COOKED);
         break;
     case 'V':
-        moveNetClient(c, Modes.beast_verbatim_service);
+        moveNetClient(c, OUT_SERVICE_FORMAT_BEAST_VERBATIM);
         break;
     }
 
@@ -2402,7 +2459,7 @@ static void writeFATSVPositionUpdate(float lat, float lon, float alt)
     last_lon = lon;
     last_alt = alt;
 
-    char *p = prepareWrite(&Modes.fatsv_out, TSV_MAX_PACKET_SIZE);
+    char *p = prepareWrite(OUT_SERVICE_FORMAT_FATSV, TSV_MAX_PACKET_SIZE);
     if (!p)
         return;
 
@@ -2419,14 +2476,14 @@ static void writeFATSVPositionUpdate(float lat, float lon, float alt)
     p = safe_snprintf(p, end, "\n");
 
     if (p < end)
-        completeWrite(&Modes.fatsv_out, p);
+        completeWrite(OUT_SERVICE_FORMAT_FATSV, p);
     else
         fprintf(stderr, "fatsv: output too large (max %d, overran by %d)\n", TSV_MAX_PACKET_SIZE, (int) (p - end));
 }
 
 static void writeFATSVEventMessage(struct modesMessage *mm, const char *datafield, unsigned char *data, size_t len)
 {
-    char *p = prepareWrite(&Modes.fatsv_out, TSV_MAX_PACKET_SIZE);
+    char *p = prepareWrite(OUT_SERVICE_FORMAT_FATSV, TSV_MAX_PACKET_SIZE);
     if (!p)
         return;
 
@@ -2446,7 +2503,7 @@ static void writeFATSVEventMessage(struct modesMessage *mm, const char *datafiel
     p = safe_snprintf(p, end, "\n");
 
     if (p < end)
-        completeWrite(&Modes.fatsv_out, p);
+        completeWrite(OUT_SERVICE_FORMAT_FATSV, p);
     else
         fprintf(stderr, "fatsv: output too large (max %d, overran by %d)\n", TSV_MAX_PACKET_SIZE, (int) (p - end));
 #       undef bufsize
@@ -2456,7 +2513,7 @@ static void writeFATSVEvent(struct modesMessage *mm, struct aircraft *a)
 {
     // Write event records for a couple of message types.
 
-    if (!Modes.fatsv_out.service || !Modes.fatsv_out.service->connections) {
+    if (!getWriter(OUT_SERVICE_FORMAT_FATSV)) {
         return; // not enabled or no active connections
     }
 
@@ -2608,7 +2665,7 @@ static void writeFATSV()
     struct aircraft *a;
     static uint64_t next_update;
 
-    if (!Modes.fatsv_out.service || !Modes.fatsv_out.service->connections) {
+    if (!getWriter(OUT_SERVICE_FORMAT_FATSV)) {
         return; // not enabled or no active connections
     }
 
@@ -2711,7 +2768,7 @@ static void writeFATSV()
             continue;
         }
 
-        char *p = prepareWrite(&Modes.fatsv_out, TSV_MAX_PACKET_SIZE);
+        char *p = prepareWrite(OUT_SERVICE_FORMAT_FATSV, TSV_MAX_PACKET_SIZE);
         if (!p)
             return;
         char *end = p + TSV_MAX_PACKET_SIZE;
@@ -2805,7 +2862,7 @@ static void writeFATSV()
         p = safe_snprintf(p, end, "\n");
 
         if (p < end)
-            completeWrite(&Modes.fatsv_out, p);
+            completeWrite(OUT_SERVICE_FORMAT_FATSV, p);
         else
             fprintf(stderr, "fatsv: output too large (max %d, overran by %d)\n", TSV_MAX_PACKET_SIZE, (int) (p - end));
 
@@ -2852,7 +2909,6 @@ static void writeFATSV()
 //
 void modesNetPeriodicWork(void) {
     struct client *c, **prev;
-    struct net_service *s;
     uint64_t now = mstime();
     int need_flush = 0;
 
@@ -2873,23 +2929,24 @@ void modesNetPeriodicWork(void) {
     // If we have generated no messages for a while, send
     // a heartbeat
     if (Modes.net_heartbeat_interval) {
-        for (s = Modes.services; s; s = s->next) {
-            if (s->writer &&
-                s->connections &&
-                s->writer->send_heartbeat &&
-                (s->writer->lastWrite + Modes.net_heartbeat_interval) <= now) {
-                s->writer->send_heartbeat(s);
+        for (out_service_format_t format = 0; format < OUT_SERVICE_FORMAT_COUNT; ++format) {
+            struct net_writer *writer = getWriter(format);
+            if (writer &&
+                writer->send_heartbeat &&
+                (writer->lastWrite + Modes.net_heartbeat_interval) <= now) {
+                writer->send_heartbeat(format);
             }
         }
     }
 
     // If we have data that has been waiting to be written for a while,
     // write it now.
-    for (s = Modes.services; s; s = s->next) {
-        if (s->writer &&
-            s->writer->dataUsed &&
-            (need_flush || (s->writer->lastWrite + Modes.net_output_flush_interval) <= now)) {
-            flushWrites(s->writer);
+    for (out_service_format_t format = 0; format < OUT_SERVICE_FORMAT_COUNT; ++format) {
+        struct net_writer *writer = getWriter(format);
+        if (writer &&
+            writer->dataUsed &&
+            (need_flush || (writer->lastWrite + Modes.net_output_flush_interval) <= now)) {
+            flushWrites(format);
         }
     }
 
