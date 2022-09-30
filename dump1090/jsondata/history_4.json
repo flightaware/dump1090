@@ -1,0 +1,8 @@
+{ "now" : 1663781049.3,
+  "messages" : 156,
+  "aircraft" : [
+    {"hex":"a2c336","alt_baro":16875,"version":0,"nac_p":8,"sil":2,"sil_type":"unknown","mlat":[],"tisb":[],"messages":7,"seen":1.4,"rssi":-27.7},
+    {"hex":"a6bb97","flight":"JIA5517 ","alt_baro":700,"alt_geom":675,"gs":136.7,"track":141.5,"geom_rate":-832,"squawk":"3451","emergency":"none","category":"A3","nav_qnh":1015.2,"nav_altitude_mcp":1504,"nav_heading":151.9,"lat":38.893371,"lon":-77.061157,"nic":8,"rc":186,"seen_pos":2.5,"version":2,"nic_baro":1,"nac_p":10,"nac_v":1,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":141,"seen":0.3,"rssi":-20.9},
+    {"hex":"abd063","version":0,"sil_type":"unknown","mlat":[],"tisb":[],"messages":5,"seen":92.1,"rssi":-32.5}
+  ]
+}

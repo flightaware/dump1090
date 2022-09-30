@@ -1,0 +1,10 @@
+{ "now" : 1663781139.3,
+  "messages" : 542,
+  "aircraft" : [
+    {"hex":"a6b48f","alt_baro":1400,"mlat":[],"tisb":[],"messages":7,"seen":2.6,"rssi":-30.6},
+    {"hex":"add25e","alt_baro":32650,"alt_geom":34150,"gs":264.5,"track":225.0,"baro_rate":768,"version":2,"nac_v":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":29,"seen":11.5,"rssi":-30.6},
+    {"hex":"a2c336","flight":"UAL1147 ","alt_baro":19000,"alt_geom":19825,"gs":407.5,"track":167.0,"baro_rate":64,"squawk":"1377","emergency":"none","category":"A3","nav_qnh":1013.6,"nav_altitude_mcp":19008,"nav_heading":142.0,"lat":38.929169,"lon":-76.882507,"nic":8,"rc":186,"seen_pos":25.9,"version":2,"nic_baro":1,"nac_p":9,"nac_v":1,"sil":3,"sil_type":"perhour","mlat":[],"tisb":[],"messages":202,"seen":5.8,"rssi":-30.5},
+    {"hex":"a6bb97","category":"A3","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":296,"seen":70.3,"rssi":-26.2},
+    {"hex":"abd063","version":0,"sil_type":"unknown","mlat":[],"tisb":[],"messages":5,"seen":182.1,"rssi":-32.5}
+  ]
+}
