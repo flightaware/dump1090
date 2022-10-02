@@ -2,7 +2,7 @@ import socket
 import sys
 import threading
 
-rendezvous = ('172.20.192.178', 55555)
+rendezvous = ('10.0.0.166', 55555)
 
 
 print('connecting to rendezvous server')
@@ -28,10 +28,19 @@ print('  ip:            {}'.format(ip))
 print('  source port:   {}'.format(sport))
 print('  dest port:     {}\n'.format(dport))
 
+print('punching hole')
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock = sock.bind(('0.0.0.0', sport))
+sock.sendto(b'0', (ip, dport))
+
+
+
 print('ready to exchange messages\n')
 
 def listen():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    print(sport)
     sock.bind(('0.0.0.0', sport))
 
     while True:
