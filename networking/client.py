@@ -1,6 +1,7 @@
 import socket
 import sys
 import threading
+import json
 
 rendezvous = ('10.0.0.166', 55555)
 
@@ -51,6 +52,5 @@ listener.start()
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('0.0.0.0', dport))
 
-while True:
-    msg = input('> ')
-    sock.sendto(msg.encode(), (ip, sport))
+msg = input('> ')
+sock.sendto(msg.encode(), (ip, sport))
