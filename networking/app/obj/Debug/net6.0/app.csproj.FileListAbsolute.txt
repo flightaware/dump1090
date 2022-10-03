@@ -1,0 +1,15 @@
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\bin\Debug\net6.0\app.exe
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\bin\Debug\net6.0\app.deps.json
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\bin\Debug\net6.0\app.runtimeconfig.json
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\bin\Debug\net6.0\app.dll
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\bin\Debug\net6.0\app.pdb
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.csproj.AssemblyReference.cache
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.AssemblyInfoInputs.cache
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.AssemblyInfo.cs
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.csproj.CoreCompileInputs.cache
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.dll
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\refint\app.dll
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.pdb
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.genruntimeconfig.cache
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\ref\app.dll

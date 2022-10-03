@@ -28,9 +28,8 @@ print('  ip:            {}'.format(ip))
 print('  source port:   {}'.format(sport))
 print('  dest port:     {}\n'.format(dport))
 
-print('punching hole')
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(('0.0.0.0', sport))
+#sock.bind(('0.0.0.0', sport))
 sock.sendto(b'0', (ip, dport))
 
 
@@ -52,5 +51,6 @@ listener.start()
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(('0.0.0.0', dport))
 
-msg = input('> ')
-sock.sendto(msg.encode(), (ip, sport))
+while True:
+    msg = input('> ')
+    sock.sendto(msg.encode(), (ip, sport))
