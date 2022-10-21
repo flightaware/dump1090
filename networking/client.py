@@ -3,54 +3,34 @@ import sys
 import threading
 import json
 
-rendezvous = ('10.0.0.166', 55555)
+try:
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+except socket.error:
+    print('Failed to create socket')
+    sys.exit()
+print('Socket created')
 
-print('connecting to rendezvous server')
+#establish connection to server
+xr_ip = '10.0.0.166'
+xr_port = 55555
+client.connect((xr_ip, xr_port))
+print('Socket Connected to ' + xr_ip)
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(('0.0.0.0', 50001))
-sock.sendto(b'0', rendezvous)
-
-while True:
-    data = sock.recv(1024).decode()
-
-    if data.strip() == 'ready':
-        print('checked in with server, waiting')
-        break
-
-data = sock.recv(1024).decode()
-ip, sport, dport = data.split(' ')
-sport = int(sport)
-dport = int(dport)
-
-print('\ngot peer')
-print('  ip:            {}'.format(ip))
-print('  source port:   {}'.format(sport))
-print('  dest port:     {}\n'.format(dport))
-
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#sock.bind(('0.0.0.0', sport))
-sock.sendto(b'0', (ip, dport))
-
-
-
-print('ready to exchange messages\n')
-
+#thread to listen for incoming messages
 def listen():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-    sock.bind(('0.0.0.0', sport))
-
+    print('ready to listen')
     while True:
-        data = sock.recv(1024)
-        print('\rpeer: {}\n>'.format(data.decode()), end='')
+        try:
+            data = client.recv(1024).decode()
+            if data != '':
+                print(data)
+        except socket.error:
+            print('Failed to recieve data')
 
-listener = threading.Thread(target = listen, daemon=True)
+listener = threading.Thread(target = listen)
 listener.start()
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(('0.0.0.0', dport))
-
+#send messages to server
 while True:
     msg = input('> ')
-    sock.sendto(msg.encode(), (ip, sport))
+    client.send(bytes(msg, encoding = 'utf-8'))
