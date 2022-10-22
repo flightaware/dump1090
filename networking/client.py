@@ -2,6 +2,13 @@ import socket
 import sys
 import threading
 import json
+import haversine as hs
+from haversine import Unit
+
+#global filtering distance (miles)
+filtering_distance_miles = 50
+#current lat and lon of headset
+cur_location = (38.9072, -77.0369) #hardcoded for now
 
 try:
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -30,7 +37,20 @@ def listen():
 listener = threading.Thread(target = listen)
 listener.start()
 
-#send messages to server
+
+#read from dump1090 json and send valid data to server
 while True:
-    msg = input('> ')
-    client.send(bytes(msg, encoding = 'utf-8'))
+    f = open("../dump1090/jsondata/aircraft.json")
+    f_json = json.load(f)
+
+    for aircraft in f_json['aircraft']:
+        #data has been updated within last second and lat and lon exists
+        if aircraft['seen'] <= 1 and 'lat' in aircraft and 'lon' in aircraft:
+            aircraft_location = (aircraft['lat'], aircraft['lon'])
+            rel_dist_miles = hs.haversine(cur_location, aircraft_location, unit = Unit.MILES)
+            #airplane is within maximum filtering distance
+            if rel_dist_miles < filtering_distance_miles:
+                j_aircraft = json.dumps(aircraft)
+                client.send(bytes(j_aircraft, encoding = 'utf-8'))
+
+    f.close()
