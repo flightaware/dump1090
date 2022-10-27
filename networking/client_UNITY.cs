@@ -1,27 +1,36 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
+public class Networking : MonoBehaviour
+{   
+    public static TcpClient client; 
 
-public class client {
-
-    public static TcpClient tcpClient;
-    static void Main(string[] args)
+    // Start is called before the first frame update
+    public void Connect()
     {
         String server_ip = "10.0.0.166";
         Int32 server_port = 55555;
         runClient(server_ip, server_port);
     }
 
+    public void Disconnect()
+    {
+        client.Close();
+    }
+
     static void runClient(String server, Int32 port)
     {
         try
             {
-                tcpClient = new TcpClient(server, port);
+                client = new TcpClient(server, port);
 
-                NetworkStream stream = tcpClient.GetStream();
+                NetworkStream stream = client.GetStream();
 
                 Console.WriteLine("Socket Connected to: ", server);
 
@@ -38,7 +47,7 @@ public class client {
                         
                         if(!recv_message.Equals("")) 
                         {
-                            Console.WriteLine(recv_message);
+                            Debug.Log(recv_message);
                         }
                     }
                 }
