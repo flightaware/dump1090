@@ -12,16 +12,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     #accept connection from first device, send confirmation message
     conn1, addr1 = s.accept()
     print(f"Connected by {addr1}")
-    conn1.sendall(bytes("Server connection confirmation, waiting on second client\0", encoding='utf-8'))
 
     #accept connection from second device, send confirmation message
     conn2, addr2 = s.accept()
     print(f"Connected by {addr2}")
 
+    #tell conn1 that it can begin sending information now that both clients have connected
+    conn1.sendall(bytes('b', encoding='utf-8')) 
+
 #send messages recieved from client1, to client2
 def client1():
     while True:
-        msg = ""
         msgsize = conn1.recv(3).decode() # Receive the incoming JSON message size
         msg = conn1.recv(int(msgsize)).decode() # Receieve the incoming JSOn message
         conn2.sendall(bytes(msgsize, encoding = "utf-8")) # Send size message to client2

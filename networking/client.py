@@ -23,6 +23,7 @@ xr_ip = '10.0.0.48'
 xr_port = 55555
 client.connect((xr_ip, xr_port))
 print('Socket Connected to ' + xr_ip)
+client.recv(1) # wait for server confirmation to begin sending data
 
 #thread to listen for incoming messages
 def listen():
@@ -43,7 +44,7 @@ listener.start()
 while True:
     f = open("../dump1090/jsondata/aircraft.json")
     f_json = json.load(f)
-    
+
     for aircraft in f_json['aircraft']:
         #data has been updated within last second and lat and lon exists
         if aircraft['seen'] <= 1 and 'lat' in aircraft and 'lon' in aircraft:

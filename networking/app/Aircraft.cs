@@ -24,9 +24,10 @@ public class Aircraft
 
     }
     
+    /* Debug to print Aircraft members */
     public void printAircraft()
     {
-        Console.WriteLine("AIRCRAFT: " + this.icao + " Alt: " + alt_baro + " gs: " +  gs + " track: " + track + " lat " + lat + " lon " + lon);
+        Console.WriteLine("AIRCRAFT: " + this.icao + "\nAlt: " + alt_baro + "\ngs: " +  gs + "\ntrack: " + track + "\nlat " + lat + "\nlon " + lon + "\n");
     }
 
 

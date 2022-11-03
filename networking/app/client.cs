@@ -29,7 +29,7 @@ public class client {
         }
         catch (Newtonsoft.Json.JsonReaderException es)
         {
-            Console.WriteLine("ArgumentException: {0}",es, str);
+            Console.WriteLine("ArgumentException: {0}",es + str);
         }
     }
 
@@ -62,6 +62,9 @@ public class client {
                         Byte[] message = new Byte[size];
                         Int32 bytes = stream.Read(message, 0, message.Length);
                         recv_message += System.Text.Encoding.ASCII.GetString(message, 0, bytes);
+
+                        Console.WriteLine(recv_message_len + recv_message);
+                        Console.WriteLine();
 
                         // Pass JSON to parse method 
                         if(!recv_message.Equals("")) 
