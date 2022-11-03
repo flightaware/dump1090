@@ -23,14 +23,13 @@ public class client {
     {  
         try {
             JObject json = JObject.Parse(str);
-
-            Console.WriteLine(json);
-            Console.WriteLine();
+            Aircraft aircraft = new Aircraft(json.GetValue("hex").ToString(), int.Parse(json.GetValue("alt_baro").ToString()), 
+                    float.Parse(json.GetValue("gs").ToString()), float.Parse(json.GetValue("track").ToString()), float.Parse(json.GetValue("lat").ToString()), float.Parse(json.GetValue("lon").ToString()));
+            aircraft.printAircraft();
         }
         catch (Newtonsoft.Json.JsonReaderException es)
         {
             Console.WriteLine("ArgumentException: {0}",es, str);
-            System.Environment.Exit(1);
         }
     }
 
@@ -64,7 +63,7 @@ public class client {
                         Int32 bytes = stream.Read(message, 0, message.Length);
                         recv_message += System.Text.Encoding.ASCII.GetString(message, 0, bytes);
 
-                        // Pass JSON to parse method
+                        // Pass JSON to parse method 
                         if(!recv_message.Equals("")) 
                         {
                             parseJson(recv_message);
