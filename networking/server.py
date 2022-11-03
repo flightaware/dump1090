@@ -1,7 +1,8 @@
 import socket
 import threading
+import time
 
-HOST = "10.0.0.166"  # Standard loopback interface address (localhost)
+HOST = "10.0.0.48"  # Standard loopback interface address (localhost)
 PORT = 55555 # Port to listen on (non-privileged ports are > 1023)
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -16,13 +17,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     #accept connection from second device, send confirmation message
     conn2, addr2 = s.accept()
     print(f"Connected by {addr2}")
-    conn2.sendall(bytes("Server connection confirmation\0", encoding = 'utf-8'))
+    #conn2.sendall(bytes("Server connection confirmation\0", encoding = 'utf-8'))
 
 #send messages recieved from client1, to client2
 def client1():
     while True:
-        msg = conn1.recv(1024)
-        conn2.sendall(msg)
+        msg = ""
+        while (True):
+            msg += conn1.recv(2048).decode()
+            if msg[len(msg)-1] == "}":
+                break
+        conn2.sendall(bytes(msg, encoding = "utf-8"))
 
 #send messages recieved from client2, to client1
 def client2():

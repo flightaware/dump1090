@@ -2,6 +2,7 @@ import socket
 import sys
 import threading
 import json
+import time
 import haversine as hs
 from haversine import Unit
 
@@ -18,7 +19,7 @@ except socket.error:
 print('Socket created')
 
 #establish connection to server
-xr_ip = '10.0.0.166'
+xr_ip = '10.0.0.48'
 xr_port = 55555
 client.connect((xr_ip, xr_port))
 print('Socket Connected to ' + xr_ip)
@@ -51,6 +52,6 @@ while True:
             #airplane is within maximum filtering distance
             if rel_dist_miles < filtering_distance_miles:
                 j_aircraft = json.dumps(aircraft)
-                client.send(bytes(j_aircraft, encoding = 'utf-8'))
+                client.sendall(bytes(j_aircraft, encoding = 'utf-8'))
 
     f.close()
