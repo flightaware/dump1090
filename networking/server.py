@@ -23,10 +23,14 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 #send messages recieved from client1, to client2
 def client1():
     while True:
-        msgsize = conn1.recv(3).decode() # Receive the incoming JSON message size
-        msg = conn1.recv(int(msgsize)).decode() # Receieve the incoming JSOn message
-        conn2.sendall(bytes(msgsize, encoding = "utf-8")) # Send size message to client2
-        conn2.sendall(bytes(msg, encoding = "utf-8")) # Send JSON message to client2
+        msgsize = int(conn1.recv(3).decode()) # Receive the incoming JSON message size as int
+        msg = bytearray()
+        while len(msg) < msgsize :    
+            packet = conn1.recv(msgsize - len(msg)) # Receieve the incoming JSOn message
+            msg.extend(packet)
+        print(msg)
+        conn2.sendall(bytes(str(msgsize), encoding = "utf-8")) # Send size message to client2
+        conn2.sendall(bytes(msg)) # Send JSON message to client2
 
 #send messages recieved from client2, to client1
 def client2():
