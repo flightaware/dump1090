@@ -26,9 +26,8 @@ def client1():
         msgsize = int(conn1.recv(3).decode()) # Receive the incoming JSON message size as int
         msg = bytearray()
         while len(msg) < msgsize :    
-            packet = conn1.recv(msgsize - len(msg)) # Receieve the incoming JSOn message
+            packet = conn1.recv(msgsize - len(msg)) # Receieve the incoming JSON message
             msg.extend(packet)
-        print(msg)
         conn2.sendall(bytes(str(msgsize), encoding = "utf-8")) # Send size message to client2
         conn2.sendall(bytes(msg)) # Send JSON message to client2
 

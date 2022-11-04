@@ -14,7 +14,7 @@ public class client {
 
     static void Main(string[] args)
     {
-        String server_ip = "10.0.0.48";
+        String server_ip = "10.0.0.166";
         Int32 server_port = 55555;
         runClient(server_ip, server_port);
     }
@@ -44,7 +44,6 @@ public class client {
                 Console.WriteLine("Socket Connected to: ", server);
 
                 // Runs reader thread
-                // Todo: Modify the input to send data to C# objects
                 void listen()
                 {
                     Byte[] message_len = new Byte[3];
@@ -59,18 +58,15 @@ public class client {
                         int size = int.Parse(recv_message_len);
 
                         // Read in the JSON given the size
+                        Int32 bytes = 0;
                         Byte[] message = new Byte[size];
-                        Int32 bytes = stream.Read(message, 0, message.Length);
-                        recv_message += System.Text.Encoding.ASCII.GetString(message, 0, bytes);
-
-                        Console.WriteLine(recv_message_len + recv_message);
-                        Console.WriteLine();
-
-                        // Pass JSON to parse method 
-                        if(!recv_message.Equals("")) 
+                        while (bytes < size) 
                         {
-                            parseJson(recv_message);
+                            bytes += stream.Read(message, bytes, size - bytes);
                         }
+                        recv_message += System.Text.Encoding.ASCII.GetString(message, 0, bytes);
+                        // Pass JSON to parse method 
+                        parseJson(recv_message);
                     }
                 }
 
