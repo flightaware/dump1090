@@ -23,13 +23,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 #send messages recieved from client1, to client2
 def client1():
     while True:
-        msgsize = int(conn1.recv(3).decode()) # Receive the incoming JSON message size as int
-        msg = bytearray()
-        while len(msg) < msgsize :    
-            packet = conn1.recv(msgsize - len(msg)) # Receieve the incoming JSON message
-            msg.extend(packet)
-        conn2.sendall(bytes(str(msgsize), encoding = "utf-8")) # Send size message to client2
-        conn2.sendall(bytes(msg)) # Send JSON message to client2
+        try:
+            msgsize = int(conn1.recv(3).decode()) # Receive the incoming JSON message size as int
+            msg = bytearray()
+            while len(msg) < msgsize :    
+                packet = conn1.recv(msgsize - len(msg)) # Receieve the incoming JSON message
+                msg.extend(packet)
+            conn2.sendall(bytes(str(msgsize), encoding = "utf-8")) # Send size message to client2
+            conn2.sendall(bytes(msg)) # Send JSON message to client2
+        except:
+            print('Error receiving message: skipping')
+            continue
 
 #send messages recieved from client2, to client1
 def client2():

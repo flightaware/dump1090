@@ -14,7 +14,7 @@ public class client {
 
     static void Main(string[] args)
     {
-        String server_ip = "10.0.0.166";
+        String server_ip = "10.0.0.48";
         Int32 server_port = 55555;
         runClient(server_ip, server_port);
     }
@@ -49,24 +49,31 @@ public class client {
                     Byte[] message_len = new Byte[3];
                     while (true)
                     {   
-                        String recv_message = String.Empty;
-                        String recv_message_len = String.Empty;
+                        try{
+                            String recv_message = String.Empty;
+                            String recv_message_len = String.Empty;
 
-                        // Read in the size of the incoming JSON
-                        Int32 bytes_len = stream.Read(message_len, 0, message_len.Length);
-                        recv_message_len = System.Text.Encoding.ASCII.GetString(message_len, 0, bytes_len);
-                        int size = int.Parse(recv_message_len);
+                            // Read in the size of the incoming JSON
+                            Int32 bytes_len = stream.Read(message_len, 0, message_len.Length);
+                            recv_message_len = System.Text.Encoding.ASCII.GetString(message_len, 0, bytes_len);
+                            int size = int.Parse(recv_message_len);
 
-                        // Read in the JSON given the size
-                        Int32 bytes = 0;
-                        Byte[] message = new Byte[size];
-                        while (bytes < size) 
-                        {
-                            bytes += stream.Read(message, bytes, size - bytes);
+                            // Read in the JSON given the size
+                            Int32 bytes = 0;
+                            Byte[] message = new Byte[size];
+                            while (bytes < size) 
+                            {
+                                bytes += stream.Read(message, bytes, size - bytes);
+                            }
+                            recv_message += System.Text.Encoding.ASCII.GetString(message, 0, bytes);
+                            // Pass JSON to parse method 
+                            parseJson(recv_message);
                         }
-                        recv_message += System.Text.Encoding.ASCII.GetString(message, 0, bytes);
-                        // Pass JSON to parse method 
-                        parseJson(recv_message);
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("Error receiving message {0}", e);
+                            continue;
+                        }
                     }
                 }
 
