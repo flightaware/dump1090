@@ -97,7 +97,7 @@ endif
 
 ifeq ($(UNAME), Windows)
   # TODO: Perhaps copy the DLL files to the output folder if the OS is Windows?
-  CPPFLAGS += -DMISSING_TIME_R_FUNCS -DMISSING_CURSES_H_NCURSES -D_USE_MATH_DEFINES
+  CPPFLAGS += -DMISSING_TIME_R_FUNCS -DMISSING_CURSES_H_NCURSES -D_USE_MATH_DEFINES -DNCURSES_STATIC
   LIBS += -lws2_32 -lsystre
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses
