@@ -47,7 +47,7 @@ while True:
 
     for aircraft in f_json['aircraft']:
         #data has been updated within last second and lat and lon exists
-        if aircraft['seen'] <= 0.5 and 'lat' in aircraft and 'lon' in aircraft:
+        if aircraft['seen'] <= 0.1 and 'lat' in aircraft and 'lon' in aircraft:
             aircraft_location = (aircraft['lat'], aircraft['lon'])
             rel_dist_miles = hs.haversine(cur_location, aircraft_location, unit = Unit.MILES)
             #airplane is within maximum filtering distance
