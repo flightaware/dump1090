@@ -13,3 +13,5 @@ C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\ne
 C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.pdb
 C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.genruntimeconfig.cache
 C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\ref\app.dll
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\bin\Debug\net6.0\Newtonsoft.Json.dll
+C:\Users\conno\OneDrive\Documents\dump1090-FlightEye\networking\app\obj\Debug\net6.0\app.csproj.CopyComplete

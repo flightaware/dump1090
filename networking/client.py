@@ -23,6 +23,7 @@ xr_ip = '10.0.0.48'
 xr_port = 55555
 client.connect((xr_ip, xr_port))
 print('Socket Connected to ' + xr_ip)
+client.recv(1) # wait for server confirmation to begin sending data
 
 #thread to listen for incoming messages
 def listen():
@@ -43,14 +44,20 @@ listener.start()
 while True:
     f = open("../dump1090/jsondata/aircraft.json")
     f_json = json.load(f)
+
     for aircraft in f_json['aircraft']:
         #data has been updated within last second and lat and lon exists
-        if aircraft['seen'] <= 1 and 'lat' in aircraft and 'lon' in aircraft:
+        if aircraft['seen'] <= 0.5 and 'lat' in aircraft and 'lon' in aircraft:
             aircraft_location = (aircraft['lat'], aircraft['lon'])
             rel_dist_miles = hs.haversine(cur_location, aircraft_location, unit = Unit.MILES)
             #airplane is within maximum filtering distance
             if rel_dist_miles < filtering_distance_miles:
                 j_aircraft = json.dumps(aircraft)
-                client.sendall(bytes(str(len(j_aircraft)), encoding= 'utf-8')) # send message size prior to sending json (assuming the message size is 3 digits)
-                client.sendall(bytes(j_aircraft, encoding = 'utf-8')) # send JSON message
+                msgsize = len(j_aircraft)
+                # msgsize must be 3 digits long to fit server protocol, any very short or very long JSON strings are dropped
+                if msgsize < 1000 and msgsize > 99:
+                    client.sendall(bytes(str(msgsize), encoding= 'utf-8')) # send message size prior to sending json (assuming the message size is 3 digits)
+                    client.sendall(bytes(j_aircraft, encoding = 'utf-8')) # send JSON message
+                else:
+                    print("JSON String Too Large: not sending string")
     f.close()

@@ -14,7 +14,7 @@ public class client {
 
     static void Main(string[] args)
     {
-        String server_ip = "10.0.0.48";
+        String server_ip = "10.0.0.166";
         Int32 server_port = 55555;
         runClient(server_ip, server_port);
     }
@@ -23,14 +23,13 @@ public class client {
     {  
         try {
             JObject json = JObject.Parse(str);
-
-            Console.WriteLine(json);
-            Console.WriteLine();
+            Aircraft aircraft = new Aircraft(json.GetValue("hex").ToString(), int.Parse(json.GetValue("alt_baro").ToString()), 
+                    float.Parse(json.GetValue("gs").ToString()), float.Parse(json.GetValue("track").ToString()), float.Parse(json.GetValue("lat").ToString()), float.Parse(json.GetValue("lon").ToString()));
+            aircraft.printAircraft();
         }
         catch (Newtonsoft.Json.JsonReaderException es)
         {
-            Console.WriteLine("ArgumentException: {0}",es, str);
-            System.Environment.Exit(1);
+            Console.WriteLine("ArgumentException: {0}",es + str);
         }
     }
 
@@ -45,29 +44,35 @@ public class client {
                 Console.WriteLine("Socket Connected to: ", server);
 
                 // Runs reader thread
-                // Todo: Modify the input to send data to C# objects
                 void listen()
                 {
                     Byte[] message_len = new Byte[3];
                     while (true)
                     {   
-                        String recv_message = String.Empty;
-                        String recv_message_len = String.Empty;
+                        try{
+                            String recv_message = String.Empty;
+                            String recv_message_len = String.Empty;
 
-                        // Read in the size of the incoming JSON
-                        Int32 bytes_len = stream.Read(message_len, 0, message_len.Length);
-                        recv_message_len = System.Text.Encoding.ASCII.GetString(message_len, 0, bytes_len);
-                        int size = int.Parse(recv_message_len);
+                            // Read in the size of the incoming JSON
+                            Int32 bytes_len = stream.Read(message_len, 0, message_len.Length);
+                            recv_message_len = System.Text.Encoding.ASCII.GetString(message_len, 0, bytes_len);
+                            int size = int.Parse(recv_message_len);
 
-                        // Read in the JSON given the size
-                        Byte[] message = new Byte[size];
-                        Int32 bytes = stream.Read(message, 0, message.Length);
-                        recv_message += System.Text.Encoding.ASCII.GetString(message, 0, bytes);
-
-                        // Pass JSON to parse method
-                        if(!recv_message.Equals("")) 
-                        {
+                            // Read in the JSON given the size
+                            Int32 bytes = 0;
+                            Byte[] message = new Byte[size];
+                            while (bytes < size) 
+                            {
+                                bytes += stream.Read(message, bytes, size - bytes);
+                            }
+                            recv_message += System.Text.Encoding.ASCII.GetString(message, 0, bytes);
+                            // Pass JSON to parse method 
                             parseJson(recv_message);
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("Error receiving message {0}", e);
+                            continue;
                         }
                     }
                 }

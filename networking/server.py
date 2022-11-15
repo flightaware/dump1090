@@ -12,20 +12,28 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     #accept connection from first device, send confirmation message
     conn1, addr1 = s.accept()
     print(f"Connected by {addr1}")
-    conn1.sendall(bytes("Server connection confirmation, waiting on second client\0", encoding='utf-8'))
 
     #accept connection from second device, send confirmation message
     conn2, addr2 = s.accept()
     print(f"Connected by {addr2}")
 
+    #tell conn1 that it can begin sending information now that both clients have connected
+    conn1.sendall(bytes('b', encoding='utf-8')) 
+
 #send messages recieved from client1, to client2
 def client1():
     while True:
-        msg = ""
-        msgsize = conn1.recv(3).decode() # Receive the incoming JSON message size
-        msg = conn1.recv(int(msgsize)).decode() # Receieve the incoming JSOn message
-        conn2.sendall(bytes(msgsize, encoding = "utf-8")) # Send size message to client2
-        conn2.sendall(bytes(msg, encoding = "utf-8")) # Send JSON message to client2
+        try:
+            msgsize = int(conn1.recv(3).decode()) # Receive the incoming JSON message size as int
+            msg = bytearray()
+            while len(msg) < msgsize :    
+                packet = conn1.recv(msgsize - len(msg)) # Receieve the incoming JSON message
+                msg.extend(packet)
+            conn2.sendall(bytes(str(msgsize), encoding = "utf-8")) # Send size message to client2
+            conn2.sendall(bytes(msg)) # Send JSON message to client2
+        except:
+            print('Error receiving message: skipping')
+            continue
 
 #send messages recieved from client2, to client1
 def client2():
