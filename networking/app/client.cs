@@ -37,19 +37,10 @@ public class client {
                     float.Parse(json.GetValue("gs").ToString()), float.Parse(json.GetValue("track").ToString()), float.Parse(json.GetValue("lat").ToString()), float.Parse(json.GetValue("lon").ToString()));
             }
 
-            printDictionary();
         }
         catch (Newtonsoft.Json.JsonReaderException es)
         {
             Console.WriteLine("ArgumentException: {0}",es + str);
-        }
-    }
-
-    static void printDictionary()
-    {
-        foreach (KeyValuePair<String, Aircraft> aircraft in aircraftDict)
-        {
-            aircraft.Value.printAircraft();
         }
     }
 
