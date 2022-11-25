@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\conno\\OneDrive\\Documents\\dump1090-FlightEye\\networking\\app\\app.csproj": {}
+    "/home/connor/dump1090-FlightEye/networking/app/app.csproj": {}
   },
   "projects": {
-    "C:\\Users\\conno\\OneDrive\\Documents\\dump1090-FlightEye\\networking\\app\\app.csproj": {
+    "/home/connor/dump1090-FlightEye/networking/app/app.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\conno\\OneDrive\\Documents\\dump1090-FlightEye\\networking\\app\\app.csproj",
+        "projectUniqueName": "/home/connor/dump1090-FlightEye/networking/app/app.csproj",
         "projectName": "app",
-        "projectPath": "C:\\Users\\conno\\OneDrive\\Documents\\dump1090-FlightEye\\networking\\app\\app.csproj",
-        "packagesPath": "C:\\Users\\conno\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\conno\\OneDrive\\Documents\\dump1090-FlightEye\\networking\\app\\obj\\",
+        "projectPath": "/home/connor/dump1090-FlightEye/networking/app/app.csproj",
+        "packagesPath": "/home/connor/.nuget/packages/",
+        "outputPath": "/home/connor/dump1090-FlightEye/networking/app/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\conno\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "/home/connor/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net6.0"
@@ -49,7 +49,8 @@
             "net47",
             "net471",
             "net472",
-            "net48"
+            "net48",
+            "net481"
           ],
           "assetTargetFallback": true,
           "warn": true,
@@ -58,7 +59,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.200\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/6.0.403/RuntimeIdentifierGraph.json"
         }
       }
     }

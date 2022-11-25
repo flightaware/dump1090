@@ -1,7 +1,7 @@
-{ "now" : 1663781019.3,
-  "messages" : 30,
+{ "now" : 1669351287.4,
+  "messages" : 131,
   "aircraft" : [
-    {"hex":"a6bb97","alt_baro":1125,"alt_geom":1325,"gs":150.1,"track":141.2,"geom_rate":-192,"squawk":"3451","nav_qnh":1015.2,"nav_altitude_mcp":1504,"nav_heading":151.9,"version":0,"nic_baro":1,"nac_p":10,"nac_v":1,"sil":3,"sil_type":"unknown","mlat":[],"tisb":[],"messages":23,"seen":0.2,"rssi":-22.2},
-    {"hex":"abd063","alt_baro":12900,"version":0,"nac_p":8,"sil":2,"sil_type":"unknown","mlat":[],"tisb":[],"messages":5,"seen":62.1,"rssi":-32.5}
+    {"hex":"a3fc5c","flight":"N356P   ","alt_baro":1000,"alt_geom":1225,"gs":67.7,"track":124.2,"baro_rate":1024,"squawk":"1200","emergency":"none","category":"A7","lat":33.460968,"lon":-112.348828,"nic":8,"rc":186,"seen_pos":0.3,"version":2,"nic_baro":1,"nac_p":8,"nac_v":2,"sil":3,"sil_type":"perhour","gva":1,"sda":2,"mlat":[],"tisb":[],"messages":23,"seen":0.0,"rssi":-23.7},
+    {"hex":"a14380","flight":"SWA5743 ","alt_baro":28000,"alt_geom":28900,"gs":441.6,"track":282.6,"baro_rate":0,"squawk":"2670","emergency":"none","category":"A3","nav_qnh":1013.6,"nav_altitude_mcp":28000,"nav_heading":282.0,"lat":33.466218,"lon":-112.871181,"nic":8,"rc":186,"seen_pos":29.4,"version":2,"nic_baro":1,"nac_p":10,"nac_v":2,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":107,"seen":6.9,"rssi":-28.5}
   ]
 }

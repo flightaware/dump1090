@@ -1,0 +1,10 @@
+{ "now" : 1668558191.7,
+  "messages" : 629,
+  "aircraft" : [
+    {"hex":"a684b5","alt_baro":32050,"alt_geom":32575,"gs":332.3,"track":225.2,"baro_rate":960,"version":0,"nac_p":8,"nac_v":1,"sil":2,"sil_type":"unknown","mlat":[],"tisb":[],"messages":10,"seen":23.3,"rssi":-27.6},
+    {"hex":"a923a8","alt_baro":37000,"version":0,"nac_p":8,"sil":2,"sil_type":"unknown","mlat":[],"tisb":[],"messages":21,"seen":63.3,"rssi":-27.9},
+    {"hex":"a34209","flight":"AAL1554 ","alt_baro":2100,"alt_geom":2100,"gs":263.9,"track":305.4,"baro_rate":1408,"category":"A3","nav_qnh":1020.8,"nav_altitude_mcp":20992,"nav_heading":310.8,"lat":38.901191,"lon":-77.074829,"nic":8,"rc":186,"seen_pos":57.8,"version":2,"nic_baro":1,"nac_p":9,"nac_v":1,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":147,"seen":35.6,"rssi":-25.8},
+    {"hex":"a2b150","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":95,"seen":70.3,"rssi":-27.1},
+    {"hex":"a7d751","version":0,"mlat":[],"tisb":[],"messages":10,"seen":236.2,"rssi":-27.8}
+  ]
+}

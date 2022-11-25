@@ -1,0 +1,8 @@
+{ "now" : 1668558552.1,
+  "messages" : 1018,
+  "aircraft" : [
+    {"hex":"aa3994","flight":"AAL2879 ","alt_baro":3600,"alt_geom":3600,"gs":256.3,"track":302.6,"baro_rate":2368,"squawk":"2101","emergency":"none","category":"A3","nav_qnh":1020.8,"nav_altitude_mcp":11008,"lat":38.911340,"lon":-77.095398,"nic":8,"rc":186,"seen_pos":35.2,"version":2,"nic_baro":1,"nac_p":9,"nac_v":1,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":228,"seen":31.4,"rssi":-27.8},
+    {"hex":"abbedb","version":0,"sil_type":"unknown","mlat":[],"tisb":[],"messages":29,"seen":83.5,"rssi":-30.2},
+    {"hex":"aa56b6","category":"A3","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":132,"seen":228.9,"rssi":-28.3}
+  ]
+}

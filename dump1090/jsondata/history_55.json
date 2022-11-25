@@ -1,0 +1,9 @@
+{ "now" : 1668558612.2,
+  "messages" : 1257,
+  "aircraft" : [
+    {"hex":"abbca1","flight":"SWA1082 ","alt_baro":2350,"alt_geom":2350,"gs":225.5,"track":304.9,"baro_rate":2240,"squawk":"5602","emergency":"none","category":"A3","nav_qnh":1020.8,"nav_altitude_mcp":16992,"nav_heading":310.1,"lat":38.901718,"lon":-77.075540,"nic":8,"rc":186,"seen_pos":10.1,"version":2,"nic_baro":1,"nac_p":8,"nac_v":1,"sil":3,"sil_type":"perhour","gva":1,"sda":2,"mlat":[],"tisb":[],"messages":239,"seen":0.7,"rssi":-26.2},
+    {"hex":"aa3994","category":"A3","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":228,"seen":91.5,"rssi":-27.8},
+    {"hex":"abbedb","version":0,"sil_type":"unknown","mlat":[],"tisb":[],"messages":29,"seen":143.6,"rssi":-30.2},
+    {"hex":"aa56b6","category":"A3","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":132,"seen":289.0,"rssi":-28.3}
+  ]
+}

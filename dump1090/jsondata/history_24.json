@@ -1,0 +1,7 @@
+{ "now" : 1668557681.1,
+  "messages" : 244,
+  "aircraft" : [
+    {"hex":"aa56b6","flight":"UAL2446 ","alt_baro":35000,"alt_geom":35550,"gs":309.7,"track":208.6,"baro_rate":0,"category":"A3","nav_qnh":1013.6,"nav_altitude_mcp":35008,"nav_heading":54.8,"lat":39.047877,"lon":-76.778748,"nic":8,"rc":186,"seen_pos":36.7,"version":2,"nic_baro":1,"nac_p":9,"nac_v":1,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":78,"seen":15.6,"rssi":-27.8},
+    {"hex":"a2b150","version":0,"sil_type":"unknown","mlat":[],"tisb":[],"messages":17,"seen":195.4,"rssi":-28.9}
+  ]
+}

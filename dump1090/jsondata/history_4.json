@@ -1,8 +1,7 @@
-{ "now" : 1663781049.3,
-  "messages" : 156,
+{ "now" : 1669351317.5,
+  "messages" : 204,
   "aircraft" : [
-    {"hex":"a2c336","alt_baro":16875,"version":0,"nac_p":8,"sil":2,"sil_type":"unknown","mlat":[],"tisb":[],"messages":7,"seen":1.4,"rssi":-27.7},
-    {"hex":"a6bb97","flight":"JIA5517 ","alt_baro":700,"alt_geom":675,"gs":136.7,"track":141.5,"geom_rate":-832,"squawk":"3451","emergency":"none","category":"A3","nav_qnh":1015.2,"nav_altitude_mcp":1504,"nav_heading":151.9,"lat":38.893371,"lon":-77.061157,"nic":8,"rc":186,"seen_pos":2.5,"version":2,"nic_baro":1,"nac_p":10,"nac_v":1,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":141,"seen":0.3,"rssi":-20.9},
-    {"hex":"abd063","version":0,"sil_type":"unknown","mlat":[],"tisb":[],"messages":5,"seen":92.1,"rssi":-32.5}
+    {"hex":"a3fc5c","flight":"N356P   ","alt_baro":1475,"alt_geom":1700,"gs":109.7,"track":136.8,"baro_rate":768,"squawk":"1200","emergency":"none","category":"A7","lat":33.452179,"lon":-112.338666,"nic":8,"rc":186,"seen_pos":1.2,"version":2,"nic_baro":1,"nac_p":8,"nac_v":2,"sil":3,"sil_type":"perhour","gva":1,"sda":2,"mlat":[],"tisb":[],"messages":92,"seen":0.4,"rssi":-27.6},
+    {"hex":"a14380","flight":"SWA5743 ","alt_baro":28000,"alt_geom":28900,"gs":441.6,"track":282.6,"baro_rate":0,"squawk":"2670","emergency":"none","category":"A3","nav_qnh":1013.6,"nav_altitude_mcp":28000,"nav_heading":282.0,"lat":33.466218,"lon":-112.871181,"nic":8,"rc":186,"seen_pos":59.5,"version":2,"nic_baro":1,"nac_p":10,"nac_v":2,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":111,"seen":6.2,"rssi":-29.1}
   ]
 }

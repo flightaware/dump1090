@@ -1,0 +1,6 @@
+{ "now" : 1668557500.9,
+  "messages" : 166,
+  "aircraft" : [
+    {"hex":"a2b150","alt_baro":32975,"version":0,"nac_p":8,"sil":2,"sil_type":"unknown","mlat":[],"tisb":[],"messages":17,"seen":15.1,"rssi":-28.9}
+  ]
+}

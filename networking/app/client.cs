@@ -14,7 +14,7 @@ public class client {
 
     static void Main(string[] args)
     {
-        String server_ip = "10.0.0.166";
+        String server_ip = "127.0.0.1"; //"10.0.0.166";
         Int32 server_port = 55555;
         runClient(server_ip, server_port);
     }
@@ -28,13 +28,17 @@ public class client {
             if (!aircraftDict.TryGetValue(json.GetValue("hex").ToString(), out aircraft))
             {
                 aircraft = new Aircraft(json.GetValue("hex").ToString(), int.Parse(json.GetValue("alt_baro").ToString()), 
-                    float.Parse(json.GetValue("gs").ToString()), float.Parse(json.GetValue("track").ToString()), float.Parse(json.GetValue("lat").ToString()), float.Parse(json.GetValue("lon").ToString()));
+                    float.Parse(json.GetValue("gs").ToString()), float.Parse(json.GetValue("track").ToString()), float.Parse(json.GetValue("lat").ToString()), 
+                    float.Parse(json.GetValue("lon").ToString()), json.GetValue("seen").ToString());
+
                 aircraftDict.Add(json.GetValue("hex").ToString(), aircraft); //add new Aircraft to dictionary
             }
+
             else 
             {
                 aircraft.update(int.Parse(json.GetValue("alt_baro").ToString()), 
-                    float.Parse(json.GetValue("gs").ToString()), float.Parse(json.GetValue("track").ToString()), float.Parse(json.GetValue("lat").ToString()), float.Parse(json.GetValue("lon").ToString()));
+                    float.Parse(json.GetValue("gs").ToString()), float.Parse(json.GetValue("track").ToString()), float.Parse(json.GetValue("lat").ToString()), 
+                    float.Parse(json.GetValue("lon").ToString()), json.GetValue("seen").ToString());
             }
 
             printDictionary();
@@ -46,7 +50,9 @@ public class client {
     }
 
     static void printDictionary()
-    {
+    {   
+        Console.Clear();
+        Console.WriteLine("ACTIVE FLIGHTS------------------------------------------------------- \r");
         foreach (KeyValuePair<String, Aircraft> aircraft in aircraftDict)
         {
             aircraft.Value.printAircraft();

@@ -1,0 +1,8 @@
+{ "now" : 1668558492.1,
+  "messages" : 877,
+  "aircraft" : [
+    {"hex":"aa3994","flight":"AAL2879 ","alt_baro":2550,"alt_geom":2525,"gs":208.1,"track":317.3,"baro_rate":1792,"squawk":"2101","category":"A3","nav_qnh":1020.8,"nav_altitude_mcp":11008,"lat":38.894348,"lon":-77.063718,"nic":8,"rc":186,"seen_pos":3.5,"version":2,"nic_baro":1,"nac_p":9,"nac_v":1,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":87,"seen":0.1,"rssi":-22.6},
+    {"hex":"abbedb","alt_baro":34000,"alt_geom":34575,"gs":357.1,"track":225.1,"baro_rate":0,"nav_qnh":1013.6,"nav_altitude_mcp":34016,"nav_heading":244.0,"lat":38.994873,"lon":-76.994994,"nic":8,"rc":186,"seen_pos":29.0,"version":0,"nic_baro":1,"nac_p":9,"nac_v":1,"sil":3,"sil_type":"unknown","mlat":[],"tisb":[],"messages":29,"seen":23.5,"rssi":-30.2},
+    {"hex":"aa56b6","category":"A3","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":132,"seen":168.9,"rssi":-28.3}
+  ]
+}

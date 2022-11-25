@@ -1,0 +1,11 @@
+{ "now" : 1668553813.5,
+  "messages" : 5400,
+  "aircraft" : [
+    {"hex":"ac9f52","mlat":[],"tisb":[],"messages":5,"seen":30.5,"rssi":-33.2},
+    {"hex":"aae960","flight":"AAL1217 ","alt_baro":3550,"alt_geom":3575,"gs":268.4,"track":320.1,"baro_rate":1984,"squawk":"2107","emergency":"none","category":"A3","nav_qnh":1023.2,"nav_altitude_mcp":8992,"lat":38.922512,"lon":-77.112732,"nic":7,"rc":371,"seen_pos":14.1,"version":2,"nic_baro":1,"nac_p":8,"nac_v":1,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":304,"seen":11.8,"rssi":-25.4},
+    {"hex":"a9ca9d","category":"A2","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":272,"seen":75.7,"rssi":-30.3},
+    {"hex":"a4fddb","category":"A3","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":344,"seen":148.9,"rssi":-26.2},
+    {"hex":"a456a9","category":"A2","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":69,"seen":285.3,"rssi":-30.0},
+    {"hex":"a2348d","category":"A3","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":311,"seen":270.7,"rssi":-27.9}
+  ]
+}

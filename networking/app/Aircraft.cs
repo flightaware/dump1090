@@ -12,8 +12,12 @@ public class Aircraft
     public float lat { get; set; }
     //* Longitude *//
     public float lon { get; set; }
+    //* Last time data was updated *//
+    public DateTime time { get; set; }
+    //* DEBUGGING: Delay between message sending to receiving*//
+    public TimeSpan delay { get; set; }
 
-    public Aircraft (string icao, int alt_baro, float gs, float track, float lat, float lon)
+    public Aircraft (string icao, int alt_baro, float gs, float track, float lat, float lon, string time)
     {   
         this.icao = icao;
         this.alt_baro = alt_baro;
@@ -21,43 +25,56 @@ public class Aircraft
         this.track = track;
         this.lat = lat;
         this.lon = lon;
-
+        this.time = DateTime.Parse(time);
+        this.delay = DateTime.Now.Subtract(this.time);
     }
 
     /* Updates Aircraft data based on new ADS-B information */
-    public void update(int alt_baro, float gs, float track, float lat, float lon)
+    public void update(int alt_baro, float gs, float track, float lat, float lon, string time)
     {
+        bool update = false;
         if (alt_baro != this.alt_baro)
         {   
             this.alt_baro = alt_baro;
+            update = true;
         }
 
         if (gs != this.gs)
         {
             this.gs = gs;
+            update = true;
         }
 
         if (track != this.track)
         {
             this.track = track;
+            update = true;
         }
 
         if (lat != this.lat)
         {
             this.lat = lat;
+            update = true;
         }
 
         if (lon != this.lon)
         {
             this.lon = lon;
+            update = true;
         }
 
+        if (update)
+        {
+            this.time = DateTime.Parse(time);
+        }
     }
     
     /* Debug to print Aircraft members */
     public void printAircraft()
     {
-        Console.WriteLine("AIRCRAFT: " + this.icao + " Alt: " + alt_baro + " gs: " +  gs + " track: " + track + " lat " + lat + " lon " + lon + "\n");
+        TimeSpan timeDiff = DateTime.Now.Subtract(time);
+        Console.WriteLine("AIRCRAFT: " + icao + " Alt: " + alt_baro + " gs: " +  gs + " track: " + track 
+            + " lat " + lat + " lon " + lon + " last " + timeDiff + " delay " + delay);
     }
 
 

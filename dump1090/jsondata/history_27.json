@@ -1,0 +1,8 @@
+{ "now" : 1668557771.2,
+  "messages" : 331,
+  "aircraft" : [
+    {"hex":"abd063","flight":"RPA5718 ","alt_baro":2150,"alt_geom":2200,"gs":230.4,"track":306.2,"baro_rate":2560,"squawk":"2422","emergency":"none","category":"A3","nav_qnh":1020.8,"nav_altitude_mcp":5024,"nav_modes":["vnav","tcas"],"lat":38.901031,"lon":-77.074048,"nic":8,"rc":186,"seen_pos":23.2,"version":2,"nic_baro":1,"nac_p":10,"nac_v":2,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":87,"seen":14.6,"rssi":-21.3},
+    {"hex":"aa56b6","category":"A3","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":78,"seen":105.7,"rssi":-27.8},
+    {"hex":"a2b150","version":0,"sil_type":"unknown","mlat":[],"tisb":[],"messages":17,"seen":285.5,"rssi":-28.9}
+  ]
+}
