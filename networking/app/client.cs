@@ -40,8 +40,8 @@ public class client {
                     float.Parse(json.GetValue("gs").ToString()), float.Parse(json.GetValue("track").ToString()), float.Parse(json.GetValue("lat").ToString()), 
                     float.Parse(json.GetValue("lon").ToString()), json.GetValue("seen").ToString());
             }
-
             printDictionary();
+
         }
         catch (Newtonsoft.Json.JsonReaderException es)
         {
