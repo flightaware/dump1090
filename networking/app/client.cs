@@ -52,7 +52,8 @@ public class client {
     static void printDictionary()
     {   
         Console.Clear();
-        Console.WriteLine("ACTIVE FLIGHTS------------------------------------------------------- \r");
+        Console.WriteLine("ACTIVE FLIGHTS-------------------------------------------------------------------------------------------");
+        Console.WriteLine("ICAO    Alt   GS    Track    Lat        Lon          Last           Delay");
         foreach (KeyValuePair<String, Aircraft> aircraft in aircraftDict)
         {
             aircraft.Value.printAircraft();

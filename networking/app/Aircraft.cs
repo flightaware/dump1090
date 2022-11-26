@@ -66,6 +66,7 @@ public class Aircraft
         if (update)
         {
             this.time = DateTime.Parse(time);
+            this.delay =  DateTime.Now.Subtract(this.time);
         }
     }
     
@@ -73,8 +74,9 @@ public class Aircraft
     public void printAircraft()
     {
         TimeSpan timeDiff = DateTime.Now.Subtract(time);
-        Console.WriteLine("AIRCRAFT: " + icao + " Alt: " + alt_baro + " gs: " +  gs + " track: " + track 
-            + " lat " + lat + " lon " + lon + " last " + timeDiff + " delay " + delay);
+        //Console.WriteLine("AIRCRAFT: " + icao + " Alt: " + alt_baro + " gs: " +  gs + " track: " + track 
+        //    + " lat " + lat + " lon " + lon + " last " + timeDiff + " delay " + delay);
+        Console.WriteLine(icao + " " + alt_baro + "  " + gs + "  " + track + "   " + lat + "  "+ lon  + "  "+ timeDiff + "  " + delay);
     }
 
 

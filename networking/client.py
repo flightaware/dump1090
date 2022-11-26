@@ -2,6 +2,7 @@ import socket
 import sys
 import threading
 import json
+import time
 import haversine as hs
 from haversine import Unit
 from datetime import datetime
@@ -42,12 +43,13 @@ listener.start()
 
 #read from dump1090 json and send valid data to server
 while True:
-    f = open("../dump1090/jsondata/aircraft.json")
+    f = open("../dump1090/jsondata/aircraft.json", 'r+')
     f_json = json.load(f)
+    opentime = datetime.now()
 
     for aircraft in f_json['aircraft']:
         #data has been updated within last second and lat and lon exists
-        if aircraft['seen'] <= 0.5 and 'lat' in aircraft and 'lon' in aircraft:
+        if aircraft['seen'] < 1.0 and 'lat' in aircraft and 'lon' in aircraft:
             aircraft_location = (aircraft['lat'], aircraft['lon'])
             rel_dist_miles = hs.haversine(cur_location, aircraft_location, unit = Unit.MILES)
             
@@ -63,3 +65,6 @@ while True:
                 else:
                     print("JSON String Too Large: not sending string")
     f.close()
+    #delay next read for a second (takes into account time it took for last read: 1.0 - time to read last)
+    if (datetime.now() - opentime).total_seconds() < 1.0:
+        time.sleep(1.0 - (datetime.now() - opentime).total_seconds())

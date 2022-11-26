@@ -34,8 +34,8 @@ def client1():
             conn2.sendall(bytes(str(msgsize), encoding = "utf-8")) # Send size message to client2
             conn2.sendall(bytes(msg)) # Send JSON message to client2
         except:
-            print('Error receiving message: skipping ', msgsize, ' ', msg)
-            continue
+            print('A Client Disconnected')
+            exit()
 
 #send messages recieved from client2, to client1
 def client2():
