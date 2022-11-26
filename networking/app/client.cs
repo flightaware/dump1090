@@ -9,7 +9,7 @@ using System.Text.Json;
 
 public class client {
 
-    public static TcpClient tcpClient;
+    public static TcpClient? tcpClient;
     public static Dictionary <string, Aircraft> aircraftDict = new Dictionary<string, Aircraft>();
 
     static void Main(string[] args)
@@ -132,9 +132,9 @@ public class client {
                 while (true)
                 {
                     Console.WriteLine(">");
-                    String input = Console.ReadLine();
-                    Byte[] message = System.Text.Encoding.ASCII.GetBytes(input);
-                    stream.Write(message, 0, message.Length);
+                    String? input = Console.ReadLine();
+                    //Byte[] message = System.Text.Encoding.ASCII.GetBytes(input);
+                    //stream.Write(message, 0, message.Length);
                 }
             }
         catch (ArgumentNullException e)
