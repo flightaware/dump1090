@@ -23,24 +23,44 @@ public class client {
     {  
         try {
             JObject json = JObject.Parse(str);
-            Aircraft aircraft;
-            /* If an Aircraft exists in the dictionary, check for updated data, else, create a new Aircraft and add it to the dictionary */
-            if (!aircraftDict.TryGetValue(json.GetValue("hex").ToString(), out aircraft))
-            {
-                aircraft = new Aircraft(json.GetValue("hex").ToString(), int.Parse(json.GetValue("alt_baro").ToString()), 
-                    float.Parse(json.GetValue("gs").ToString()), float.Parse(json.GetValue("track").ToString()), float.Parse(json.GetValue("lat").ToString()), 
-                    float.Parse(json.GetValue("lon").ToString()), json.GetValue("seen").ToString());
+            Aircraft? aircraft;
+            JToken? icao = "";
+            JToken? alt_baro = "";
+            JToken? gs = "";
+            JToken? track = "";
+            JToken? lat = "";
+            JToken? lon = "";
+            JToken? seen = "";
 
-                aircraftDict.Add(json.GetValue("hex").ToString(), aircraft); //add new Aircraft to dictionary
-            }
-
-            else 
+            /* Must check that the incoming JSON has a hex value */
+            if (json.TryGetValue("hex", out icao))
             {
-                aircraft.update(int.Parse(json.GetValue("alt_baro").ToString()), 
-                    float.Parse(json.GetValue("gs").ToString()), float.Parse(json.GetValue("track").ToString()), float.Parse(json.GetValue("lat").ToString()), 
-                    float.Parse(json.GetValue("lon").ToString()), json.GetValue("seen").ToString());
+                /* If an Aircraft exists in the dictionary, check for updated data, else, create a new Aircraft and add it to the dictionary */
+                if (!aircraftDict.TryGetValue(icao.ToString(), out aircraft))
+                {
+                    if(json.TryGetValue("hex", out icao) && json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
+                        && json.TryGetValue("lat", out lat) && json.TryGetValue("lon", out lon) && json.TryGetValue("seen", out seen))
+                    {
+                        aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
+                            float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
+                            float.Parse(lon.ToString()), seen.ToString());
+
+                        aircraftDict.Add(icao.ToString(), aircraft); //add new Aircraft to dictionary
+                    }
+                }
+                else 
+                {   
+                    if(json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
+                        && json.TryGetValue("lat", out lat) && json.TryGetValue("lon", out lon) && json.TryGetValue("seen", out seen))
+                    {
+                        aircraft.update(int.Parse(alt_baro.ToString()), 
+                            float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
+                            float.Parse(lon.ToString()), seen.ToString());
+                    }
+                }
+                printDictionary();
             }
-            printDictionary();
+        
 
         }
         catch (Newtonsoft.Json.JsonReaderException es)

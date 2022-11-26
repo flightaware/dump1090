@@ -74,8 +74,6 @@ public class Aircraft
     public void printAircraft()
     {
         TimeSpan timeDiff = DateTime.Now.Subtract(time);
-        //Console.WriteLine("AIRCRAFT: " + icao + " Alt: " + alt_baro + " gs: " +  gs + " track: " + track 
-        //    + " lat " + lat + " lon " + lon + " last " + timeDiff + " delay " + delay);
         Console.WriteLine(icao + " " + alt_baro + "  " + gs + "  " + track + "   " + lat + "  "+ lon  + "  "+ timeDiff + "  " + delay);
     }
 
