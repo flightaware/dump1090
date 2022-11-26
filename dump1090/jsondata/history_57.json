@@ -1,0 +1,9 @@
+{ "now" : 1668558672.3,
+  "messages" : 1471,
+  "aircraft" : [
+    {"hex":"ac03ff","flight":"SWA2876 ","alt_baro":2500,"alt_geom":2525,"gs":231.2,"track":301.6,"baro_rate":1920,"squawk":"5636","emergency":"none","category":"A3","nav_qnh":1020.8,"nav_altitude_mcp":16992,"nav_heading":11.2,"lat":38.902448,"lon":-77.078247,"nic":8,"rc":186,"seen_pos":9.8,"version":2,"nic_baro":1,"nac_p":10,"nac_v":2,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":202,"seen":4.4,"rssi":-24.8},
+    {"hex":"abbca1","alt_baro":3425,"alt_geom":3425,"gs":225.5,"track":304.9,"baro_rate":2240,"squawk":"5602","emergency":"none","category":"A3","nav_qnh":1020.8,"nav_altitude_mcp":16992,"nav_heading":310.1,"version":2,"nic_baro":1,"nac_p":8,"nac_v":1,"sil":3,"sil_type":"perhour","mlat":[],"tisb":[],"messages":251,"seen":33.9,"rssi":-29.3},
+    {"hex":"aa3994","category":"A3","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":228,"seen":151.6,"rssi":-27.8},
+    {"hex":"abbedb","version":0,"sil_type":"unknown","mlat":[],"tisb":[],"messages":29,"seen":203.6,"rssi":-30.2}
+  ]
+}

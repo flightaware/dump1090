@@ -2,7 +2,7 @@ import socket
 import threading
 import time
 
-HOST = "10.0.0.48"  # Standard loopback interface address (localhost)
+HOST = '127.0.0.1'#"10.0.0.166"  # Standard loopback interface address (localhost)
 PORT = 55555 # Port to listen on (non-privileged ports are > 1023)
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -29,11 +29,13 @@ def client1():
             while len(msg) < msgsize :    
                 packet = conn1.recv(msgsize - len(msg)) # Receieve the incoming JSON message
                 msg.extend(packet)
+            
+            #print(msgsize, '\n', msg, '\n')
             conn2.sendall(bytes(str(msgsize), encoding = "utf-8")) # Send size message to client2
             conn2.sendall(bytes(msg)) # Send JSON message to client2
         except:
-            print('Error receiving message: skipping')
-            continue
+            print('A Client Disconnected')
+            exit()
 
 #send messages recieved from client2, to client1
 def client2():

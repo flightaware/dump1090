@@ -5,11 +5,12 @@ import json
 import time
 import haversine as hs
 from haversine import Unit
+from datetime import datetime
 
 #global filtering distance (miles)
 filtering_distance_miles = 50
 #current lat and lon of headset
-cur_location = (38.9072, -77.0369) #hardcoded for now
+cur_location = (33.482342, -112.364749) #hardcoded for now
 
 try:
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -19,7 +20,7 @@ except socket.error:
 print('Socket created')
 
 #establish connection to server
-xr_ip = '10.0.0.48'
+xr_ip = '127.0.0.1'#'10.0.0.166'
 xr_port = 55555
 client.connect((xr_ip, xr_port))
 print('Socket Connected to ' + xr_ip)
@@ -42,16 +43,19 @@ listener.start()
 
 #read from dump1090 json and send valid data to server
 while True:
-    f = open("../dump1090/jsondata/aircraft.json")
+    f = open("../dump1090/jsondata/aircraft.json", 'r+')
     f_json = json.load(f)
+    opentime = datetime.now()
 
     for aircraft in f_json['aircraft']:
         #data has been updated within last second and lat and lon exists
-        if aircraft['seen'] <= 0.5 and 'lat' in aircraft and 'lon' in aircraft:
+        if aircraft['seen'] < 1.0 and 'lat' in aircraft and 'lon' in aircraft:
             aircraft_location = (aircraft['lat'], aircraft['lon'])
             rel_dist_miles = hs.haversine(cur_location, aircraft_location, unit = Unit.MILES)
+            
             #airplane is within maximum filtering distance
             if rel_dist_miles < filtering_distance_miles:
+                aircraft['seen'] = str(datetime.now()).split()[1] #retrieves active time of sending
                 j_aircraft = json.dumps(aircraft)
                 msgsize = len(j_aircraft)
                 # msgsize must be 3 digits long to fit server protocol, any very short or very long JSON strings are dropped
@@ -61,3 +65,6 @@ while True:
                 else:
                     print("JSON String Too Large: not sending string")
     f.close()
+    #delay next read for a second (takes into account time it took for last read: 1.0 - time to read last)
+    if (datetime.now() - opentime).total_seconds() < 1.0:
+        time.sleep(1.0 - (datetime.now() - opentime).total_seconds())

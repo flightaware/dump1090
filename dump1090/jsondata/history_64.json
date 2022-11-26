@@ -1,0 +1,10 @@
+{ "now" : 1668553693.4,
+  "messages" : 4824,
+  "aircraft" : [
+    {"hex":"a9ca9d","mlat":[],"tisb":[],"messages":5,"seen":76.1,"rssi":-32.0},
+    {"hex":"a4fddb","flight":"RPA4781 ","alt_baro":3350,"alt_geom":3400,"gs":244.6,"track":323.6,"baro_rate":1472,"squawk":"5610","category":"A3","nav_qnh":1023.2,"nav_altitude_mcp":8000,"nav_modes":["vnav","tcas"],"lat":38.925212,"lon":-77.115723,"nic":8,"rc":186,"seen_pos":32.7,"version":2,"nic_baro":1,"nac_p":10,"nac_v":2,"sil":3,"sil_type":"perhour","gva":2,"sda":2,"mlat":[],"tisb":[],"messages":344,"seen":28.8,"rssi":-26.2},
+    {"hex":"a456a9","category":"A2","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":69,"seen":165.2,"rssi":-30.0},
+    {"hex":"a2348d","category":"A3","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":311,"seen":150.6,"rssi":-27.9},
+    {"hex":"a657ad","category":"A2","version":2,"sil_type":"perhour","mlat":[],"tisb":[],"messages":379,"seen":280.0,"rssi":-27.8}
+  ]
+}
