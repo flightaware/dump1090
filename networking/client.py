@@ -26,14 +26,21 @@ client.connect((ip, port))
 print('Socket Connected to ' + ip)
 client.recv(1) # wait for server confirmation to begin sending data
 
+#if xr client disconnects, a lock on sending new data will start until the client reconnects
+global lock
+lock = False
+
 #thread to listen for incoming messages
 def listen():
+    global lock
     print('ready to listen')
     while True:
         try:
-            data = client.recv(1024).decode()
-            if data != '':
-                print(data)
+            data = client.recv(4).decode()
+            if data == 'stop':
+                lock = True
+            elif data == 'strt':
+                lock = False
         except socket.error:
             print('Failed to recieve data')
 
@@ -43,6 +50,9 @@ listener.start()
 
 #read from dump1090 json and send valid data to server
 while True:
+    #if XR client has disconnected, suspend any new messages until told so
+    while lock: pass
+
     f = open("../dump1090/jsondata/aircraft.json", 'r+')
     f_json = json.load(f)
     opentime = datetime.now()

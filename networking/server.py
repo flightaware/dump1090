@@ -46,6 +46,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 conn2.sendall(bytes(msg)) # Send JSON message to client2
             except socket.error:
                 print('XR Client Disconnected : Writing')
+                conn1.sendall(bytes("stop", encoding = 'utf-8')) #tell local client to stop sending until reconnect
                 break
 
     #send messages recieved from client2, to client1
@@ -64,6 +65,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     def reconnect():
         conn2, addr2 = s.accept()
         print(f"Reconnected to {addr2}")
+        conn1.sendall(bytes('strt', encoding = 'utf-8')) #tell local client to start sending again
         return conn2
 
     #initial thread startup
