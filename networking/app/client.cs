@@ -103,6 +103,13 @@ public class client {
                             // Read in the size of the incoming JSON
                             Int32 bytes_len = stream.Read(message_len, 0, message_len.Length);
                             recv_message_len = System.Text.Encoding.ASCII.GetString(message_len, 0, bytes_len);
+
+
+                            if (recv_message_len.Equals("") || recv_message_len.Equals("000"))
+                            {
+                                return;
+                            }
+
                             int size = int.Parse(recv_message_len);
 
                             // Read in the JSON given the size
@@ -124,18 +131,28 @@ public class client {
                     }
                 }
 
-                Thread listener = new Thread(listen);
-                listener.Start();
-
-                //Output
-                //Todo: Modify to only send an output when signal is processed for FPS loss
-                while (true)
+                void write()
                 {
-                    Console.WriteLine(">");
-                    String? input = Console.ReadLine();
-                    //Byte[] message = System.Text.Encoding.ASCII.GetBytes(input);
-                    //stream.Write(message, 0, message.Length);
+                    //Output
+                    //Todo: Modify to only send an output when signal is processed for FPS loss
+                    while (true)
+                    {
+                        Console.WriteLine(">");
+                        String? input = Console.ReadLine();
+                        Byte[] message = System.Text.Encoding.ASCII.GetBytes(input);
+                        stream.Write(message, 0, message.Length);
+                    }
                 }
+
+                Thread listener = new Thread(listen);
+                Thread writer = new Thread(write);
+                listener.Start();
+                writer.Start();
+
+                //When listener thread returns, server was closed, we must exit
+                listener.Join();
+                Console.WriteLine("Exiting.....");
+                Environment.Exit(0);
             }
         catch (ArgumentNullException e)
         {
