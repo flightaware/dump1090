@@ -20,10 +20,10 @@ except socket.error:
 print('Socket created')
 
 #establish connection to server
-xr_ip = '127.0.0.1'#'10.0.0.166'
-xr_port = 55555
-client.connect((xr_ip, xr_port))
-print('Socket Connected to ' + xr_ip)
+ip = '127.0.0.1'#'10.0.0.166'
+port = 55555
+client.connect((ip, port))
+print('Socket Connected to ' + ip)
 client.recv(1) # wait for server confirmation to begin sending data
 
 #thread to listen for incoming messages
