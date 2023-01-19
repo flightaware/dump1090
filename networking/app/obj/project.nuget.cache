@@ -1,10 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "uO/51SIeC1n9XRp7V9JLmYKl+cSQlGDaIudeFBzCOM+ZmoRiOJiidClrnc6rXD7r32EG8nqSZRAflAK7/y958Q==",
+  "dgSpecHash": "13y0LFvG2bVYRG+OllQGuCptybi57i3dBj8ZAfuMtNZize0auqL7xAAkN5eOVuXN/zynJqDeXblNuP1XCNSs3g==",
   "success": true,
-  "projectFilePath": "/home/connor/dump1090-FlightEye/networking/app/app.csproj",
+  "projectFilePath": "C:\\Users\\conno\\OneDrive\\Documents\\dump1090-FlightEye\\networking\\app\\app.csproj",
   "expectedPackageFiles": [
-    "/home/connor/.nuget/packages/newtonsoft.json/13.0.1/newtonsoft.json.13.0.1.nupkg.sha512"
+    "C:\\Users\\conno\\.nuget\\packages\\newtonsoft.json\\13.0.1\\newtonsoft.json.13.0.1.nupkg.sha512"
   ],
   "logs": []
 }
