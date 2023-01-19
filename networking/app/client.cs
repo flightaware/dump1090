@@ -14,6 +14,8 @@ public class client {
 
     public static int deleteTime = 15;
 
+    public static int maxHistorySize = 5;
+
     public static volatile bool threadExit;
 
     static void Main(string[] args)
@@ -39,7 +41,7 @@ public class client {
             /* Must check that the incoming JSON has a hex value */
             if (json.TryGetValue("hex", out icao))
             {
-                /* If an Aircraft exists in the dictionary, check for updated data, else, create a new Aircraft and add it to the dictionary */
+                /* If does not exist in aircraftDict, add it. Else, update the previous Aircraft instance in the aircraftDict */
                 if (!aircraftDict.TryGetValue(icao.ToString(), out aircraft))
                 {
                     if(json.TryGetValue("hex", out icao) && json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
@@ -56,10 +58,13 @@ public class client {
                 {   
                     if(json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
                         && json.TryGetValue("lat", out lat) && json.TryGetValue("lon", out lon) && json.TryGetValue("seen", out seen))
-                    {
-                        aircraft.update(int.Parse(alt_baro.ToString()), 
+                    {   
+                        Aircraft new_aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
                             float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
-                            float.Parse(lon.ToString()), seen.ToString());
+                            float.Parse(lon.ToString()), seen.ToString(), aircraft, maxHistorySize); //create a new Aircraft, and pass in the previous Aircraft instance/Max history amount
+
+                        aircraftDict.Remove(aircraft.icao);
+                        aircraftDict.Add(new_aircraft.icao, new_aircraft);
                     }
                 }
             }
@@ -87,7 +92,7 @@ public class client {
                     aircraftDict.Remove(aircraft.Value.icao);
                 }
                 else {
-                   aircraft.Value.printAircraft(); 
+                   aircraft.Value.printAircraftHistory(); 
                 }
             }
             Thread.Sleep(1000); //sleep for 1 second before printing again
