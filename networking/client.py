@@ -8,9 +8,9 @@ from haversine import Unit
 from datetime import datetime
 
 #global filtering distance (miles)
-filtering_distance_miles = 50
+filtering_distance_miles = 1000
 #current lat and lon of headset
-cur_location = (33.482342, -112.364749) #hardcoded for now
+cur_location = (38.895616, -77.044122) #hardcoded for now (wash DC)
 
 try:
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -20,7 +20,7 @@ except socket.error:
 print('Socket created')
 
 #establish connection to server
-ip = '127.0.0.1'#'10.0.0.166'
+ip = '10.0.0.166'
 port = 55555
 client.connect((ip, port))
 print('Socket Connected to ' + ip)
