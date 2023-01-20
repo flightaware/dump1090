@@ -107,9 +107,17 @@ endif
 RTLSDR ?= yes
 BLADERF ?= yes
 
+# Older versions of librtlsdr lack the rtlsdr_set_bias_tee() function.
+# To omit the bias tee control option, build with RTLSDR_BIASTEE=no
+RTLSDR_BIASTEE ?= $(RTLSDR)
+
 ifeq ($(RTLSDR), yes)
   SDR_OBJ += sdr_rtlsdr.o
   DUMP1090_CPPFLAGS += -DENABLE_RTLSDR
+
+  ifeq ($(RTLSDR_BIASTEE), yes)
+    DUMP1090_CPPFLAGS += -DENABLE_RTLSDR_BIASTEE
+  endif
 
   ifdef RTLSDR_PREFIX
     DUMP1090_CPPFLAGS += -I$(RTLSDR_PREFIX)/include
@@ -214,6 +222,7 @@ showconfig:
 	@echo "  Architecture:     $(ARCH)" >&2
 	@echo "  DSP mix:          $(STARCH_MIX)" >&2
 	@echo "  RTLSDR support:   $(RTLSDR)" >&2
+	@echo "        + bias-T:  $(RTLSDR_BIASTEE)" >&2
 	@echo "  BladeRF support:  $(BLADERF)" >&2
 	@echo "  HackRF support:   $(HACKRF)" >&2
 	@echo "  LimeSDR support:  $(LIMESDR)" >&2
