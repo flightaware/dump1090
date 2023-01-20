@@ -69,6 +69,7 @@ static struct {
     int *gains;
     int gain_steps;
     int current_gain;
+    int biastee;
 } RTLSDR;
 
 //
@@ -87,6 +88,7 @@ void rtlsdrInitConfig()
     RTLSDR.gains = NULL;
     RTLSDR.gain_steps = 0;
     RTLSDR.current_gain = 0;
+    RTLSDR.biastee = -1;
 }
 
 static void show_rtlsdr_devices()
@@ -157,6 +159,7 @@ void rtlsdrShowHelp()
     printf("--enable-agc             enable digital AGC (not tuner AGC!)\n");
     printf("--ppm <correction>       set oscillator frequency correction in PPM\n");
     printf("--direct <0|1|2>         set direct sampling mode\n");
+    printf("--biastee <0|1>          control RTL-SDR (V3) bias tee\n");
     printf("\n");
 }
 
@@ -171,6 +174,8 @@ bool rtlsdrHandleOption(int argc, char **argv, int *jptr)
         RTLSDR.ppm_error = atoi(argv[++j]);
     } else if (!strcmp(argv[j], "--direct") && more) {
         RTLSDR.direct_sampling = atoi(argv[++j]);
+    } else if (!strcmp(argv[j], "--biastee") && more) {
+        RTLSDR.biastee = atoi(argv[++j]);
     } else {
         return false;
     }
@@ -219,6 +224,13 @@ bool rtlsdrOpen(void)
         fprintf(stderr, "rtlsdr: error opening the RTLSDR device: %s\n",
             strerror(errno));
         return false;
+    }
+
+    // If so requested, enable or disable bias tee.
+    if (RTLSDR.biastee >= 0) {
+        bool biastee_enable = RTLSDR.biastee > 0;
+        fprintf(stderr, "rtlsdr: %s bias tee\n", biastee_enable ? "enable" : "disable");
+        rtlsdr_set_bias_tee(RTLSDR.dev, biastee_enable);
     }
 
     // Set gain, frequency, sample rate, and reset the device
