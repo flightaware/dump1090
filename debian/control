@@ -3,7 +3,7 @@ Section: embedded
 Priority: extra
 Maintainer: Oliver Jowett <oliver.jowett@flightaware.com>
 Build-Depends: debhelper(>=12),
-  librtlsdr-dev <!custom> <rtlsdr>,
+  librtlsdr-dev(>=0.5.3-12) <!custom> <rtlsdr>,
   libbladerf-dev <!custom> <bladerf>,
   libhackrf-dev <!custom> <hackrf>,
   liblimesuite-dev <!custom> <limesdr>,
