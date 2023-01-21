@@ -113,8 +113,32 @@ ifeq ($(RTLSDR), yes)
 
   # If RTLSDR_BIASTEE has not been set in the debian package
   # building process, or explicitly set by a builder,
-  # disable it. This feature requires a librtlsdr that
-  # includes rtlsdr_set_bias_tee().
+  # try to detect if rtlsdr_set_bias_tee() is  available.
+
+  # This feature requires a librtlsdr that includes rtlsdr_set_bias_tee().
+  # There are multiple sources for librtlsdr with overlapping version numbers.
+  # Bias tee support is included in versions 0.5.4 and 0.6.0 of
+  # steve-m/librtlsdr but not in those versions of librtlsdr/librtlsdr.
+  # So instead of doing a version check, this script reads the header file.
+
+  # To detect support, search for rtlsdr_set_bias_tee in rtl-sdr.h
+  ifndef RTLSDR_BIASTEE
+    ifdef RTLSDR_PREFIX
+      RTLSDR_INCLUDEDIR := $(RTLSDR_PREFIX)/include
+    else ifeq ($(PKGCONFIG), yes)
+      RTLSDR_INCLUDEDIR_PKGCONFIG := $(shell pkg-config --variable=includedir librtlsdr)
+      ifneq ($(RTLSDR_INCLUDEDIR_PKGCONFIG),)
+        RTLSDR_INCLUDEDIR := $(RTLSDR_INCLUDEDIR_PKGCONFIG)
+      endif
+    endif
+    ifdef RTLSDR_INCLUDEDIR
+      ifeq ($(shell grep -q rtlsdr_set_bias_tee "$(RTLSDR_INCLUDEDIR)/rtl-sdr.h" && echo "yes" || echo "no"), yes)
+        RTLSDR_BIASTEE ?= yes
+      endif
+    endif
+  endif
+
+  # If availability was not confirmed, don't include this feature.
   RTLSDR_BIASTEE ?= no
 
   ifeq ($(RTLSDR_BIASTEE), yes)
