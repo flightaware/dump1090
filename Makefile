@@ -39,11 +39,11 @@ else
   LIMESDR ?= no
 endif
 
-HOST_UNAME := $(shell uname)
-HOST_ARCH := $(shell uname -m)
+BUILD_UNAME := $(shell uname)
+BUILD_ARCH := $(shell uname -m)
 
-UNAME ?= $(HOST_UNAME)
-ARCH ?= $(HOST_ARCH)
+UNAME ?= $(BUILD_UNAME)
+ARCH ?= $(BUILD_ARCH)
 
 ifeq ($(UNAME), Linux)
   DUMP1090_CPPFLAGS += -D_DEFAULT_SOURCE
