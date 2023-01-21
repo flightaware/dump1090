@@ -102,13 +102,15 @@ endif
 RTLSDR ?= yes
 BLADERF ?= yes
 
-# Older versions of librtlsdr lack the rtlsdr_set_bias_tee() function.
-# To omit the bias tee control option, build with RTLSDR_BIASTEE=no
-RTLSDR_BIASTEE ?= $(RTLSDR)
-
 ifeq ($(RTLSDR), yes)
   SDR_OBJ += sdr_rtlsdr.o
   DUMP1090_CPPFLAGS += -DENABLE_RTLSDR
+
+  # If RTLSDR_BIASTEE has not been set in the debian package
+  # building process, or explicitly set by a builder,
+  # disable it. This feature requires a librtlsdr that
+  # includes rtlsdr_set_bias_tee().
+  RTLSDR_BIASTEE ?= no
 
   ifeq ($(RTLSDR_BIASTEE), yes)
     DUMP1090_CPPFLAGS += -DENABLE_RTLSDR_BIASTEE

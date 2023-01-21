@@ -17,7 +17,7 @@ include /usr/share/dpkg/default.mk
 override_dh_auto_build:
 	# starch's gcc doesn't support the compiler flags needed for ARM-specific starch flavors;
 	# turn off runtime CPU detection
-	dh_auto_build -- RTLSDR=yes BLADERF=yes HACKRF=no LIMESDR=no DUMP1090_VERSION=$(DEB_VERSION) CPUFEATURES=no
+	dh_auto_build -- RTLSDR=yes RTLSDR_BIASTEE=no BLADERF=yes HACKRF=no LIMESDR=no DUMP1090_VERSION=$(DEB_VERSION) CPUFEATURES=no
 
 override_dh_install:
 	dh_install
