@@ -52,24 +52,31 @@
     ]
   },
   "packageFolders": {
-    "/home/connor/.nuget/packages/": {}
+    "C:\\Users\\conno\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/home/connor/dump1090-FlightEye/networking/app/app.csproj",
+      "projectUniqueName": "C:\\Users\\conno\\OneDrive\\Documents\\dump1090-FlightEye\\networking\\app\\app.csproj",
       "projectName": "app",
-      "projectPath": "/home/connor/dump1090-FlightEye/networking/app/app.csproj",
-      "packagesPath": "/home/connor/.nuget/packages/",
-      "outputPath": "/home/connor/dump1090-FlightEye/networking/app/obj/",
+      "projectPath": "C:\\Users\\conno\\OneDrive\\Documents\\dump1090-FlightEye\\networking\\app\\app.csproj",
+      "packagesPath": "C:\\Users\\conno\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\conno\\OneDrive\\Documents\\dump1090-FlightEye\\networking\\app\\obj\\",
       "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
       "configFilePaths": [
-        "/home/connor/.nuget/NuGet/NuGet.Config"
+        "C:\\Users\\conno\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net6.0"
       ],
       "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -109,7 +116,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/6.0.403/RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.100\\RuntimeIdentifierGraph.json"
       }
     }
   }

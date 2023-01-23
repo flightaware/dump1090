@@ -1,7 +1,7 @@
 1b374213fad04983b77186efdbcfdae5  lib/systemd/system/dump1090-fa.service
-b2b13ea5f3903aacd781f0f9b9c4fb88  usr/bin/dump1090-fa
-e6d930b53710b1786c02a6883cb718e5  usr/bin/view1090-fa
-755a6596c8e5c08c441c00cdf03ce1c1  usr/lib/dump1090-fa/starch-benchmark
+ef7bb18419bccf1b9094ab2add9ae3da  usr/bin/dump1090-fa
+dbb1732e275a2a2b6cbb9aa9309aa941  usr/bin/view1090-fa
+eb466af71be7aebe9dfa003d557db739  usr/lib/dump1090-fa/starch-benchmark
 f34f915e491921cf23a647a066750acb  usr/share/doc/dump1090-fa/README.librtlsdr
 a8d337333be0d2362ae2c08da60b5917  usr/share/doc/dump1090-fa/changelog.gz
 4d0be9049faf539811f757ab77072b15  usr/share/doc/dump1090-fa/copyright

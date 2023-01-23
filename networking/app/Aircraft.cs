@@ -14,6 +14,9 @@ public class Aircraft
     public float lon { get; set; }
     //* Last time data was updated *//
     public DateTime time { get; set; }
+    //* Linked List of an Aircrafts ADS-B history *//
+    public LinkedList<Aircraft>? history { get; set; } 
+
     //* DEBUGGING: Delay between message sending to receiving*//
     public TimeSpan delay { get; set; }
 
@@ -27,6 +30,36 @@ public class Aircraft
         this.lon = lon;
         this.time = DateTime.Parse(time);
         this.delay = DateTime.Now.Subtract(this.time);
+        this.history = new LinkedList<Aircraft>();
+    }
+
+    public Aircraft (string icao, int alt_baro, float gs, float track, float lat, float lon, string time, Aircraft previous_aircraft, int history_size)
+    {   
+        this.icao = icao;
+        this.alt_baro = alt_baro;
+        this.gs = gs;
+        this.track = track;
+        this.lat = lat;
+        this.lon = lon;
+        this.time = DateTime.Parse(time);
+        this.delay = DateTime.Now.Subtract(this.time);
+        this.history = configureLinkedList(previous_aircraft, history_size);
+    }
+
+    private LinkedList<Aircraft>? configureLinkedList(Aircraft prev_aircraft, int history_size)
+    {   
+        if (prev_aircraft.history != null)
+        {
+            LinkedList<Aircraft> new_history = prev_aircraft.history;
+            new_history.AddFirst(prev_aircraft); //add previous aircraft to the new history
+            while(new_history.Count > history_size)
+            {
+                new_history.RemoveLast();
+            }
+            prev_aircraft.history = null; 
+            return new_history;
+        }
+        return null;
     }
 
     /* Updates Aircraft data based on new ADS-B information */
@@ -70,9 +103,25 @@ public class Aircraft
         }
     }
     
-    /* Debug to print Aircraft members */
-    public void printAircraft()
+    /* Debug to print all Aircraft members in the history */
+    public void printAircraftHistory()
     {
+        if (this.history != null)
+        {
+            TimeSpan timeDiff = DateTime.Now.Subtract(time);
+            Console.WriteLine(icao + " " + alt_baro + "  " + gs + "  " + track + "   " + lat + "  "+ lon  + "  "+ timeDiff + "  " + delay); //print itself
+            Console.WriteLine("HISTORY:" + this.history.Count);
+            foreach(Aircraft aircraft in this.history)
+            {
+                aircraft.printAircraftData(); //print data for Aircraft in history
+            }
+            Console.WriteLine("END HISTORY");
+        }
+    }
+
+    /* Print individual fields of an Aircraft */
+    public void printAircraftData()
+    {   
         TimeSpan timeDiff = DateTime.Now.Subtract(time);
         Console.WriteLine(icao + " " + alt_baro + "  " + gs + "  " + track + "   " + lat + "  "+ lon  + "  "+ timeDiff + "  " + delay);
     }

@@ -18,14 +18,14 @@ Changes:
    * SkyAware: Remove obselete map interface at /dump1090-fa
    * SkyAware: Remove OSM Black & White layer which is no longer in service
 Checksums-Sha1:
- 09c71b23f8434d65856aa6602fd5641f6b6f70e8 703360 dump1090-fa-dbgsym_7.2_amd64.ddeb
- 1af5ba3f22243daf9502998790fe27916ef937e1 5756 dump1090-fa_7.2_amd64.buildinfo
- d442bc6e68b9acf0ae15f60f5a626460cbcbfbef 2183552 dump1090-fa_7.2_amd64.deb
+ a741577b93403598db24630e1d2e502bafd441a8 702728 dump1090-fa-dbgsym_7.2_amd64.ddeb
+ fc7253c58c9c4c39ed9aab719355e00f744876e6 5946 dump1090-fa_7.2_amd64.buildinfo
+ ff7c66954693182b1c5a675fdd9a6a49ae2bc1b6 2189872 dump1090-fa_7.2_amd64.deb
 Checksums-Sha256:
- e46df79fe3023f1579c49cbd46906e7d958e2fb154d180f6a369bd5efe1252e4 703360 dump1090-fa-dbgsym_7.2_amd64.ddeb
- 366a41b51648670813cc93e2eed0cda3ee8ffb591ee221c8c12b9b3b8a8ee03d 5756 dump1090-fa_7.2_amd64.buildinfo
- a2464e373f616c575fb6c709b095645c280e5c6fcd3c6490df76ea84ae576827 2183552 dump1090-fa_7.2_amd64.deb
+ be8a0989c5133b765486373e8de52909e71d23a33354fac14f627e2e6507a705 702728 dump1090-fa-dbgsym_7.2_amd64.ddeb
+ 98dbdd488b2f9fa9f459626eb03aaee066942010d78de0d152ca4e35855a1378 5946 dump1090-fa_7.2_amd64.buildinfo
+ b5fc83d06793fce1682b1b573a4da6f409d87dd6bb8c4e56bef9b5fa4d571ab9 2189872 dump1090-fa_7.2_amd64.deb
 Files:
- baea884251391a96d2e2b4f5800c478a 703360 debug optional dump1090-fa-dbgsym_7.2_amd64.ddeb
- f39d3f7612b46a30f4eece429725dec3 5756 embedded extra dump1090-fa_7.2_amd64.buildinfo
- 6d15da1a01eee8f0570b5a3cac5e1657 2183552 embedded extra dump1090-fa_7.2_amd64.deb
+ 221925f63da0d4127c1a09b5e699b174 702728 debug optional dump1090-fa-dbgsym_7.2_amd64.ddeb
+ 9a91a359c9f8ad72eea6682a18bb3da2 5946 embedded extra dump1090-fa_7.2_amd64.buildinfo
+ f5454c175dee31e3ebaa03f4ad98089e 2189872 embedded extra dump1090-fa_7.2_amd64.deb

@@ -12,9 +12,15 @@ public class client {
     public static TcpClient? tcpClient;
     public static Dictionary <string, Aircraft> aircraftDict = new Dictionary<string, Aircraft>();
 
+    public static int deleteTime = 15;
+
+    public static int maxHistorySize = 5;
+
+    public static volatile bool threadExit;
+
     static void Main(string[] args)
     {
-        String server_ip = "127.0.0.1"; //"10.0.0.166";
+        String server_ip = "10.0.0.166";
         Int32 server_port = 55555;
         runClient(server_ip, server_port);
     }
@@ -35,7 +41,7 @@ public class client {
             /* Must check that the incoming JSON has a hex value */
             if (json.TryGetValue("hex", out icao))
             {
-                /* If an Aircraft exists in the dictionary, check for updated data, else, create a new Aircraft and add it to the dictionary */
+                /* If does not exist in aircraftDict, add it. Else, update the previous Aircraft instance in the aircraftDict */
                 if (!aircraftDict.TryGetValue(icao.ToString(), out aircraft))
                 {
                     if(json.TryGetValue("hex", out icao) && json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
@@ -52,16 +58,16 @@ public class client {
                 {   
                     if(json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
                         && json.TryGetValue("lat", out lat) && json.TryGetValue("lon", out lon) && json.TryGetValue("seen", out seen))
-                    {
-                        aircraft.update(int.Parse(alt_baro.ToString()), 
+                    {   
+                        Aircraft new_aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
                             float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
-                            float.Parse(lon.ToString()), seen.ToString());
+                            float.Parse(lon.ToString()), seen.ToString(), aircraft, maxHistorySize); //create a new Aircraft, and pass in the previous Aircraft instance/Max history amount
+
+                        aircraftDict.Remove(aircraft.icao);
+                        aircraftDict.Add(new_aircraft.icao, new_aircraft);
                     }
                 }
-                printDictionary();
             }
-        
-
         }
         catch (Newtonsoft.Json.JsonReaderException es)
         {
@@ -69,15 +75,29 @@ public class client {
         }
     }
 
-    static void printDictionary()
+    //runs checker thread
+    static void runChecks()
     {   
-        Console.Clear();
-        Console.WriteLine("ACTIVE FLIGHTS-------------------------------------------------------------------------------------------");
-        Console.WriteLine("ICAO    Alt   GS    Track    Lat        Lon          Last           Delay");
-        foreach (KeyValuePair<String, Aircraft> aircraft in aircraftDict)
-        {
-            aircraft.Value.printAircraft();
+        while (threadExit == false) 
+        {   
+            /*TODO: Remove printing.*/
+            Console.Clear();
+            Console.WriteLine("ACTIVE FLIGHTS-------------------------------------------------------------------------------------------");
+            Console.WriteLine("ICAO    Alt   GS    Track    Lat        Lon          Last           Delay");
+            foreach (KeyValuePair<String, Aircraft> aircraft in aircraftDict)
+            {   
+                TimeSpan span = TimeSpan.FromSeconds(deleteTime);
+                if (DateTime.Now.Subtract(aircraft.Value.time) > span)
+                {
+                    aircraftDict.Remove(aircraft.Value.icao);
+                }
+                else {
+                   aircraft.Value.printAircraftHistory(); 
+                }
+            }
+            Thread.Sleep(1000); //sleep for 1 second before printing again
         }
+        Console.WriteLine("runChecks exiting...");
     }
 
     static void runClient(String server, Int32 port)
@@ -131,6 +151,7 @@ public class client {
                     }
                 }
 
+                //runs writer thread
                 void write()
                 {
                     //Output
@@ -146,13 +167,16 @@ public class client {
 
                 Thread listener = new Thread(listen);
                 Thread writer = new Thread(write);
+                Thread runCheck = new Thread(runChecks);
+
                 listener.Start();
                 writer.Start();
+                runCheck.Start();
 
                 //When listener thread returns, server was closed, we must exit
                 listener.Join();
+                threadExit = true;
                 Console.WriteLine("Exiting.....");
-                Environment.Exit(0);
             }
         catch (ArgumentNullException e)
         {
