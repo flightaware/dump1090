@@ -267,3 +267,81 @@ function createBaseLayers() {
 
         return layers;
 }
+
+function createMetarLayer() {
+        var metarTileGrid = ol.tilegrid.createXYZ({ minZoom: 3, maxZoom: 16 });
+
+        var metarSource = new ol.source.Vector({
+                // The API doesn't support CORS, so we have to use JSONP with a custom loader
+                loader: function (extent, resolution, projection, success, failure) {
+                        var lonLat = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326');
+                        var url = 'https://www.aviationweather.gov/cgi-bin/json/MetarJSON.php';
+                        $.ajax({
+                                url: url,
+                                data: {
+                                        filter: 'prior',
+                                        density: 0,
+                                        date: new Date().toISOString().replace(/\D/g, '').slice(0, 12),
+                                        bbox: lonLat.join(','),
+                                        zoom: metarTileGrid.getZForResolution(resolution) - 1
+                                },
+                                dataType: 'jsonp',
+                                jsonpCallback: 'metarCallback',
+                                success: metarCallback(extent, projection, success, failure)
+                        });
+                },
+                strategy: ol.loadingstrategy.bbox,
+                attributions: 'METAR courtesy of <a href="https://www.aviationweather.gov">Aviation Weather Center</a>'
+        });
+
+        var metarCallback = function (extent, projection, success, failure) {
+                return function (data) {
+                        var format = new ol.format.GeoJSON();
+                        var features = format.readFeatures(data, { extent: extent, featureProjection: projection });
+                        metarSource.addFeatures(features);
+                        if (success !== undefined) {
+                                success(features);
+                        }
+                }
+        };
+
+        var metar = new ol.layer.Vector({
+                name: 'metar',
+                type: 'overlay',
+                title: 'METAR',
+                opacity: 0.8,
+                visible: false,
+                source: metarSource,
+                style: function style(feature) {
+                        var cat = feature.get('fltcat');
+                        var color = '#666';
+                        if (cat === 'VFR') {
+                                color = '#00AB42'
+                        } else if (cat === 'MVFR') {
+                                color = '#0016E8'
+                        } else if (cat === 'IFR') {
+                                color = '#FF0007'
+                        } else if (cat === 'LIFR') {
+                                color = '#CA33F9'
+                        }
+                        return new ol.style.Style({
+                                image: new ol.style.Circle({
+                                        radius: 5,
+                                        fill: new ol.style.Fill({
+                                                color: color
+                                        }),
+                                        stroke: new ol.style.Stroke({
+                                                color: color
+                                        })
+                                })
+                        });
+                }
+        });
+
+        var refreshMetar = function () {
+                metar.getSource().refresh();
+        };
+        window.setInterval(refreshMetar, 5 * 60000);
+
+        return metar;
+}
