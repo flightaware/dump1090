@@ -331,7 +331,8 @@ function createMetarLayer() {
                                                 color: color
                                         }),
                                         stroke: new ol.style.Stroke({
-                                                color: color
+                                                color: '#fff',
+                                                width: 2
                                         })
                                 })
                         });
