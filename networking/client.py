@@ -66,7 +66,6 @@ def send_gps_data():
 
             gps_dict = dict({'alt': altitude, 'track': track, 'speed':speed, 'lon':longitude, 'lat': latitude, 'climb': climb, 'time': time, 'icao': icao, 'isGPS':'true'})
             json_gps = json.dumps(gps_dict)
-            print("succcess")
             send_json(json_gps)
             gpsd.next()
         else:
@@ -100,32 +99,35 @@ def send_aircraft_data(path):
                 send_json(j_aircraft)
     f.close()
 
-#Connect to server socket
-try:
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-except socket.error:
-    print('Failed to create socket')
-    sys.exit()
-print('Socket created')
-client.connect((ip, port))
-print('Socket Connected to ' + ip)
-client.recv(1) # wait for server confirmation to begin sending data
+#Controls aircraft JSON parsing thread
+def run_aircraft_thread():
+    while True:
+        #if XR client has disconnected, lock loop until client reconnects
+        while clientLock: pass
 
-#Start listener thread
-listener = threading.Thread(target = listen)
-listener.start()
+        opentime = datetime.now()
+        send_aircraft_data("../dump1090/jsondata/aircraft.json")
+        #delay next read for a second (takes into account time it took for last read: 1.0 - time to read last)
+        if (datetime.now() - opentime).total_seconds() < 1.0:
+            time.sleep(1.0 - (datetime.now() - opentime).total_seconds())
 
-#Start GPS Poller thread
-gpsPoller = threading.Thread(target = run_gps_thread)
-gpsPoller.start()
+if __name__ == '__main__':
+    #Connect to server socket
+    try:
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    except socket.error:
+        print('Failed to create socket')
+        sys.exit()
+    client.connect((ip, port))
+    print('Socket Connected to ' + ip)
+    client.recv(1) # wait for server confirmation to begin sending data
 
-#run GPS poller and JSON file reader -- sends valid data to server
-while True:
-    #if XR client has disconnected, lock loop until client reconnects
-    while clientLock: pass
+    #Start listener thread
+    listener = threading.Thread(target = listen)
+    listener.start()
 
-    opentime = datetime.now()
-    send_aircraft_data("../dump1090/jsondata/aircraft.json")
-    #delay next read for a second (takes into account time it took for last read: 1.0 - time to read last)
-    if (datetime.now() - opentime).total_seconds() < 1.0:
-        time.sleep(1.0 - (datetime.now() - opentime).total_seconds())
+    #Start GPS Poller thread
+    gpsPoller = threading.Thread(target = run_gps_thread)
+    gpsPoller.start()
+
+    run_aircraft_thread()
