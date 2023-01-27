@@ -11,11 +11,9 @@ public class client {
 
     public static TcpClient? tcpClient;
     public static Dictionary <string, Aircraft> aircraftDict = new Dictionary<string, Aircraft>();
-
+    public static Aircraft? userCraft;
     public static int deleteTime = 15;
-
     public static int maxHistorySize = 5;
-
     public static volatile bool threadExit;
 
     static void Main(string[] args)
@@ -30,6 +28,7 @@ public class client {
         try {
             JObject json = JObject.Parse(str);
             Aircraft? aircraft;
+            JToken? isGPS = "";
             JToken? icao = "";
             JToken? alt_baro = "";
             JToken? gs = "";
@@ -38,33 +37,70 @@ public class client {
             JToken? lon = "";
             JToken? seen = "";
 
-            /* Must check that the incoming JSON has a hex value */
-            if (json.TryGetValue("hex", out icao))
-            {
-                /* If does not exist in aircraftDict, add it. Else, update the previous Aircraft instance in the aircraftDict */
-                if (!aircraftDict.TryGetValue(icao.ToString(), out aircraft))
-                {
-                    if(json.TryGetValue("hex", out icao) && json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
-                        && json.TryGetValue("lat", out lat) && json.TryGetValue("lon", out lon) && json.TryGetValue("seen", out seen))
-                    {
-                        aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
-                            float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
-                            float.Parse(lon.ToString()), seen.ToString());
+            json.TryGetValue("isGPS", out isGPS);
+            if (isGPS != null) {
+                
+                /* If GPS is false, then JSON string is an Aircraft */
+                if (isGPS.ToString().Equals("false")) {
 
-                        aircraftDict.Add(icao.ToString(), aircraft); //add new Aircraft to dictionary
+                    /* Must check that the incoming JSON has a hex value */
+                    if (json.TryGetValue("hex", out icao))
+                    {
+                        /* If does not exist in aircraftDict, add it. */
+                        if (!aircraftDict.TryGetValue(icao.ToString(), out aircraft))
+                        {
+                            if(json.TryGetValue("hex", out icao) && json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
+                                && json.TryGetValue("lat", out lat) && json.TryGetValue("lon", out lon) && json.TryGetValue("seen", out seen))
+                            {
+                                aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
+                                    float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
+                                    float.Parse(lon.ToString()), seen.ToString());
+
+                                aircraftDict.Add(icao.ToString(), aircraft); //add new Aircraft to dictionary
+                            }
+                        }
+                        /*Else, update the previous Aircraft instance in the aircraftDict*/
+                        else 
+                        {   
+                            if(json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
+                                && json.TryGetValue("lat", out lat) && json.TryGetValue("lon", out lon) && json.TryGetValue("seen", out seen))
+                            {   
+                                Aircraft new_aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
+                                    float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
+                                    float.Parse(lon.ToString()), seen.ToString(), aircraft, maxHistorySize); //create a new Aircraft, and pass in the previous Aircraft instance/Max history amount
+
+                                aircraftDict.Remove(aircraft.icao);
+                                aircraftDict.Add(new_aircraft.icao, new_aircraft);
+                            }
+                        }
                     }
                 }
-                else 
-                {   
-                    if(json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
-                        && json.TryGetValue("lat", out lat) && json.TryGetValue("lon", out lon) && json.TryGetValue("seen", out seen))
-                    {   
-                        Aircraft new_aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
-                            float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
-                            float.Parse(lon.ToString()), seen.ToString(), aircraft, maxHistorySize); //create a new Aircraft, and pass in the previous Aircraft instance/Max history amount
+                /* If GPS is NOT false, then it is true, and it must be GPS information */
+                else {
 
-                        aircraftDict.Remove(aircraft.icao);
-                        aircraftDict.Add(new_aircraft.icao, new_aircraft);
+                    /* If the userCraft has not been created, create it (this should only be hit at the start of the program) */
+                    if (userCraft == null)
+                    {
+                        Console.WriteLine(json);
+                        if (json.TryGetValue("icao", out icao) && json.TryGetValue("track", out track) && json.TryGetValue("speed", out gs) && 
+                            json.TryGetValue("lon", out lon) && json.TryGetValue("lat", out lat) && json.TryGetValue("time", out seen) && json.TryGetValue("alt", out alt_baro))
+                        {
+                            userCraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), float.Parse(gs.ToString()), 
+                                float.Parse(track.ToString()), float.Parse(lat.ToString()), float.Parse(lon.ToString()), seen.ToString());  
+                        }
+                    }
+                    /* Else, update the userCraft */
+                    else 
+                    {
+                        if (json.TryGetValue("icao", out icao) && json.TryGetValue("track", out track) && json.TryGetValue("speed", out gs) && 
+                            json.TryGetValue("lon", out lon) && json.TryGetValue("lat", out lat) && json.TryGetValue("time", out seen) && json.TryGetValue("alt", out alt_baro))
+                        {
+                            Aircraft new_aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
+                                    float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
+                                    float.Parse(lon.ToString()), seen.ToString(), userCraft, maxHistorySize); //create a new Aircraft, and pass in the previous userCraft instance/Max history amount
+
+                            userCraft = new_aircraft; //make the primary userCraft the new Aircraft instance
+                        }
                     }
                 }
             }
@@ -82,6 +118,16 @@ public class client {
         {   
             /*TODO: Remove printing.*/
             Console.Clear();
+
+            /*Print the userCrafts current position + history*/
+            Console.WriteLine("USER CRAFT-----------------------------------------------------------------------------------------------");
+            Console.WriteLine("ICAO    Alt   GS    Track    Lat        Lon          Last           Delay");
+            if (userCraft != null)
+            {
+                userCraft.printAircraftHistory();
+            }
+
+            /*Print the active Aircraft's current position + history*/
             Console.WriteLine("ACTIVE FLIGHTS-------------------------------------------------------------------------------------------");
             Console.WriteLine("ICAO    Alt   GS    Track    Lat        Lon          Last           Delay");
             foreach (KeyValuePair<String, Aircraft> aircraft in aircraftDict)

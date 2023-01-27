@@ -120,7 +120,7 @@ public class Aircraft
     }
 
     /* Print individual fields of an Aircraft */
-    public void printAircraftData()
+    private void printAircraftData()
     {   
         TimeSpan timeDiff = DateTime.Now.Subtract(time);
         Console.WriteLine(icao + " " + alt_baro + "  " + gs + "  " + track + "   " + lat + "  "+ lon  + "  "+ timeDiff + "  " + delay);
