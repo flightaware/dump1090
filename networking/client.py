@@ -55,12 +55,12 @@ def send_gps_data():
         nx = gpsd.next()
                 
         if nx['class'] == 'TPV':
-            altitude = getattr(nx, 'altHAE', "Unknown")
-            track = getattr(nx, 'track', "Unknown")
-            speed = getattr(nx, 'speed', "Unknown")
-            latitude = getattr(nx,'lat', "Unknown")
-            longitude = getattr(nx,'lon', "Unknown")
-            climb = getattr(nx, 'climb', 'Unknown')
+            altitude = getattr(nx, 'altHAE', 0)
+            track = getattr(nx, 'track', 0)
+            speed = getattr(nx, 'speed', 0)
+            latitude = getattr(nx,'lat', 0)
+            longitude = getattr(nx,'lon', 0)
+            climb = getattr(nx, 'climb', 0)
             time = str(datetime.now()).split()[1]
             icao = 'USERCRAFT'
 
