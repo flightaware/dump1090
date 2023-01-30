@@ -129,7 +129,8 @@ public class client {
             /*Print the active Aircraft's current position + history*/
             Console.WriteLine("ACTIVE FLIGHTS-------------------------------------------------------------------------------------------");
             Console.WriteLine("ICAO    Alt   GS    Track    Lat        Lon          Last           Delay");
-            foreach (KeyValuePair<String, Aircraft> aircraft in aircraftDict)
+            Dictionary<string, Aircraft> aircraftDictCpy = new Dictionary<string, Aircraft>(aircraftDict);
+            foreach (KeyValuePair<String, Aircraft> aircraft in aircraftDictCpy)
             {   
                 TimeSpan span = TimeSpan.FromSeconds(deleteTime);
                 if (DateTime.Now.Subtract(aircraft.Value.time) > span)
