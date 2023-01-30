@@ -18,7 +18,7 @@ public class client {
 
     static void Main(string[] args)
     {
-        String server_ip = "10.0.0.166";
+        String server_ip = "127.0.0.1";//"10.0.0.166";
         Int32 server_port = 55555;
         runClient(server_ip, server_port);
     }
@@ -52,7 +52,7 @@ public class client {
                             if(json.TryGetValue("hex", out icao) && json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
                                 && json.TryGetValue("lat", out lat) && json.TryGetValue("lon", out lon) && json.TryGetValue("seen", out seen))
                             {
-                                aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
+                                aircraft = new Aircraft(icao.ToString(), float.Parse(alt_baro.ToString()), 
                                     float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
                                     float.Parse(lon.ToString()), seen.ToString());
 
@@ -65,7 +65,7 @@ public class client {
                             if(json.TryGetValue("alt_baro", out alt_baro) && json.TryGetValue("gs", out gs) && json.TryGetValue("track", out track) 
                                 && json.TryGetValue("lat", out lat) && json.TryGetValue("lon", out lon) && json.TryGetValue("seen", out seen))
                             {   
-                                Aircraft new_aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
+                                Aircraft new_aircraft = new Aircraft(icao.ToString(), float.Parse(alt_baro.ToString()), 
                                     float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
                                     float.Parse(lon.ToString()), seen.ToString(), aircraft, maxHistorySize); //create a new Aircraft, and pass in the previous Aircraft instance/Max history amount
 
@@ -81,11 +81,10 @@ public class client {
                     /* If the userCraft has not been created, create it (this should only be hit at the start of the program) */
                     if (userCraft == null)
                     {
-                        Console.WriteLine(json);
                         if (json.TryGetValue("icao", out icao) && json.TryGetValue("track", out track) && json.TryGetValue("speed", out gs) && 
                             json.TryGetValue("lon", out lon) && json.TryGetValue("lat", out lat) && json.TryGetValue("time", out seen) && json.TryGetValue("alt", out alt_baro))
                         {
-                            userCraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), float.Parse(gs.ToString()), 
+                            userCraft = new Aircraft(icao.ToString(), float.Parse(alt_baro.ToString()), float.Parse(gs.ToString()), 
                                 float.Parse(track.ToString()), float.Parse(lat.ToString()), float.Parse(lon.ToString()), seen.ToString());  
                         }
                     }
@@ -95,7 +94,7 @@ public class client {
                         if (json.TryGetValue("icao", out icao) && json.TryGetValue("track", out track) && json.TryGetValue("speed", out gs) && 
                             json.TryGetValue("lon", out lon) && json.TryGetValue("lat", out lat) && json.TryGetValue("time", out seen) && json.TryGetValue("alt", out alt_baro))
                         {
-                            Aircraft new_aircraft = new Aircraft(icao.ToString(), int.Parse(alt_baro.ToString()), 
+                            Aircraft new_aircraft = new Aircraft(icao.ToString(), float.Parse(alt_baro.ToString()), 
                                     float.Parse(gs.ToString()), float.Parse(track.ToString()), float.Parse(lat.ToString()), 
                                     float.Parse(lon.ToString()), seen.ToString(), userCraft, maxHistorySize); //create a new Aircraft, and pass in the previous userCraft instance/Max history amount
 
@@ -198,25 +197,25 @@ public class client {
                 }
 
                 //runs writer thread
-                void write()
-                {
-                    //Output
-                    //Todo: Modify to only send an output when signal is processed for FPS loss
-                    while (true)
-                    {
-                        Console.WriteLine(">");
-                        String? input = Console.ReadLine();
-                        Byte[] message = System.Text.Encoding.ASCII.GetBytes(input);
-                        stream.Write(message, 0, message.Length);
-                    }
-                }
+                // void write()
+                // {
+                //     //Output
+                //     //Todo: Modify to only send an output when signal is processed for FPS loss
+                //     while (true)
+                //     {
+                //         Console.WriteLine(">");
+                //         String? input = Console.ReadLine();
+                //         Byte[] message = System.Text.Encoding.ASCII.GetBytes(input);
+                //         stream.Write(message, 0, message.Length);
+                //     }
+                // }
 
                 Thread listener = new Thread(listen);
-                Thread writer = new Thread(write);
+                //Thread writer = new Thread(write);
                 Thread runCheck = new Thread(runChecks);
 
                 listener.Start();
-                writer.Start();
+               // writer.Start();
                 runCheck.Start();
 
                 //When listener thread returns, server was closed, we must exit

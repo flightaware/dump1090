@@ -269,8 +269,8 @@ typedef enum {
 #define MODES_NET_SNDBUF_SIZE (1024*64)
 #define MODES_NET_SNDBUF_MAX  (7)
 
-#define HISTORY_SIZE 500
-#define HISTORY_INTERVAL 1000
+#define HISTORY_SIZE 71
+#define HISTORY_INTERVAL 10000
 
 #define MODES_NOTUSED(V) ((void) V)
 
