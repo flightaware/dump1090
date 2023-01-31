@@ -24,4 +24,9 @@ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config
 cd package-bullseye            # or buster, or stretch \
 dpkg-buildpackage -b --no-sign 
 
+If GPS reports "GPS Poll Failed" once with nothing else \
+The GPS likely needs to be restarted \
+In Linux, do systemctl stop gpsd/gpsd.socket \
+Then, do systemctl start gpsd/gpsd.socket \
+
 
