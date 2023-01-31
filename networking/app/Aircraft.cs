@@ -3,7 +3,7 @@ public class Aircraft
     //* ICAO (for debugging purposes)*//
     public string icao { get; set; }
     //* Barometric Altitude *//
-    public int alt_baro { get; set; }
+    public float alt_baro { get; set; }
     //* Ground Speed *//
     public float gs { get; set; }
     //* Heading + Drift *//
@@ -20,7 +20,7 @@ public class Aircraft
     //* DEBUGGING: Delay between message sending to receiving*//
     public TimeSpan delay { get; set; }
 
-    public Aircraft (string icao, int alt_baro, float gs, float track, float lat, float lon, string time)
+    public Aircraft (string icao, float alt_baro, float gs, float track, float lat, float lon, string time)
     {   
         this.icao = icao;
         this.alt_baro = alt_baro;
@@ -33,7 +33,7 @@ public class Aircraft
         this.history = new LinkedList<Aircraft>();
     }
 
-    public Aircraft (string icao, int alt_baro, float gs, float track, float lat, float lon, string time, Aircraft previous_aircraft, int history_size)
+    public Aircraft (string icao, float alt_baro, float gs, float track, float lat, float lon, string time, Aircraft previous_aircraft, int history_size)
     {   
         this.icao = icao;
         this.alt_baro = alt_baro;
@@ -107,17 +107,20 @@ public class Aircraft
     public void printAircraftHistory()
     {
         if (this.history != null)
-        {
+        {   
+            //make copy of linked list right here
+            LinkedList<Aircraft> historyCpy = copyLinkedList(this.history);
             TimeSpan timeDiff = DateTime.Now.Subtract(time);
             Console.WriteLine(icao + " " + alt_baro + "  " + gs + "  " + track + "   " + lat + "  "+ lon  + "  "+ timeDiff + "  " + delay); //print itself
             Console.WriteLine("HISTORY:" + this.history.Count);
-            foreach(Aircraft aircraft in this.history)
+            foreach(Aircraft aircraft in historyCpy)
             {
                 aircraft.printAircraftData(); //print data for Aircraft in history
             }
             Console.WriteLine("END HISTORY");
         }
     }
+
 
     /* Print individual fields of an Aircraft */
     private void printAircraftData()
