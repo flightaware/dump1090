@@ -18,7 +18,7 @@ public class client {
 
     static void Main(string[] args)
     {
-        String server_ip = "127.0.0.1";//"10.0.0.166";
+        String server_ip = "10.0.0.166";
         Int32 server_port = 55555;
         runClient(server_ip, server_port);
     }
