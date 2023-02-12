@@ -25,6 +25,8 @@
 #include <gd.h>
 #endif
 
+#define M_SQRT2 1.41421356237
+
 // 2.4MHz sampling rate version
 //
 // When sampling at 2.4MHz we have exactly 6 samples per 5 symbols.

@@ -1,6 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifndef M_PI
+#   define M_PI 3.14159265358979323846f
+#endif
+
 void STARCH_BENCHMARK(magnitude_uc8) (void)
 {
     uc8_t *in = NULL;

@@ -11,6 +11,10 @@
 #include "dsp-types.h"
 #include "dsp/generated/starch.h"
 
+#ifndef M_PI
+#   define M_PI 3.14159265358979323846f
+#endif
+
 static void write_results_uc8(const uc8_t *in, uint16_t *out, unsigned len, char *path)
 {
     FILE *fp = fopen(path, "w");
@@ -225,5 +229,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
-

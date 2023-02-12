@@ -52,6 +52,10 @@
 #include "dump1090.h"
 #include "ais_charset.h"
 
+#ifndef M_PI
+#   define M_PI 3.14159265358979323846f
+#endif
+
 /* for PRIX64 */
 #include <inttypes.h>
 

@@ -21,6 +21,10 @@
 #include "dump1090.h"
 #include "ais_charset.h"
 
+#ifndef M_PI
+#   define M_PI 3.14159265358979323846f
+#endif
+
 typedef int (*CommBDecoderFn)(struct modesMessage *,bool);
 
 static int decodeEmptyResponse(struct modesMessage *mm, bool store);
