@@ -61,6 +61,7 @@ uint64_t mstime(void)
 {
     struct timeval tv;
     uint64_t mst;
+	int   gettimeofday(struct timeval *, void *);
 
     gettimeofday(&tv, NULL);
     mst = ((uint64_t)tv.tv_sec)*1000;
