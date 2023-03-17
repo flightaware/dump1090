@@ -70,7 +70,6 @@ static void faupInitConfig(void) {
 
     // Now initialise things that should not be 0/NULL to their defaults
     Modes.nfix_crc                = 1;
-    Modes.check_crc               = 1;
     Modes.fix_df                  = 1;
     Modes.net                     = 1;
     Modes.net_heartbeat_interval  = MODES_NET_HEARTBEAT_INTERVAL;

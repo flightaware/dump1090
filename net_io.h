@@ -60,6 +60,8 @@ struct client {
     int    buflen;                       // Amount of data on buffer
     char   buf[MODES_CLIENT_BUF_SIZE+1]; // Read buffer
     int    modeac_requested;             // 1 if this Beast output connection has asked for A/C
+    int    verbatim_requested;           // 1 if this Beast output connection has asked for verbatim mode
+    int    local_requested;              // 1 if this Beast output connection has asked for local-only mode
 };
 
 // Common writer state for all output sockets of one type

@@ -377,6 +377,15 @@ PlaneObject.prototype.getMarkerColor = function() {
                 l += ColorByAlt.mlat.l;
         }
 
+        return this.hslRepr([h, s, l])
+}
+
+PlaneObject.prototype.hslRepr = function(hsl) {
+        var h, s, l;
+        h = hsl[0];
+        s = hsl[1];
+        l = hsl[2];
+
         if (h < 0) {
                 h = (h % 360) + 360;
         } else if (h >= 360) {

@@ -102,12 +102,12 @@ void hackRFShowHelp()
 {
     printf("      HackRF-specific options (use with --device-type hackrf)\n");
     printf("\n");
-    printf("--enable-amp             enable amplifier)\n");
-    printf("--enable-antenna-power   enable DC power to the antenna connector\n");
-    printf("--lna-gain               set LNA gain (Range 0-40 in 8dB steps))\n");
-    printf("--vga-gain               set VGA gain (Range 0-62 in 2dB steps))\n");
-    printf("--samplerate             set sample rate)\n");
-    printf("--ppm                    ppm correction)\n");
+    printf("--enable-amp             enable amplifier (disabled unless specified)\n");
+    printf("--enable-antenna-power   enable DC power to the antenna connector (disabled unless specified)\n");
+    printf("--lna-gain               set LNA gain (default: 32dB. Range 0-40 in 8dB steps)\n");
+    printf("--vga-gain               set VGA gain (default: 50dB. Range 0-62 in 2dB steps)\n");
+    printf("--samplerate             set sample rate (default: 2400000Hz)\n");
+    printf("--ppm                    ppm correction (default: 0)\n");
     printf("\n");
 }
 

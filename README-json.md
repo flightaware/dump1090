@@ -122,23 +122,24 @@ Each period has the following subkeys:
  * start: the start time (in seconds-since-1-Jan-1970) of this statistics collection period.
  * end: the end time (in seconds-since-1-Jan-1970) of this statistics collection period.
  * local: statistics about messages received from a local SDR dongle. Not present in --net-only mode. Has subkeys:
-   * blocks_processed: number of sample blocks processed
-   * blocks_dropped: number of sample blocks dropped before processing. A nonzero value means CPU overload.
+   * samples_processed: number of samples processed
+   * samples_dropped: number of samples dropped before processing. A nonzero value means CPU overload.
    * modeac: number of Mode A / C messages decoded
    * modes: number of Mode S preambles received. This is *not* the number of valid messages!
    * bad: number of Mode S preambles that didn't result in a valid message
    * unknown_icao: number of Mode S preambles which looked like they might be valid but we didn't recognize the ICAO address and it was one of the message types where we can't be sure it's valid in this case.
    * accepted: array. Index N has the number of valid Mode S messages accepted with N-bit errors corrected.
    * signal: mean signal power of successfully received messages, in dbFS; always negative.
+   * noise: mean noise power of non-message samples, in dbFS; always negative.
    * peak_signal: peak signal power of a successfully received message, in dbFS; always negative.
    * strong_signals: number of messages received that had a signal power above -3dBFS.
+   * gain_db: the current SDR gain, floating-point dB. Might be absent depending on SDR type.
  * remote: statistics about messages received from remote clients. Only present in --net or --net-only mode. Has subkeys:
    * modeac: number of Mode A / C messages received.
    * modes: number of Mode S messages received.
    * bad: number of Mode S messages that had bad CRC or were otherwise invalid.
    * unknown_icao: number of Mode S messages which looked like they might be valid but we didn't recognize the ICAO address and it was one of the message types where we can't be sure it's valid in this case.
    * accepted: array. Index N has the number of valid Mode S messages accepted with N-bit errors corrected.
-   * http_requests: number of HTTP requests handled.
  * cpu: statistics about CPU use. Has subkeys:
    * demod: milliseconds spent doing demodulation and decoding in response to data from a SDR dongle
    * reader: milliseconds spent reading sample data over USB from a SDR dongle
@@ -163,5 +164,14 @@ Each period has the following subkeys:
    as a new track.
    * all: total tracks created
    * single_message: tracks consisting of only a single message. These are usually due to message decoding errors that produce a bad aircraft address.
+   * unreliable: tracks that were never marked as reliable. These are also usually due to message decoding errors.
  * messages: total number of messages accepted by dump1090 from any source
  * messages_by_df: an array of integers where entry N (0..31) is the total number of messages accepted with downlink format (DF) = N.
+ * adaptive: statistics on adaptive gain. Only present if adaptive gain is enabled
+   * gain_db: latest SDR gain (legacy; prefer to use `local.gain_db` instead)
+   * dynamic_range_limit_db: latest dynamic-range-controlled upper gain limit, dB
+   * gain_changes: number of gain changes made in this stats period
+   * loud_undecoded: number of undecodable loud probably-a-valid-message bursts seen
+   * loud_decoded: number of correctly decoded mesaages with a high signal level
+   * noise_dbfs: adaptive gain noise floor estimate, dBFS
+   * gain_seconds: object, keyed by integer gain step, values are an array of [floating point gain in dB, number of seconds spent at this gain setting]

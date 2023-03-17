@@ -718,7 +718,8 @@ select.error, textarea.error, input.error {
     max-width: 800px;
     right: 5px;
     bottom: 35px;
-    background-color: transparent !important;
+    background-color: #FFFFFF;
+    border: solid medium;
 }
 
 #altitude_chart_button {

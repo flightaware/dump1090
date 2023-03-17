@@ -1,8 +1,31 @@
-dump1090-fa (8.0~dev) UNRELEASED; urgency=medium
+dump1090-fa (8.2) stable; urgency=medium
 
-  * in development
+  * No change release for 8.1
 
- -- Oliver Jowett <oliver.jowett@flightaware.com>  Thu, 09 Jun 2022 17:05:29 +0800
+ -- Eric Tran <eric.tran@flightaware.com>  Tue, 13 Dec 2022 20:06:00 -0600
+
+dump1090-fa (8.1) stable; urgency=medium
+
+  * No change release for 8.1
+
+ -- Eric Tran <eric.tran@flightaware.com>  Wed, 07 Dec 2022 19:26:00 -0600
+
+dump1090-fa (8.0) stable; urgency=medium
+
+  * dump1090: fix dropped samples stats accounting (#178 / #184)
+  * dump1090: help text updates (#199, #145)
+  * dump1090: warn about unimplemented --no-crc-check option if given (#201)
+  * dump1090: implement 'l'/'L' Beast option to request local-only data (#204)
+  * dump1090: emit receiver gain setting even when adaptive gain is off (#203)
+  * dump1090: correctly handle gain stats on SDRs that don't implement the gain interface (#206)
+  * SkyAware: remove a stray query string
+  * SkyAware: improve visibility of range rings and altitude chart on the darker map layers
+  * SkyAware: add colors to heywhatsthat.com rings (#148)
+  * SkyAware: add favicon.ico (#101)
+  * SkyAware: update Swiss flag (#175)
+  * SkyAware: update aircraft DB to 2022-09-28
+
+ -- Eric Tran <eric.tran@flightaware.com>  Tue, 06 Dec 2022 12:48:29 -0600
 
 dump1090-fa (7.2) stable; urgency=medium
 

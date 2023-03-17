@@ -111,7 +111,7 @@ static void showHelp(void) {
   "--lat <latitude>         Reference/receiver latitide for surface posn (opt)\n"
   "--lon <longitude>        Reference/receiver longitude for surface posn (opt)\n"
   "--max-range <distance>   Absolute maximum range for position decoding (in nm, default: 300)\n"
-  "--no-crc-check           Disable messages with broken CRC (discouraged)\n"
+  "--no-crc-check           Enable messages with broken CRC (discouraged)\n"
   "--fix                    Enable single-bits error correction using CRC\n"
   "                         (specify twice for two-bit error correction)\n"
   "--no-fix                 Disable error correction using CRC\n"

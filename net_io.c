@@ -159,6 +159,8 @@ struct client *createGenericClient(struct net_service *service, int fd)
     c->fd         = fd;
     c->buflen     = 0;
     c->modeac_requested = 0;
+    c->verbatim_requested = (service == Modes.beast_verbatim_service || service == Modes.beast_verbatim_local_service);
+    c->local_requested = (service == Modes.beast_verbatim_local_service);
     Modes.clients = c;
 
     moveNetClient(c, service);
@@ -293,10 +295,11 @@ void modesInitNet(void)
     s = serviceInit("Raw TCP output", &Modes.raw_out, send_raw_heartbeat, READ_MODE_IGNORE, NULL, NULL);
     serviceListen(s, Modes.net_bind_address, Modes.net_output_raw_ports);
 
-    // we maintain two output services, one producing a stream of verbatim messages, one producing a stream of cooked messages
+    // we maintain three output services for the different option setting combinations we support
     // and switch clients between them if they request a change in mode
     Modes.beast_cooked_service = serviceInit("Beast TCP output (cooked mode)", &Modes.beast_cooked_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
     Modes.beast_verbatim_service = serviceInit("Beast TCP output (verbatim mode)", &Modes.beast_verbatim_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
+    Modes.beast_verbatim_local_service = serviceInit("Beast TCP output (verbatim+local mode)", &Modes.beast_verbatim_local_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
 
     if (Modes.net_verbatim)
         serviceListen(Modes.beast_verbatim_service, Modes.net_bind_address, Modes.net_output_beast_ports);
@@ -425,13 +428,22 @@ static void completeWrite(struct net_writer *writer, void *endptr) {
 //
 // Write raw output in Beast Binary format with Timestamp to TCP clients
 //
-static void modesSendBeastVerbatimOutput(struct modesMessage *mm, struct aircraft __attribute__((unused)) *a) {
+static void modesSendBeastVerbatimOutput(struct modesMessage *mm) {
     // Don't forward mlat messages, unless --forward-mlat is set
     if (mm->source == SOURCE_MLAT && !Modes.forward_mlat)
         return;
 
     // Do verbatim output for all messages
     writeBeastMessage(&Modes.beast_verbatim_out, mm->timestampMsg, mm->signalLevel, mm->verbatim, mm->msgbits / 8);
+}
+
+static void modesSendBeastVerbatimLocalOutput(struct modesMessage *mm) {
+    // Never forward remote messages
+    if (mm->remote)
+        return;
+
+    // Do verbatim output for all messages
+    writeBeastMessage(&Modes.beast_verbatim_local_out, mm->timestampMsg, mm->signalLevel, mm->verbatim, mm->msgbits / 8);
 }
 
 static void modesSendBeastCookedOutput(struct modesMessage *mm, struct aircraft *a) {
@@ -1031,7 +1043,8 @@ void modesQueueOutput(struct modesMessage *mm, struct aircraft *a) {
     modesSendSBSOutput(mm, a);
     modesSendStratuxOutput(mm, a);
     modesSendRawOutput(mm, a);
-    modesSendBeastVerbatimOutput(mm, a);
+    modesSendBeastVerbatimOutput(mm);
+    modesSendBeastVerbatimLocalOutput(mm);
     modesSendBeastCookedOutput(mm, a);
     writeFATSVEvent(mm, a);
 }
@@ -1187,10 +1200,20 @@ static int handleFaupCommand(struct client *c, char *p) {
     return 0;
 }
 
+// Move a client to the right output service based on
+// the currently requested options
+static void handleOptionsChange(struct client *c) {
+    if (c->local_requested)
+        moveNetClient(c, Modes.beast_verbatim_local_service);
+    else if (c->verbatim_requested)
+        moveNetClient(c, Modes.beast_verbatim_service);
+    else
+        moveNetClient(c, Modes.beast_cooked_service);
+}
+
 //
-// Handle a Beast command message.
-// Currently, we just look for the Mode A/C command message
-// and ignore everything else.
+// Handle a Beast command message. Currently we support only j/J, l/L, v/V
+// and ignore other options
 //
 static int handleBeastCommand(struct client *c, char *p) {
     if (p[0] != '1') {
@@ -1208,10 +1231,20 @@ static int handleBeastCommand(struct client *c, char *p) {
         autoset_modeac();
         break;
     case 'v':
-        moveNetClient(c, Modes.beast_cooked_service);
+        c->verbatim_requested = 0;
+        handleOptionsChange(c);
         break;
     case 'V':
-        moveNetClient(c, Modes.beast_verbatim_service);
+        c->verbatim_requested = 1;
+        handleOptionsChange(c);
+        break;
+    case 'l':
+        c->local_requested = 0;
+        handleOptionsChange(c);
+        break;
+    case 'L':
+        c->local_requested = 1;
+        handleOptionsChange(c);
         break;
     }
 
@@ -1910,7 +1943,10 @@ static char * appendStatsJson(char *p,
         if (st->peak_signal_power > 0)
             p = safe_snprintf(p, end, ",\"peak_signal\":%.1f", 10 * log10(st->peak_signal_power));
 
-        p = safe_snprintf(p, end, ",\"strong_signals\":%d}", st->strong_signal_count);
+        p = safe_snprintf(p, end, ",\"strong_signals\":%d", st->strong_signal_count);
+        if (st->sdr_gain >= 0)
+            p = safe_snprintf(p, end, ",\"gain_db\":%.1f", sdrGetGainDb(st->sdr_gain));
+        p = safe_snprintf(p, end, "}");
     }
 
     if (Modes.net) {
@@ -1998,7 +2034,7 @@ static char * appendStatsJson(char *p,
                           ",\"loud_decoded\":%u"
                           ",\"noise_dbfs\":%.1f"
                           ",\"gain_seconds\":[",
-                          sdrGetGainDb(st->adaptive_gain),
+                          sdrGetGainDb(st->sdr_gain),
                           sdrGetGainDb(st->adaptive_range_gain_limit),
                           st->adaptive_gain_changes,
                           st->adaptive_loud_undecoded,

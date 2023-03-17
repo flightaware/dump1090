@@ -39,16 +39,17 @@ else
   LIMESDR ?= no
 endif
 
-HOST_UNAME := $(shell uname)
-HOST_ARCH := $(shell uname -m)
+
+BUILD_UNAME := $(shell uname)
+BUILD_ARCH := $(shell uname -m)
 
 # There is no standard for the uname's output on a Windows environment
-ifeq ($(OS),Windows_NT) 
-  HOST_UNAME := Windows
+ifeq ($(OS), Windows_NT) 
+  BUILD_UNAME := Windows
 endif
 
-UNAME ?= $(HOST_UNAME)
-ARCH ?= $(HOST_ARCH)
+UNAME ?= $(BUILD_UNAME)
+ARCH ?= $(BUILD_ARCH)
 
 ifeq ($(UNAME), Linux)
   DUMP1090_CPPFLAGS += -D_DEFAULT_SOURCE
@@ -65,6 +66,9 @@ ifeq ($(UNAME), Darwin)
   endif
   DUMP1090_CPPFLAGS += -DMISSING_NANOSLEEP
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
+  ifeq ($(PKGCONFIG), yes)
+    LIBS_SDR += $(shell pkg-config --libs-only-L libusb-1.0)
+  endif
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses
   # cpufeatures reportedly does not work (yet) on darwin arm64
@@ -96,7 +100,7 @@ ifeq ($(UNAME), NetBSD)
 endif
 
 ifeq ($(UNAME), Windows)
-  # TODO: Perhaps copy the DLL files to the output folder if the OS is Windows?
+  # TODO: Perhaps copy the DLL files to the output folder?
   CPPFLAGS += -DMISSING_TIME_R_FUNCS -DMISSING_CURSES_H_NCURSES -D_USE_MATH_DEFINES -DNCURSES_STATIC
   LIBS += -lws2_32 -lsystre
   LIBS_USB += -lusb-1.0

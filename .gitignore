@@ -18,3 +18,7 @@ oneoff/dsp_error_measurement
 oneoff/decode_comm_b
 starch-benchmark
 wisdom.local
+debian/.debhelper
+debian/dump1090-fa*
+debian/debhelper-build-stamp
+debian/files

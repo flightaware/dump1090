@@ -113,20 +113,22 @@ void display_stats(struct stats *st) {
 
         printf("  %5u messages with signal power above -3dBFS\n",
                st->strong_signal_count);
+
+        if (st->sdr_gain >= 0)
+            printf("  %4.1fdB current SDR gain\n",
+                   sdrGetGainDb(st->sdr_gain));
     }
 
     if (st->adaptive_valid) {
         printf("Adaptive gain:\n"
                "  %5u loud undecoded bursts\n"
                "  %5u loud decoded messages\n"
-               "  %5.1f dBFS current noise floor\n"
-               "  %5.1f dB current gain setting\n"
-               "  %5.1f dB current dynamic range gain upper limit\n"
+               "  %5.1f dBFS latest noise floor\n"
+               "  %5.1f dB latest dynamic range gain upper limit\n"
                "  %5u gain changes caused by adaptive gain control\n",
                st->adaptive_loud_undecoded,
                st->adaptive_loud_decoded,
                st->adaptive_noise_dbfs,
-               sdrGetGainDb(st->adaptive_gain),
                sdrGetGainDb(st->adaptive_range_gain_limit),
                st->adaptive_gain_changes);
 
@@ -301,6 +303,7 @@ static void display_range_histogram(struct stats *st)
 void reset_stats(struct stats *st) {
     static struct stats st_zero;
     *st = st_zero;
+    st->sdr_gain = -1;
 }
 
 void add_stats(const struct stats *st1, const struct stats *st2, struct stats *target) {
@@ -333,6 +336,8 @@ void add_stats(const struct stats *st1, const struct stats *st2, struct stats *t
 
     target->samples_processed = st1->samples_processed + st2->samples_processed;
     target->samples_dropped = st1->samples_dropped + st2->samples_dropped;
+
+    target->sdr_gain = newer->sdr_gain;
 
     add_timespecs(&st1->demod_cpu, &st2->demod_cpu, &target->demod_cpu);
     add_timespecs(&st1->reader_cpu, &st2->reader_cpu, &target->reader_cpu);
@@ -406,7 +411,6 @@ void add_stats(const struct stats *st1, const struct stats *st2, struct stats *t
         adaptive_best = st2;
 
     target->adaptive_valid = adaptive_best->adaptive_valid;
-    target->adaptive_gain = adaptive_best->adaptive_gain;
     for (unsigned i = 0; i < STATS_GAIN_COUNT; ++i)
         target->adaptive_gain_seconds[i] = st1->adaptive_gain_seconds[i] + st2->adaptive_gain_seconds[i];
     target->adaptive_loud_undecoded = st1->adaptive_loud_undecoded + st2->adaptive_loud_undecoded;

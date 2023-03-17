@@ -67,6 +67,9 @@ struct stats {
     uint64_t samples_processed;
     uint64_t samples_dropped;
 
+    // SDR settings:
+    int sdr_gain;  // current gain step in use
+
     // timing:
     struct timespec demod_cpu;
     struct timespec reader_cpu;
@@ -133,7 +136,6 @@ struct stats {
     // adaptive gain measurements
 #define STATS_GAIN_COUNT 64
     bool adaptive_valid;                                // is the following data valid?
-    int adaptive_gain;                                  // Current gain step in use
     uint32_t adaptive_gain_seconds[STATS_GAIN_COUNT];   // Seconds spent at each gain step
     uint32_t adaptive_loud_undecoded;                   // Total number of loud, undecoded bursts
     uint32_t adaptive_loud_decoded;                     // Total number of loud, decoded messages

@@ -112,7 +112,6 @@ static void modesInitConfig(void) {
     // Now initialise things that should not be 0/NULL to their defaults
     Modes.gain                    = MODES_DEFAULT_GAIN;
     Modes.freq                    = MODES_DEFAULT_FREQ;
-    Modes.check_crc               = 1;
     Modes.fix_df                  = 1;
     Modes.interactive_display_ttl = MODES_INTERACTIVE_DISPLAY_TTL;
     Modes.json_interval           = 1000;
@@ -136,7 +135,7 @@ static void modesInitConfig(void) {
     Modes.adaptive_burst_change_delay = 5;
     Modes.adaptive_burst_loud_runlength = 10;
     Modes.adaptive_burst_loud_rate = 5.0;
-    Modes.adaptive_burst_quiet_runlength = 10;    
+    Modes.adaptive_burst_quiet_runlength = 10;
     Modes.adaptive_burst_quiet_rate = 5.0;
 
     Modes.adaptive_range_control = false;
@@ -349,7 +348,6 @@ static void showHelp(void)
 "--no-fix                 Disable error correction using CRC\n"
 "--no-fix-df              Disable error correction of the DF message field\n"
 "                          (reduces CPU requirements)\n"
-"--no-crc-check           Disable messages with broken CRC (discouraged)\n"
 "--enable-df24            Enable decoding of DF24 Comm-D ELM messages\n"
 "--lat <latitude>         Reference/receiver latitude for surface positions\n"
 "--lon <longitude>        Reference/receiver longitude for surface positions\n"
@@ -441,6 +439,10 @@ static void showHelp(void)
 void flush_stats(uint64_t now);
 void flush_stats(uint64_t now)
 {
+    if (Modes.sdr_type != SDR_NONE) {
+        Modes.stats_current.sdr_gain = sdrGetGain();
+    }
+
     add_stats(&Modes.stats_current, &Modes.stats_periodic, &Modes.stats_periodic);
     add_stats(&Modes.stats_current, &Modes.stats_alltime, &Modes.stats_alltime);
     add_stats(&Modes.stats_current, &Modes.stats_latest, &Modes.stats_latest);
@@ -631,7 +633,7 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[j],"--no-fix-df")) {
             Modes.fix_df = 0;
         } else if (!strcmp(argv[j],"--no-crc-check")) {
-            Modes.check_crc = 0;
+            fprintf(stderr, "warning: --no-crc-check no longer supported, option ignored (please raise an issue on github if you have a usecase that needs this)\n");
         } else if (!strcmp(argv[j],"--phase-enhance")) {
             // Ignored, always enabled
         } else if (!strcmp(argv[j],"--raw")) {
@@ -769,7 +771,7 @@ int main(int argc, char **argv) {
                 fprintf(stderr,
                         "Failed to read wisdom file %s: %s\n", argv[j], strerror(errno));
                 exit(1);
-            }            
+            }
         } else if (!strcmp(argv[j], "--adaptive-min-gain") && more) {
             Modes.adaptive_min_gain_db = atof(argv[++j]);
         } else if (!strcmp(argv[j], "--adaptive-max-gain") && more) {
@@ -834,12 +836,19 @@ int main(int argc, char **argv) {
     if (!sdrOpen()) {
         exit(1);
     }
-   
+
     if (Modes.net) {
         modesInitNet();
     }
 
     // init stats:
+    reset_stats(&Modes.stats_current);
+    reset_stats(&Modes.stats_alltime);
+    reset_stats(&Modes.stats_periodic);
+    reset_stats(&Modes.stats_latest);
+    reset_stats(&Modes.stats_5min);
+    reset_stats(&Modes.stats_15min);
+
     Modes.stats_current.start = Modes.stats_current.end =
         Modes.stats_alltime.start = Modes.stats_alltime.end =
         Modes.stats_periodic.start = Modes.stats_periodic.end =
@@ -847,8 +856,10 @@ int main(int argc, char **argv) {
         Modes.stats_5min.start = Modes.stats_5min.end =
         Modes.stats_15min.start = Modes.stats_15min.end = mstime();
 
-    for (j = 0; j < 15; ++j)
+    for (j = 0; j < 15; ++j) {
+        reset_stats(&Modes.stats_1min[j]);
         Modes.stats_1min[j].start = Modes.stats_1min[j].end = Modes.stats_current.start;
+    }
 
     adaptive_init();
 

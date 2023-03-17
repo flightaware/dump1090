@@ -468,9 +468,11 @@ static void adaptive_end_of_block()
     adaptive_control_update();
 
     Modes.stats_current.adaptive_valid = true;
-    unsigned current = Modes.stats_current.adaptive_gain = sdrGetGain();
     Modes.stats_current.adaptive_range_gain_limit = adaptive_range_gain_limit;
-    ++Modes.stats_current.adaptive_gain_seconds[current < STATS_GAIN_COUNT ? current : STATS_GAIN_COUNT-1];
+
+    int current = sdrGetGain();
+    if (current >= 0)
+        ++Modes.stats_current.adaptive_gain_seconds[current < STATS_GAIN_COUNT ? current : STATS_GAIN_COUNT-1];
 }
 
 static void adaptive_control_update()
