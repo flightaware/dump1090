@@ -33,6 +33,9 @@
 #ifdef ENABLE_LIMESDR
 #  include "sdr_limesdr.h"
 #endif
+#ifdef ENABLE_UHD
+#  include "sdr_uhd.h"
+#endif
 
 typedef struct {
     const char *name;
@@ -128,7 +131,9 @@ static sdr_handler sdr_handlers[] = {
 #ifdef ENABLE_LIMESDR
     { "limesdr", SDR_LIMESDR, limesdrInitConfig, limesdrShowHelp, limesdrHandleOption, limesdrOpen, limesdrRun, noStop, limesdrClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
 #endif
-
+#ifdef ENABLE_UHD
+    { "uhd", SDR_UHD, uhdInitConfig, uhdShowHelp, uhdHandleOption, uhdOpen, uhdRun, noStop, uhdClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
+#endif
     { "none", SDR_NONE, noInitConfig, noShowHelp, noHandleOption, noOpen, noRun, noStop, noClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
     { "ifile", SDR_IFILE, ifileInitConfig, ifileShowHelp, ifileHandleOption, ifileOpen, ifileRun, noStop, ifileClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
 

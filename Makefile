@@ -31,12 +31,17 @@ ifeq ($(PKGCONFIG), yes)
   ifndef LIMESDR
     LIMESDR := $(shell pkg-config --exists LimeSuite && echo "yes" || echo "no")
   endif
+
+  ifndef UHD
+    UHD := $(shell pkg-config --exists uhd && echo "yes" || echo "no")
+  endif
 else
   # pkg-config not available. Only use explicitly enabled libraries.
   RTLSDR ?= no
   BLADERF ?= no
   HACKRF ?= no
   LIMESDR ?= no
+  UHD ?= no
 endif
 
 HOST_UNAME := $(shell uname)
@@ -155,6 +160,12 @@ ifeq ($(LIMESDR), yes)
   LIBS_SDR += $(shell pkg-config --libs LimeSuite)
 endif
 
+ifeq ($(UHD), yes)
+  SDR_OBJ += sdr_uhd.o
+  DUMP1090_CPPFLAGS += -DENABLE_UHD
+  DUMP1090_CFLAGS += $(shell pkg-config --cflags uhd)
+  LIBS_SDR += $(shell pkg-config --libs uhd)
+endif
 
 ##
 ## starch (runtime DSP code selection) mix, architecture-specific
@@ -201,6 +212,7 @@ showconfig:
 	@echo "  BladeRF support: $(BLADERF)" >&2
 	@echo "  HackRF support:  $(HACKRF)" >&2
 	@echo "  LimeSDR support: $(LIMESDR)" >&2
+	@echo "  UHD support    : $(UHD)" >&2
 
 %.o: %.c *.h
 	$(CC) $(ALL_CCFLAGS) -c $< -o $@
