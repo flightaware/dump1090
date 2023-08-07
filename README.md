@@ -16,6 +16,13 @@ it can be used to contribute crowd-sourced flight tracking data to FlightAware.
 It is designed to build as a Debian package, but should also be buildable on
 many other Linux or Unix-like systems.
 
+## Differences between the original flightaware version and this one
+This seems to be the first workinggg dump1090 version with soapySDR support!
+Since I only have a LimeSDR mini for testing, this is the only tested version at the moment. Feel free to do further tests!
+
+Tested with:
+- LimeSDR mini
+
 ## Building under bullseye, buster, or stretch
 
 ```bash
