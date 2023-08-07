@@ -323,6 +323,7 @@ static void rtlsdrCallback(unsigned char *buf, uint32_t len, void *ctx)
         return; // that wasn't useful
 
     struct mag_buf *outbuf = fifo_acquire(0 /* don't wait */);
+    printf("buffernlenght=%i\n", outbuf->totalLength);
     if (!outbuf) {
         // FIFO is full. Drop this block.
         dropped += samples_read;

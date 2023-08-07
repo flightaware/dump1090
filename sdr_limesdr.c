@@ -346,10 +346,12 @@ static void limesdrCallback(unsigned char *buf, uint32_t len, void *ctx)
     unsigned samples_read = len / LimeSDR.bytes_in_sample; // Drops any trailing odd sample, not much else we can do there
 
     struct mag_buf *outbuf = fifo_acquire(0 /* don't wait */);
+    printf("buffernlenght=%i\n", outbuf->totalLength);
     if (!outbuf) {
         // FIFO is full. Drop this block.
         dropped += samples_read;
         sampleCounter += samples_read;
+        printf("FIFO is full. Drop this block.\n");
         return;
     }
 
@@ -379,20 +381,27 @@ static void limesdrCallback(unsigned char *buf, uint32_t len, void *ctx)
         dropped = samples_read - to_convert;
     }
 
+    printf("sizeof_buf = %i\n",(int)sizeof(buf));   // 8
+    printf("samples_read=%i\n", samples_read);      // 131072
+    printf("to_convert=%i\n", to_convert);          // 131072
+    printf("outbuf->overlap = %i\n", outbuf->overlap);
+
     LimeSDR.converter(buf, &outbuf->data[outbuf->overlap], to_convert, LimeSDR.converter_state, &outbuf->mean_level, &outbuf->mean_power);
     outbuf->validLength = outbuf->overlap + to_convert;
-
+    printf("outbuf->validLength = %i\n", outbuf->validLength);
     // Push to the demodulation thread
     fifo_enqueue(outbuf);
 }
 
 void limesdrRun()
 {
+    printf("Lime running ...");
     if (!LimeSDR.dev) {
         return;
     }
-
+    //printf("MODES_MAG_BUF_SAMPLES * LimeSDR.bytes_in_sample = %i\n", MODES_MAG_BUF_SAMPLES * LimeSDR.bytes_in_sample);
     int16_t *buffer = malloc(MODES_MAG_BUF_SAMPLES * LimeSDR.bytes_in_sample);
+
     if (!buffer) {
         limesdrLogHandler(LMS_LOG_ERROR, "out of memory allocating sample buffer");
         return;

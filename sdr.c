@@ -33,6 +33,9 @@
 #ifdef ENABLE_LIMESDR
 #  include "sdr_limesdr.h"
 #endif
+#ifdef ENABLE_SOAPYSDR
+#  include "sdr_soapysdr.h"
+#endif
 
 typedef struct {
     const char *name;
@@ -128,6 +131,9 @@ static sdr_handler sdr_handlers[] = {
 #ifdef ENABLE_LIMESDR
     { "limesdr", SDR_LIMESDR, limesdrInitConfig, limesdrShowHelp, limesdrHandleOption, limesdrOpen, limesdrRun, noStop, limesdrClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
 #endif
+#ifdef ENABLE_SOAPYSDR
+    { "soapysdr", SDR_SOAPYSDR, soapysdrInitConfig, soapysdrShowHelp, soapysdrHandleOption, soapysdrOpen, soapysdrRun, soapysdrStop, soapysdrClose, soapysdrGetGain, soapysdrGetMaxGain, soapysdrGetGainDb, soapysdrSetGain },
+#endif
 
     { "none", SDR_NONE, noInitConfig, noShowHelp, noHandleOption, noOpen, noRun, noStop, noClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
     { "ifile", SDR_IFILE, ifileInitConfig, ifileShowHelp, ifileHandleOption, ifileOpen, ifileRun, noStop, ifileClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
@@ -147,7 +153,7 @@ void sdrInitConfig()
 
 void sdrShowHelp()
 {
-    printf("--device-type <type>     Select SDR type (default: %s)\n", sdr_handlers[0].name);
+    printf("--device-type <type>     Select SDR type ex. %s(default: %s)\n", sdr_handlers[4].name, sdr_handlers[0].name);
     printf("\n");
 
     for (int i = 0; sdr_handlers[i].name; ++i) {

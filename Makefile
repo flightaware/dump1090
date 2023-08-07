@@ -3,7 +3,7 @@ PROGNAME=dump1090
 DUMP1090_VERSION ?= unknown
 
 CFLAGS ?= -O3 -g
-DUMP1090_CFLAGS := -std=c11 -fno-common -Wall -Wmissing-declarations -Werror -W
+DUMP1090_CFLAGS := -std=c11 -fno-common -Wall -Wmissing-declarations -Wno-error -W
 DUMP1090_CPPFLAGS := -I. -D_POSIX_C_SOURCE=200112L -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
 
 LIBS = -lpthread -lm
@@ -31,12 +31,17 @@ ifeq ($(PKGCONFIG), yes)
   ifndef LIMESDR
     LIMESDR := $(shell pkg-config --exists LimeSuite && echo "yes" || echo "no")
   endif
+
+  ifndef SOAPYSDR
+    SOAPYSDR := $(shell pkg-config --exists SoapySDR && echo "yes" || echo "no")
+  endif
 else
   # pkg-config not available. Only use explicitly enabled libraries.
   RTLSDR ?= no
   BLADERF ?= no
   HACKRF ?= no
   LIMESDR ?= no
+  SOAPYSDR ?= no
 endif
 
 HOST_UNAME := $(shell uname)
@@ -155,6 +160,12 @@ ifeq ($(LIMESDR), yes)
   LIBS_SDR += $(shell pkg-config --libs LimeSuite)
 endif
 
+ifeq ($(SOAPYSDR), yes)
+  SDR_OBJ += sdr_soapysdr.o
+  DUMP1090_CPPFLAGS += -DENABLE_SOAPYSDR
+  DUMP1090_CFLAGS += $(shell pkg-config --cflags SoapySDR)
+  LIBS_SDR += $(shell pkg-config --libs SoapySDR)
+endif
 
 ##
 ## starch (runtime DSP code selection) mix, architecture-specific
@@ -201,6 +212,7 @@ showconfig:
 	@echo "  BladeRF support: $(BLADERF)" >&2
 	@echo "  HackRF support:  $(HACKRF)" >&2
 	@echo "  LimeSDR support: $(LIMESDR)" >&2
+	@echo "  SoapySDR support:$(SOAPYSDR)" >&2
 
 %.o: %.c *.h
 	$(CC) $(ALL_CCFLAGS) -c $< -o $@

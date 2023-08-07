@@ -284,6 +284,9 @@ static void showVersion()
 #ifdef ENABLE_LIMESDR
            "ENABLE_LIMESDR "
 #endif
+#ifdef ENABLE_SOAPYSDR
+           "ENABLE_SOAPYSDR "
+#endif
            );
     printf("-----------------------------------------------------------------------------\n");
 }
