@@ -33,6 +33,6 @@ int soapysdrGetGain();
 int soapysdrGetMaxGain();
 double soapysdrGetGainDb(int step);
 int soapysdrSetGain(int step);
-void getDeviceInfo(struct SoapySDRDevice *sdr);
+bool getDeviceInfo();
 
 #endif

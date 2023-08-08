@@ -36,37 +36,40 @@ static struct {
   SoapySDRStream *rxStream;
   char* serial;
   char* antenna;
-
   float gain;
-  float lpfbw;
   float bw;
+  float lpfbw;
+  int bytes_in_sample;
+  size_t length;
   iq_convert_fn converter;
   struct converter_state *converter_state;
-  size_t length;
-  int bytes_in_sample;
+
+
+  bool requested_dev_info;
 } SoapySDR;
 
 
 //
-// =============================== RTLSDR handling ==========================
+// =============================== SOAPYSDR handling ==========================
 //
 
 void soapysdrInitConfig()
 {
   SoapySDR.dev = NULL;
-  SoapySDR.sdrhw = "lime";
-  SoapySDR.dev = NULL;
+  SoapySDR.sdrhw = NULL;
   SoapySDR.rxStream = NULL;
   SoapySDR.serial = NULL;
-  SoapySDR.antenna = "LNAW";
+  SoapySDR.antenna = NULL;
+  SoapySDR.gain = 20.0;
   SoapySDR.length = 1024;
   SoapySDR.bw = 2400000.0;
   SoapySDR.lpfbw = 2400000.0;
 
-  SoapySDR.gain = 30.0;
-  SoapySDR.bytes_in_sample = 2 * sizeof(int16_t);
+  SoapySDR.bytes_in_sample = SoapySDR_formatToSize(SOAPY_SDR_CS16);
+  SoapySDR.length = 0;
   SoapySDR.converter = NULL;
   SoapySDR.converter_state = NULL;
+  SoapySDR.requested_dev_info = false;
 
   SoapySDR_setLogLevel(SOAPY_SDR_INFO);
   //SoapySDR_setLogLevel(SOAPY_SDR_NOTICE);
@@ -76,17 +79,18 @@ void soapysdrInitConfig()
 
 void soapysdrShowHelp()
 {
-    printf("      soapysdrShowHelp() in sdr_soapysdr.c\n");
-    printf("      soapysdr-specific options (use with --device-type soapysdr)\n");
-    printf("\n");
-    printf("--soapysdr-driver <string>\n");
-    printf("--soapysdr-serial <string>\n");
-    printf("--soapysdr-rx-antenna <string>\n");
-    printf("--soapysdr-gain <float>\n");
-    printf("--soapysdr-bw <float>\n");
-    printf("--soapysdr-lpfbw <float>\n");
-    printf("--soapysdr-dev-info\n");
-    printf("\n");
+    printf(
+        "      soapysdr-specific options (use with --device-type soapysdr)\n"
+        "\n"
+        "--soapysdr-driver <string>             Soapy driver (rtlsdr, lime, etc.)\n"
+        "--soapysdr-serial <string>             Device serial number (internally not used at the moment)\n"
+        "--soapysdr-rx-antenna <string>         Which antenna to use. Ex. LNAW for LimeSDR\n"
+        "--soapysdr-gain <float>                LNA gain; default 20.0\n"
+        "--soapysdr-bw <float>                  Bandwidth; default 2.4 Mhz\n"
+        "--soapysdr-lpfbw <float>               LowPass Filter Bandwidth; default 2.4 Mhz\n"
+        "--soapysdr-dev-info                    Get device info. Use only with --soapysdr-driver and --soapysdr-serial\n"
+        "\n"
+    );
 }
 
 bool soapysdrHandleOption(int argc, char **argv, int *jptr)
@@ -106,6 +110,8 @@ bool soapysdrHandleOption(int argc, char **argv, int *jptr)
     SoapySDR.bw = atof(argv[++j]);
   } else if (!strcmp(argv[j], "--soapysdr-lpfbw") && more) {
     SoapySDR.lpfbw = atof(argv[++j]);
+  } else if (!strcmp(argv[j], "--soapysdr-dev-info")) {
+    SoapySDR.requested_dev_info = true;
   } else {
     return false;
   }
@@ -131,14 +137,13 @@ bool soapysdrOpen(void)
     SoapySDRKwargsList_clear(results, SoapySDR.length);
 
     //create device instance
-    //args can be user defined or from the enumeration result
     
     SoapySDRKwargs args = {};
-    if (!strcmp(SoapySDR.sdrhw, "lime"))
-    {
-      SoapySDRKwargs_set(&args, "driver", "lime");
-      //SoapySDRKwargs_set(&args, "soapy", "2");
+    if (SoapySDR.sdrhw == NULL){
+        fprintf(stderr, "No driver specified! Use option --soapy-driver !\n");
+        exit(0);
     }
+    SoapySDRKwargs_set(&args, "driver", SoapySDR.sdrhw);
 
     SoapySDR.dev = SoapySDRDevice_make(&args);
     
@@ -146,44 +151,48 @@ bool soapysdrOpen(void)
 
     if(SoapySDR.dev == NULL)
     {
-        printf("SoapySDRDevice_make fail: %s\n", SoapySDRDevice_lastError());
+        fprintf(stderr, "SoapySDRDevice_make fail: %s\n", SoapySDRDevice_lastError());
         return EXIT_FAILURE;
     } else {
 
         //apply settings
-        
-        getDeviceInfo(SoapySDR.dev);
+        getDeviceInfo();
+        if (SoapySDR.requested_dev_info){
+            soapysdrClose();
+            return EXIT_SUCCESS;
+        }
+
         if (SoapySDRDevice_setFrequency(SoapySDR.dev, SOAPY_SDR_RX, 0, 1090e6, NULL) != 0)
         {
-            printf("setFrequency fail: %s\n", SoapySDRDevice_lastError());
+            fprintf(stderr, "setFrequency fail: %s\n", SoapySDRDevice_lastError());
         } else {
             printf("soapy: frequency is %.1f MHz\n", SoapySDRDevice_getFrequency(SoapySDR.dev, SOAPY_SDR_RX, 0) / 1e6);
         }
 
         if (SoapySDRDevice_setSampleRate(SoapySDR.dev, SOAPY_SDR_RX, 0, SoapySDR.bw) != 0)
         {
-            printf("setSampleRate fail: %s\n", SoapySDRDevice_lastError());
+            fprintf(stderr, "setSampleRate fail: %s\n", SoapySDRDevice_lastError());
         } else {
             printf("soapy: sample rate is %.1f MHz\n", SoapySDRDevice_getSampleRate(SoapySDR.dev, SOAPY_SDR_RX, 0) / 1e6);
         }
 
         if (SoapySDRDevice_setBandwidth(SoapySDR.dev, SOAPY_SDR_RX, 0, SoapySDR.lpfbw) != 0)
         {
-            printf("setBandwidth fail: %s\n", SoapySDRDevice_lastError());
+            fprintf(stderr, "setBandwidth fail: %s\n", SoapySDRDevice_lastError());
         } else {
             printf("soapy: lp bandwidth is %.1f MHz\n", SoapySDRDevice_getBandwidth(SoapySDR.dev, SOAPY_SDR_RX, 0) / 1e6);
         }
 
         if (SoapySDRDevice_setGain(SoapySDR.dev, SOAPY_SDR_RX, 0, SoapySDR.gain) != 0)
         {
-            printf("setGain fail: %s\n", SoapySDRDevice_lastError());
+            fprintf(stderr, "setGain fail: %s\n", SoapySDRDevice_lastError());
         } else {
             printf("soapy: gain is %.1f dB\n", SoapySDRDevice_getGain(SoapySDR.dev, SOAPY_SDR_RX, 0));
         }
 
         if (SoapySDRDevice_setAntenna(SoapySDR.dev, SOAPY_SDR_RX, 0, SoapySDR.antenna) != 0)
         {
-            printf("setAntenna fail: %s\n", SoapySDRDevice_lastError());
+            fprintf(stderr, "setAntenna fail: %s\n", SoapySDRDevice_lastError());
         } else {
             printf("soapy: antenna is %s\n", SoapySDRDevice_getAntenna(SoapySDR.dev, SOAPY_SDR_RX, 0));
         }
@@ -191,35 +200,31 @@ bool soapysdrOpen(void)
         printf("--soapy: gain mode is %d\n", SoapySDRDevice_getGainMode(SoapySDR.dev, SOAPY_SDR_RX, 0));
 
         
-        size_t channels[1] = { 0 };
+        //size_t channels[1] = { 0 };
+        size_t channels = 0;  //since we have only one channel, we don't need an array. Thus next line has &channels and not only channels
         
-        SoapySDR.rxStream = SoapySDRDevice_setupStream(SoapySDR.dev, SOAPY_SDR_RX, SOAPY_SDR_CS16, channels, 1, NULL);
+        SoapySDR.rxStream = SoapySDRDevice_setupStream(SoapySDR.dev, SOAPY_SDR_RX, SOAPY_SDR_CS16, &channels, 1, NULL);
         if (!SoapySDR.rxStream) {
-            printf("soapy: setupStream failed: %s\n", SoapySDRDevice_lastError());
+            fprintf(stderr, "soapy: setupStream failed: %s\n", SoapySDRDevice_lastError());
             goto error;
-        } else {
-            printf("soapy: streamPointer: %p\n", &SoapySDR.rxStream);
-            printf("soapy: max stream MTU is %i\n", (uint16_t)SoapySDRDevice_getStreamMTU(SoapySDR.dev, SoapySDR.rxStream));
-        }
+        } 
+
         SoapySDR.converter = init_converter(INPUT_SC16, Modes.sample_rate, Modes.dc_filter, &SoapySDR.converter_state);
 
         if (!SoapySDR.converter) {
-            printf("soapy: can't initialize sample converter\n");
+            fprintf(stderr, "soapy: Could not initialize sample converter\n");
             goto error;
         }
     return true;   
     }
 
     error:
-        printf("ERROR!!!");
         if (SoapySDR.dev != NULL) {
             SoapySDRDevice_unmake(SoapySDR.dev);
             SoapySDR.dev = NULL;
         }
 
         return false;
-    
-   
 }
 
 static void soapysdrCallback(void *buf, uint32_t len, void *ctx)
@@ -277,9 +282,7 @@ static void soapysdrCallback(void *buf, uint32_t len, void *ctx)
     
     outbuf->validLength = outbuf->overlap + to_convert;
     // Push to the demodulation thread
-    fifo_enqueue(outbuf);
-
-    
+    fifo_enqueue(outbuf);  
 }
 
 void soapysdrRun()
@@ -289,7 +292,7 @@ void soapysdrRun()
     }
 
     if (SoapySDRDevice_activateStream(SoapySDR.dev, SoapySDR.rxStream, 0, 0, 0) != 0) {
-        printf("soapy: activateStream failed: %s\n", SoapySDRDevice_lastError());
+        fprintf(stderr, "soapy: activateStream failed: %s\n", SoapySDRDevice_lastError());
         return;
     }
 
@@ -301,14 +304,13 @@ void soapysdrRun()
         long long timeNs; //timestamp for receive buffer
         int sampleCnt = SoapySDRDevice_readStream(SoapySDR.dev, SoapySDR.rxStream, buffers, MODES_MAG_BUF_SAMPLES, &flags, &timeNs, 1000000);
         if (sampleCnt < 0) {
-            printf("Stream receive error ....\n");
+            fprintf(stderr, "Stream receive error ....\n");
             break;
         }
 
         if (sampleCnt) {
             soapysdrCallback(buffer, sampleCnt * SoapySDR.bytes_in_sample, NULL);
         }
-
     }
     free(buffer);
 }
@@ -337,8 +339,8 @@ void soapysdrClose()
     if (SoapySDR.dev) {
         SoapySDRDevice_unmake(SoapySDR.dev);
         SoapySDR.dev = NULL;
+        printf("closed !\n");
     }
-    printf("closed !\n");
 }
 
 int soapysdrGetGain()
@@ -361,32 +363,31 @@ int soapysdrSetGain(int step)
   return 0;
 }
 
-void getDeviceInfo(struct SoapySDRDevice *sdr)
+bool getDeviceInfo()
 {
-    //query device info
     size_t length;
-    printf("\n");
-    char** names = SoapySDRDevice_listAntennas(sdr, SOAPY_SDR_RX, 0, &length);
-    printf("Rx antennas: ");
+    printf("\n\n");
+    char** names = SoapySDRDevice_listAntennas(SoapySDR.dev, SOAPY_SDR_RX, 0, &length);
+    printf("Rx antennas:\t");
     for (size_t i = 0; i < length; i++) printf("%s, ", names[i]);
     printf("\n");
     SoapySDRStrings_clear(&names,length);
-    
-    names = SoapySDRDevice_listGains(sdr, SOAPY_SDR_RX, 0, &length);
-    printf("Rx gains: ");
+        
+    names = SoapySDRDevice_listGains(SoapySDR.dev, SOAPY_SDR_RX, 0, &length);
+    printf("Rx gains:\t");
     for (size_t i = 0; i < length; i++) printf("%s, ", names[i]);
     printf("\n");
     SoapySDRStrings_clear(&names, length);
-    
-    SoapySDRRange *ranges = SoapySDRDevice_getFrequencyRange(sdr, SOAPY_SDR_RX, 0, &length);
-    printf("Rx freq ranges: ");
+        
+    SoapySDRRange *ranges = SoapySDRDevice_getFrequencyRange(SoapySDR.dev, SOAPY_SDR_RX, 0, &length);
+    printf("Rx freq ranges:\t");
     for(size_t i = 0; i < length; i++) printf("[%g Hz -> %g Hz], ", ranges[i].minimum, ranges[i].maximum);
     free(ranges);
     printf("\n");
-    
-    size_t num_channels = SoapySDRDevice_getNumChannels(sdr, SOAPY_SDR_RX);
-    printf("Number of channels available: %i", (int)num_channels);
-    printf("\n");
-
-    return;
+      
+    size_t num_channels = SoapySDRDevice_getNumChannels(SoapySDR.dev, SOAPY_SDR_RX);
+    printf("Channels:\t %i", (int)num_channels);
+    printf("\n\n"); 
+ 
+    return true;
 }
