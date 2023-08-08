@@ -22,6 +22,7 @@ Since I only have a LimeSDR mini for testing, this is the only tested version at
 
 Tested with:
 - LimeSDR mini
+- RTL-SDR with R820T Tuner
 
 ## Building under bullseye, buster, or stretch
 
