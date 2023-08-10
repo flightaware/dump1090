@@ -36,6 +36,9 @@
 #ifdef ENABLE_UHD
 #  include "sdr_uhd.h"
 #endif
+#ifdef ENABLE_SOAPYSDR
+#  include "sdr_soapy.h"
+#endif
 
 typedef struct {
     const char *name;
@@ -134,6 +137,10 @@ static sdr_handler sdr_handlers[] = {
 #ifdef ENABLE_UHD
     { "uhd", SDR_UHD, uhdInitConfig, uhdShowHelp, uhdHandleOption, uhdOpen, uhdRun, noStop, uhdClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
 #endif
+#ifdef ENABLE_SOAPYSDR
+    { "soapy", SDR_SOAPYSDR, soapyInitConfig, soapyShowHelp, soapyHandleOption, soapyOpen, soapyRun, noStop, soapyClose, soapyGetGain, soapyGetMaxGain, soapyGetGainDb, soapySetGain },
+#endif
+
     { "none", SDR_NONE, noInitConfig, noShowHelp, noHandleOption, noOpen, noRun, noStop, noClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
     { "ifile", SDR_IFILE, ifileInitConfig, ifileShowHelp, ifileHandleOption, ifileOpen, ifileRun, noStop, ifileClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
 
