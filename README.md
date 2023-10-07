@@ -20,6 +20,8 @@ many other Linux or Unix-like systems.
 
 ```bash
 $ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev
+$ git clone https://github.com/flightaware/dump1090.git
+$ cd dump1090
 $ ./prepare-build.sh bullseye    # or buster, or stretch
 $ cd package-bullseye            # or buster, or stretch
 $ dpkg-buildpackage -b --no-sign
