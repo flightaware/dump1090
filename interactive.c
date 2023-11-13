@@ -340,7 +340,7 @@ void interactiveShowData(void) {
             valid++;
 
             mvprintw(row, 0,
-                     "%7s %-4s  %04x  %-8s %6s %3s  %3s  %7s %8s %5s %5d %2d\n",
+                     "%7s %-4s  %04x  %-8s %6s %3s  %3s  %7s %8s %5s %5u %2u\n",
                      "",    /* address */
                      strMode, /* mode */
                      modeA, /* squawk */

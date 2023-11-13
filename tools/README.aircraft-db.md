@@ -35,7 +35,7 @@ To regenerate the json database from these input files:
 ```sh
 $ rm ../public_html/db/*.json
 $ xzcat vrs.csv.xz | nodejs ./filter-regs.js >vrs-filtered.csv
-$ xzcat flightaware-20211210.csv.xz | nodejs ./filter-regs.js >fa-filtered.csv
+$ xzcat flightaware-20231026.csv.xz | nodejs ./filter-regs.js >fa-filtered.csv
 $ ./csv-to-json.py vrs-filtered.csv fa-filtered.csv ../public_html/db
 ```
 

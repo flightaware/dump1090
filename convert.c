@@ -112,7 +112,7 @@ iq_convert_fn init_converter(input_format_t format,
     case INPUT_SC16Q11:
         return convert_sc16q11;
     default:
-        fprintf(stderr, "no suitable converter for format=%d\n", format);
+        fprintf(stderr, "no suitable converter for format=%u\n", (unsigned) format);
         return NULL;
     }
 }

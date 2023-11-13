@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 #
 # Converts a Virtual Radar Server BasicAircraftLookup.sqb database
@@ -9,10 +9,10 @@ import sqlite3, json, sys, csv
 from contextlib import closing
 
 def readcsv(name, infile, blocks):
-    print >>sys.stderr, 'Reading from', name
+    print('Reading from', name, file=sys.stderr)
 
     if len(blocks) == 0:
-        for i in xrange(16):
+        for i in range(16):
             blocks['%01X' % i] = {}
 
     ac_count = 0
@@ -35,7 +35,7 @@ def readcsv(name, infile, blocks):
             dkey = icao24[1:].upper()
             blocks[bkey].setdefault(dkey, {}).update(entry)
 
-    print >>sys.stderr, 'Read', ac_count, 'aircraft from', name
+    print ('Read', ac_count, 'aircraft from', name, file=sys.stderr)
 
 def cleandb(blocks):
     for blockdata in blocks.values():
@@ -50,7 +50,7 @@ def cleandb(blocks):
 def writedb(blocks, todir, blocklimit, debug):
     block_count = 0
 
-    print >>sys.stderr, 'Writing blocks:',
+    print('Writing blocks:', file=sys.stderr, end=' ')
 
     queue = sorted(blocks.keys())
     while queue:
@@ -59,7 +59,7 @@ def writedb(blocks, todir, blocklimit, debug):
 
         blockdata = blocks[bkey]
         if len(blockdata) > blocklimit:
-            if debug: print >>sys.stderr, 'Splitting block', bkey, 'with', len(blockdata), 'entries..',
+            if debug: print('Splitting block', bkey, 'with', len(blockdata), 'entries..', file=sys.stderr)
 
             # split all children out
             children = {}
@@ -85,7 +85,7 @@ def writedb(blocks, todir, blocklimit, debug):
                     retained += 1
                 del children[0]
 
-            if debug: print >>sys.stderr, len(children), 'children created,', len(blockdata), 'entries retained in parent'
+            if debug: print(len(children), 'children created,', len(blockdata), 'entries retained in parent', file=sys.stderr)
             children = sorted(children, key=lambda x: x[0])
             blockdata['children'] = [x[0] for x in children]
             blocks[bkey] = blockdata
@@ -94,22 +94,25 @@ def writedb(blocks, todir, blocklimit, debug):
                 queue.append(c_bkey)
 
         path = todir + '/' + bkey + '.json'
-        if debug: print >>sys.stderr, 'Writing', len(blockdata), 'entries to', path
-        else: print >>sys.stderr, bkey,
+        if debug:
+            print('Writing', len(blockdata), 'entries to', path, file=sys.stderr)
+        else:
+            print(bkey, file=sys.stderr, end=' ')
         block_count += 1
         with closing(open(path, 'w')) as f:
             json.dump(obj=blockdata, fp=f, check_circular=False, separators=(',',':'), sort_keys=True)
 
-    print >>sys.stderr, 'done.'
-    print >>sys.stderr, 'Wrote', block_count, 'blocks'
+    print ('done.', file=sys.stderr)
+    print ('Wrote', block_count, 'blocks', file=sys.stderr)
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
-        print >>sys.stderr, 'Reads a CSV file with aircraft information and produces a directory of JSON files'
-        print >>sys.stderr, 'Syntax: %s <path to CSV> [... additional CSV files ...] <path to DB dir>' % sys.argv[0]
-        print >>sys.stderr, 'Use "-" as the CSV path to read from stdin'
-        print >>sys.stderr, 'If multiple CSV files are specified and they provide conflicting data'
-        print >>sys.stderr, 'then the data from the last-listed CSV file is used'
+        print(f"""
+Reads a CSV file with aircraft information and produces a directory of JSON files.
+Syntax: {sys.argv[0]} <path to CSV> [... additional CSV files ...] <path to DB dir>
+Use "-" as the CSV path to read from stdin
+If multiple CSV files are specified and they provide conflicting data
+then the data from the last-listed CSV file is used""", file=sys.stderr)
         sys.exit(1)
 
     blocks = {}

@@ -19,6 +19,8 @@ endif
 
 ifeq ($(CPUFEATURES_ARCH),x86_64)
   CPUFEATURES_OBJS += cpu_features/src/cpuinfo_x86.o
+else ifeq ($(CPUFEATURES_ARCH),amd64)
+  CPUFEATURES_OBJS += cpu_features/src/cpuinfo_x86.o
 else ifneq (,$(filter i%86,$(CPUFEATURES_ARCH)))
   CPUFEATURES_OBJS += cpu_features/src/cpuinfo_x86.o
 else ifneq (,$(findstring aarch64,$(CPUFEATURES_ARCH)))

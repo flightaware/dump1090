@@ -20,6 +20,7 @@ ifeq (,$(filter custom,$(DEB_BUILD_PROFILES)))
   BLADERF = yes
   HACKRF = yes
   LIMESDR = yes
+  SOAPYSDR = yes
 else
   # Custom build
   ifneq (,$(filter rtlsdr,$(DEB_BUILD_PROFILES)))
@@ -42,10 +43,15 @@ else
   else
     LIMESDR = no
   endif
+  ifneq (,$(filter soapysdr,$(DEB_BUILD_PROFILES)))
+    SOAPYSDR = yes
+  else
+    SOAPYSDR = no
+  endif
 endif
 
 override_dh_auto_build:
-	dh_auto_build -- ARCH=$(DEB_HOST_ARCH) RTLSDR=$(RTLSDR) BLADERF=$(BLADERF) HACKRF=$(HACKRF) LIMESDR=$(LIMESDR) DUMP1090_VERSION=$(DEB_VERSION)
+	dh_auto_build -- ARCH=$(DEB_HOST_ARCH) RTLSDR=$(RTLSDR) BLADERF=$(BLADERF) HACKRF=$(HACKRF) LIMESDR=$(LIMESDR) SOAPYSDR=$(SOAPYSDR) DUMP1090_VERSION=$(DEB_VERSION)
 
 override_dh_install:
 	dh_install
@@ -54,10 +60,10 @@ override_dh_install:
 	cp -a view1090 debian/dump1090-fa/usr/bin/view1090-fa
 
 override_dh_installinit:
-	dh_installinit --no-stop-on-upgrade --no-restart-after-upgrade
+	dh_installinit --no-restart-after-upgrade
 
-override_dh_systemd_start:
-	dh_systemd_start --no-stop-on-upgrade --no-restart-after-upgrade --name=dump1090-fa.service
+override_dh_installsystemd:
+	dh_installsystemd --no-restart-after-upgrade
 
 %:
-	dh $@ --with=systemd
+	dh $@

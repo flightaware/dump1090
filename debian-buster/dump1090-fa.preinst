@@ -1,0 +1,7 @@
+#!/bin/sh
+set -e
+
+# Work around Debian bug #989155
+if [ "$1" = upgrade ] && [ -d /run/systemd/system ] ; then
+	deb-systemd-invoke stop 'dump1090-fa.service' >/dev/null || true
+fi

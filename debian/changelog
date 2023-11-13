@@ -1,3 +1,20 @@
+dump1090-fa (9.1~dev) UNRELEASED; urgency=medium
+
+  * in development
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Fri, 10 Nov 2023 18:04:49 +0800
+
+dump1090-fa (9.0) stable; urgency=medium
+
+  * dump1090: SoapySDR support (courtesy @bkoehm, PR #209)
+  * dump1090: fix handling of negative FMS altitudes in DO-260A messages
+  * dump1090: update aircraft DB to 2023-10-26
+  * packaging: add bookworm, arm64 support
+  * packaging: discontinue stretch support
+  * tools: update tools/csv-to-json.py for Python 3
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 06 Nov 2023 21:34:26 +0800
+
 dump1090-fa (8.2) stable; urgency=medium
 
   * No change release for 8.1

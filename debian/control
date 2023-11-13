@@ -2,11 +2,12 @@ Source: dump1090-fa
 Section: embedded
 Priority: extra
 Maintainer: Oliver Jowett <oliver.jowett@flightaware.com>
-Build-Depends: debhelper(>=10),
+Build-Depends: debhelper(>=12),
   librtlsdr-dev <!custom> <rtlsdr>,
   libbladerf-dev <!custom> <bladerf>,
   libhackrf-dev <!custom> <hackrf>,
   liblimesuite-dev <!custom> <limesdr>,
+  libsoapysdr-dev <!custom> <soapysdr>,
   libusb-1.0-0-dev <!custom> <rtlsdr> <bladerf> <hackrf> <limesdr>,
   pkg-config, libncurses5-dev
 Standards-Version: 3.9.3
@@ -15,6 +16,7 @@ Vcs-Git: https://github.com/flightaware/dump1090.git
 
 Package: dump1090-fa
 Architecture: any
+Pre-Depends: ${misc:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, lighttpd
 Description: FlightAware ADS-B Ground Station System for SDRs
  Networked Aviation Mode S / ADS-B decoder/translator with support

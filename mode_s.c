@@ -1992,7 +1992,7 @@ void displayModesMessage(struct modesMessage *mm) {
         break;
 
     default:
-        printf("DF:%u", mm->msgtype);
+        printf("DF:%d", mm->msgtype);
         break;
     }
 
@@ -2146,13 +2146,13 @@ void displayModesMessage(struct modesMessage *mm) {
         printf("  NIC-baro:      %d\n", mm->accuracy.nic_baro);
     }
     if (mm->accuracy.nac_p_valid) {
-        printf("  NACp:          %d\n", mm->accuracy.nac_p);
+        printf("  NACp:          %u\n", mm->accuracy.nac_p);
     }
     if (mm->accuracy.nac_v_valid) {
-        printf("  NACv:          %d\n", mm->accuracy.nac_v);
+        printf("  NACv:          %u\n", mm->accuracy.nac_v);
     }
     if (mm->accuracy.gva_valid) {
-        printf("  GVA:           %d\n", mm->accuracy.gva);
+        printf("  GVA:           %u\n", mm->accuracy.gva);
     }
     if (mm->accuracy.sil_type != SIL_INVALID) {
         const char *sil_description;
@@ -2170,18 +2170,18 @@ void displayModesMessage(struct modesMessage *mm) {
             sil_description = "p > 0.1%";
             break;
         }
-        printf("  SIL:           %d (%s, %s)\n",
+        printf("  SIL:           %u (%s, %s)\n",
                mm->accuracy.sil,
                sil_description,
                sil_type_to_string(mm->accuracy.sil_type));
     }
     if (mm->accuracy.sda_valid) {
-        printf("  SDA:           %d\n", mm->accuracy.sda);
+        printf("  SDA:           %u\n", mm->accuracy.sda);
     }
 
     if (mm->opstatus.valid) {
         printf("  Aircraft Operational Status:\n");
-        printf("    Version:            %d\n", mm->opstatus.version);
+        printf("    Version:            %u\n", mm->opstatus.version);
 
         printf("    Capability classes: ");
         if (mm->opstatus.cc_acas) printf("ACAS ");
@@ -2189,12 +2189,12 @@ void displayModesMessage(struct modesMessage *mm) {
         if (mm->opstatus.cc_1090_in) printf("1090IN ");
         if (mm->opstatus.cc_arv) printf("ARV ");
         if (mm->opstatus.cc_ts) printf("TS ");
-        if (mm->opstatus.cc_tc) printf("TC=%d ", mm->opstatus.cc_tc);
+        if (mm->opstatus.cc_tc) printf("TC=%u ", mm->opstatus.cc_tc);
         if (mm->opstatus.cc_uat_in) printf("UATIN ");
         if (mm->opstatus.cc_poa) printf("POA ");
         if (mm->opstatus.cc_b2_low) printf("B2-LOW ");
-        if (mm->opstatus.cc_lw_valid) printf("L/W=%d ", mm->opstatus.cc_lw);
-        if (mm->opstatus.cc_antenna_offset) printf("GPS-OFFSET=%d ", mm->opstatus.cc_antenna_offset);
+        if (mm->opstatus.cc_lw_valid) printf("L/W=%u ", mm->opstatus.cc_lw);
+        if (mm->opstatus.cc_antenna_offset) printf("GPS-OFFSET=%u ", mm->opstatus.cc_antenna_offset);
         printf("\n");
 
         printf("    Operational modes:  ");
@@ -2212,9 +2212,9 @@ void displayModesMessage(struct modesMessage *mm) {
     if (mm->nav.heading_valid)
         printf("  Selected heading:        %.1f\n", mm->nav.heading);
     if (mm->nav.fms_altitude_valid)
-        printf("  FMS selected altitude:   %u ft\n", mm->nav.fms_altitude);
+        printf("  FMS selected altitude:   %d ft\n", mm->nav.fms_altitude);
     if (mm->nav.mcp_altitude_valid)
-        printf("  MCP selected altitude:   %u ft\n", mm->nav.mcp_altitude);
+        printf("  MCP selected altitude:   %d ft\n", mm->nav.mcp_altitude);
     if (mm->nav.qnh_valid)
         printf("  QNH:                     %.1f millibars\n", mm->nav.qnh);
     if (mm->nav.altitude_source != NAV_ALT_INVALID) {

@@ -8,7 +8,6 @@ node(label: 'raspberrypi') {
         durabilityHint(hint: 'PERFORMANCE_OPTIMIZED')
     ])
 
-    def dists = ["bullseye", "buster", "stretch"]
     def srcdir = "${WORKSPACE}/src"
 
     stage('Checkout') {
@@ -19,35 +18,56 @@ node(label: 'raspberrypi') {
         }
     }
 
-    for (int i = 0; i < dists.size(); ++i) {
-        def dist = dists[i]
-        def pkgdir = "package-${dist}"
-        def results = "results-${dist}"
+    def dist_arch_list = [
+      ["bookworm", "armhf"],
+      ["bookworm", "arm64"],
+      ["bullseye", "armhf"],
+      ["bullseye", "arm64"],
+      ["buster", "armhf"]
+    ]
 
-        stage("Prepare source for ${dist}") {
-            sh "rm -fr ${pkgdir}"
-            sh "${srcdir}/prepare-build.sh ${dist} ${pkgdir}"
-        }
+    def pkgdirs = [:]
+    def resultdirs = [:]
+    for (int i = 0; i < dist_arch_list.size(); ++i) {
+        def dist_and_arch = dist_arch_list[i]
+        def dist = dist_and_arch[0]
+        def arch = dist_and_arch[1]
 
-        stage("Build for ${dist}") {
-            sh "rm -fr ${results}"
-            sh "mkdir -p ${results}"
-            dir(pkgdir) {
-                sh "DIST=${dist} BRANCH=${env.BRANCH_NAME} pdebuild --use-pdebuild-internal --debbuildopts -b --buildresult ${WORKSPACE}/${results} -- --override-config"
+        String pkgdir
+        if (pkgdirs.containsKey(dist)) {
+            pkgdir = pkgdirs[dist]
+        } else {
+            pkgdir = "pkg-${dist}"
+            stage("Prepare source for ${dist}") {
+                sh "rm -fr ${pkgdir}"
+                sh "${srcdir}/prepare-build.sh ${dist} ${pkgdir}"
             }
-            archiveArtifacts artifacts: "${results}/*.deb", fingerprint: true
+            pkgdirs[dist] = pkgdir
         }
 
-        stage("Test install on ${dist}") {
-            sh "BRANCH=${env.BRANCH_NAME} /build/pi-builder/scripts/validate-packages.sh ${dist} ${results}/dump1090-fa_*.deb"
+        def resultdir = "results-${dist}-${arch}"
+        resultdirs[dist_and_arch] = resultdir
+        stage("Build for ${dist} (${arch})") {
+            sh "rm -fr ${resultdir}"
+            sh "mkdir -p ${resultdir}"
+            dir(pkgdir) {
+                sh "DIST=${dist} BRANCH=${env.BRANCH_NAME} ARCH=${arch} pdebuild --use-pdebuild-internal --debbuildopts -b --buildresult ${WORKSPACE}/${resultdir} -- --override-config"
+            }
+            archiveArtifacts artifacts: "${resultdir}/*.deb", fingerprint: true
+        }
+
+        stage("Test install on ${dist} (${arch})") {
+            sh "BRANCH=${env.BRANCH_NAME} ARCH=${arch} /build/pi-builder/scripts/validate-packages.sh ${dist} ${resultdir}/dump1090-fa_*.deb"
         }
     }
 
     stage('Deploy to internal repository') {
-        for (int i = 0; i < dists.size(); ++i) {
-            def dist = dists[i]
-            def results = "results-${dist}"
-            sh "/build/pi-builder/scripts/deploy.sh -distribution ${dist} -branch ${env.BRANCH_NAME} ${results}/*.deb"
+        for (int i = 0; i < dist_arch_list.size(); ++i) {
+            def dist_and_arch = dist_arch_list[i]
+            def dist = dist_and_arch[0]
+            def arch = dist_and_arch[1]
+            def resultdir = resultdirs[dist_and_arch]
+            sh "/build/pi-builder/scripts/deploy.sh -distribution ${dist} -architectures ${arch} -branch ${env.BRANCH_NAME} ${resultdir}/*.deb"
         }
     }
 }

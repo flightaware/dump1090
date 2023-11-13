@@ -19,7 +19,7 @@ many other Linux or Unix-like systems.
 ## Building under bullseye, buster, or stretch
 
 ```bash
-$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev
+$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev libsoapysdr-dev
 $ ./prepare-build.sh bullseye    # or buster, or stretch
 $ cd package-bullseye            # or buster, or stretch
 $ dpkg-buildpackage -b --no-sign
@@ -35,13 +35,14 @@ limited SDR support only.
 
 Pass `--build-profiles` to `dpkg-buildpackage` with a comma-separated list of
 profiles. The list of profiles should include `custom` and zero or more of
-`rtlsdr`, `bladerf`, `hackrf`, `limesdr` depending on what you want:
+`rtlsdr`, `bladerf`, `hackrf`, `limesdr`, 'soapysdr' depending on what you want:
 
 ```bash
 $ dpkg-buildpackage -b --no-sign --build-profiles=custom,rtlsdr          # builds with rtlsdr support only
 $ dpkg-buildpackage -b --no-sign --build-profiles=custom,rtlsdr,bladerf  # builds with rtlsdr and bladeRF support
 $ dpkg-buildpackage -b --no-sign --build-profiles=custom                 # builds with _no_ SDR support (network support only)
 ```
+
 
 ## Building manually
 
@@ -61,26 +62,8 @@ libhackrf.
 ``make LIMESDR=no`` will disable LimeSDR support and remove the dependency on
 libLimeSuite.
 
-## Building on MSYS2
-1. Install PothosSDR to `C:\PothosSDR\` and install MSYS2.
-> The PothosSDR path can't have spaces in it because the MinGW gcc
-doesn't recognize Windows style paths with escaped spaces in them
-which is what the pkg-config returns.
-2. Remove the following headers `pthread.h, semaphore.h, sched.h` from `<PothosSDR root>/include`.
-> MSYS2 already has these POSIX headers and we need the compiler to use the default headers.
-
-#### Building with MinGW-w64
-```
-$ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-ncurses mingw-w64-x86_64-libsystre mingw-w64-x86_64-libusb
-$ alias make=mingw32-make
-$ PKG_CONFIG_PATH="/c/PothosSDR/lib/pkgconfig:$PKG_CONFIG_PATH" make -j$(nproc)
-```
-#### Building with Clang
-```
-$ pacman -S mingw-w64-clang-x86_64-toolchain mingw-w64-clang-x86_64-ncurses mingw-w64-clang-x86_64-libsystre mingw-w64-clang-x86_64-libusb
-$ alias make=mingw32-make
-$ PKG_CONFIG_PATH="/c/PothosSDR/lib/pkgconfig:$PKG_CONFIG_PATH" make -j$(nproc)
-```
+``make SOAPYSDR=no`` will disable SoapySDR support and remove the dependency on
+libSoapySDR.
 
 ## Building on OSX
 
@@ -105,6 +88,28 @@ Minimal testing on 12.1-RELEASE, YMMV.
 # pkg install bladerf
 # pkg install hackrf
 $ gmake
+```
+
+## Building on MSYS2
+
+1. Install PothosSDR to `C:\PothosSDR\` and install MSYS2.
+> The PothosSDR path can't have spaces in it because the MinGW gcc
+doesn't recognize Windows style paths with escaped spaces in them
+which is what the pkg-config returns.
+2. Remove the following headers `pthread.h, semaphore.h, sched.h` from `<PothosSDR root>/include`.
+> MSYS2 already has these POSIX headers and we need the compiler to use the default headers.
+
+#### Building with MinGW-w64
+```
+$ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-ncurses mingw-w64-x86_64-libsystre mingw-w64-x86_64-libusb
+$ alias make=mingw32-make
+$ PKG_CONFIG_PATH="/c/PothosSDR/lib/pkgconfig:$PKG_CONFIG_PATH" make -j$(nproc)
+```
+#### Building with Clang
+```
+$ pacman -S mingw-w64-clang-x86_64-toolchain mingw-w64-clang-x86_64-ncurses mingw-w64-clang-x86_64-libsystre mingw-w64-clang-x86_64-libusb
+$ alias make=mingw32-make
+$ PKG_CONFIG_PATH="/c/PothosSDR/lib/pkgconfig:$PKG_CONFIG_PATH" make -j$(nproc)
 ```
 
 ## Generating wisdom files

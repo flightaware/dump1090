@@ -872,10 +872,10 @@ static void modesSendStratuxOutput(struct modesMessage *mm, struct aircraft *a) 
         is_mlat_str = "true";
 
     p = safe_snprintf(p, end,
-            "{\"Icao_addr\":%d,"
+            "{\"Icao_addr\":%u,"
             "\"DF\":%d,\"CA\":%d,"
-            "\"TypeCode\":%d,"
-            "\"SubtypeCode\":%d,"
+            "\"TypeCode\":%u,"
+            "\"SubtypeCode\":%u,"
             "\"SignalLevel\":%f,"
             "\"Gain\":%f,"
             "\"IsMlat\":%s,",
@@ -970,7 +970,7 @@ static void modesSendStratuxOutput(struct modesMessage *mm, struct aircraft *a) 
 
     // navigation accuracy category - position
     if (mm->accuracy.nac_p_valid) {
-        p = safe_snprintf(p, end, "\"NACp\":%d,", mm->accuracy.nac_p);
+        p = safe_snprintf(p, end, "\"NACp\":%u,", mm->accuracy.nac_p);
     } else {
         p = safe_snprintf(p, end, "\"NACp\":null,");
     }
@@ -1003,7 +1003,7 @@ static void modesSendStratuxOutput(struct modesMessage *mm, struct aircraft *a) 
     struct tm stTime_receive;
     time_t received = (time_t) (mm->sysTimestampMsg / 1000);
     gmtime_r(&received, &stTime_receive);
-    p = safe_snprintf(p, end, "\"Timestamp\":\"%04d-%02d-%02dT%02d:%02d:%02d.%03dZ\"",
+    p = safe_snprintf(p, end, "\"Timestamp\":\"%04d-%02d-%02dT%02d:%02d:%02d.%03uZ\"",
             (stTime_receive.tm_year+1900),(stTime_receive.tm_mon+1),
             stTime_receive.tm_mday, stTime_receive.tm_hour,
             stTime_receive.tm_min, stTime_receive.tm_sec,
@@ -1845,7 +1845,7 @@ char *generateAircraftJson(const char *url_path, int *len) {
         if (a->adsb_version >= 0)
             p = safe_snprintf(p, end, ",\"version\":%d", a->adsb_version);
         if (trackDataValid(&a->nic_baro_valid))
-            p = safe_snprintf(p, end, ",\"nic_baro\":%u", a->nic_baro);
+            p = safe_snprintf(p, end, ",\"nic_baro\":%u", (unsigned) a->nic_baro);
         if (trackDataValid(&a->nac_p_valid))
             p = safe_snprintf(p, end, ",\"nac_p\":%u", a->nac_p);
         if (trackDataValid(&a->nac_v_valid))
@@ -1943,7 +1943,7 @@ static char * appendStatsJson(char *p,
         if (st->peak_signal_power > 0)
             p = safe_snprintf(p, end, ",\"peak_signal\":%.1f", 10 * log10(st->peak_signal_power));
 
-        p = safe_snprintf(p, end, ",\"strong_signals\":%d", st->strong_signal_count);
+        p = safe_snprintf(p, end, ",\"strong_signals\":%u", st->strong_signal_count);
         if (st->sdr_gain >= 0)
             p = safe_snprintf(p, end, ",\"gain_db\":%.1f", sdrGetGainDb(st->sdr_gain));
         p = safe_snprintf(p, end, "}");
@@ -2757,8 +2757,8 @@ static void writeFATSV()
             (trackDataValid(&a->mach_valid) && fabs(a->mach - a->fatsv_emitted_mach) >= 0.02);
 
         int immediate =
-            (trackDataValid(&a->nav_altitude_mcp_valid) && unsigned_difference(a->nav_altitude_mcp, a->fatsv_emitted_nav_altitude_mcp) > 50) ||
-            (trackDataValid(&a->nav_altitude_fms_valid) && unsigned_difference(a->nav_altitude_fms, a->fatsv_emitted_nav_altitude_fms) > 50) ||
+            (trackDataValid(&a->nav_altitude_mcp_valid) && abs(a->nav_altitude_mcp - a->fatsv_emitted_nav_altitude_mcp) > 50) ||
+            (trackDataValid(&a->nav_altitude_fms_valid) && abs(a->nav_altitude_fms - a->fatsv_emitted_nav_altitude_fms) > 50) ||
             (trackDataValid(&a->nav_altitude_src_valid) && a->nav_altitude_src != a->fatsv_emitted_nav_altitude_src) ||
             (trackDataValid(&a->nav_heading_valid) && heading_difference(a->nav_heading, a->fatsv_emitted_nav_heading) > 2) ||
             (trackDataValid(&a->nav_modes_valid) && a->nav_modes != a->fatsv_emitted_nav_modes) ||
@@ -2839,7 +2839,7 @@ static void writeFATSV()
             p = appendFATSVMeta(p, end, "sil_type",    a, &a->sil_valid,           "%s",       sil_type_enum_string(a->sil_type));
         }
         if (trackDataValid(&a->nic_baro_valid) && (forceEmit || a->nic_baro != a->fatsv_emitted_nic_baro)) {
-            p = appendFATSVMeta(p, end, "nic_baro",    a, &a->nic_baro_valid,      "%u",       a->nic_baro);
+            p = appendFATSVMeta(p, end, "nic_baro",    a, &a->nic_baro_valid,      "%u",       (unsigned) a->nic_baro);
         }
 
         // only emit alt, speed, latlon, track etc if they have been received since the last time
@@ -2872,8 +2872,8 @@ static void writeFATSV()
         p = appendFATSVMeta(p, end, "roll",        a, &a->roll_valid,           "%.1f", a->roll);
         p = appendFATSVMeta(p, end, "heading_magnetic", a, &a->mag_heading_valid, "%.1f", a->mag_heading);
         p = appendFATSVMeta(p, end, "heading_true", a, &a->true_heading_valid,    "%.1f", a->true_heading);
-        p = appendFATSVMeta(p, end, "nav_alt_mcp", a, &a->nav_altitude_mcp_valid, "%u",   a->nav_altitude_mcp);
-        p = appendFATSVMeta(p, end, "nav_alt_fms", a, &a->nav_altitude_fms_valid, "%u",   a->nav_altitude_fms);
+        p = appendFATSVMeta(p, end, "nav_alt_mcp", a, &a->nav_altitude_mcp_valid, "%d",   a->nav_altitude_mcp);
+        p = appendFATSVMeta(p, end, "nav_alt_fms", a, &a->nav_altitude_fms_valid, "%d",   a->nav_altitude_fms);
         p = appendFATSVMeta(p, end, "nav_alt_src", a, &a->nav_altitude_src_valid, "%s", nav_altitude_source_enum_string(a->nav_altitude_src));
         p = appendFATSVMeta(p, end, "nav_heading", a, &a->nav_heading_valid,    "%.1f", a->nav_heading);
         p = appendFATSVMeta(p, end, "nav_modes",   a, &a->nav_modes_valid,      "{%s}", nav_modes_flags_string(a->nav_modes));

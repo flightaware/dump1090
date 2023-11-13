@@ -306,7 +306,7 @@ typedef enum {
 //======================== structure declarations =========================
 
 typedef enum {
-    SDR_NONE, SDR_IFILE, SDR_RTLSDR, SDR_BLADERF, SDR_HACKRF, SDR_LIMESDR
+    SDR_NONE, SDR_IFILE, SDR_RTLSDR, SDR_BLADERF, SDR_HACKRF, SDR_LIMESDR, SDR_SOAPYSDR
 } sdr_type_t;
 
 // Program global state
@@ -585,21 +585,20 @@ struct modesMessage {
         unsigned nic_c : 1;        // if nic_c_valid
         unsigned nic_baro : 1;     // if nic_baro_valid
 
-        unsigned nac_p : 4;        // if nac_p_valid
-        unsigned nac_v : 3;        // if nac_v_valid
+        unsigned nac_p;        // if nac_p_valid
+        unsigned nac_v;        // if nac_v_valid
 
-        unsigned sil : 2;          // if sil_type != SIL_INVALID
+        unsigned sil;          // if sil_type != SIL_INVALID
         sil_type_t sil_type;
 
-        unsigned gva : 2;          // if gva_valid
-
-        unsigned sda : 2;          // if sda_valid
+        unsigned gva;          // if gva_valid
+        unsigned sda;          // if sda_valid
     } accuracy;
 
     // Operational Status
     struct {
         unsigned valid : 1;
-        unsigned version : 3;
+        unsigned version;
 
         unsigned om_acas_ra : 1;
         unsigned om_ident : 1;
@@ -611,7 +610,7 @@ struct modesMessage {
         unsigned cc_1090_in : 1;
         unsigned cc_arv : 1;
         unsigned cc_ts : 1;
-        unsigned cc_tc : 2;
+        unsigned cc_tc;
         unsigned cc_uat_in : 1;
         unsigned cc_poa : 1;
         unsigned cc_b2_low : 1;
@@ -636,8 +635,8 @@ struct modesMessage {
 
         float    heading;       // heading, degrees (0-359) (could be magnetic or true heading; magnetic recommended)
         heading_type_t heading_type;
-        unsigned fms_altitude;  // FMS selected altitude
-        unsigned mcp_altitude;  // MCP/FCU selected altitude
+        int      fms_altitude;  // FMS selected altitude
+        int      mcp_altitude;  // MCP/FCU selected altitude
         float    qnh;           // altimeter setting (QFE or QNH/QNE), millibars
 
         nav_altitude_source_t altitude_source;

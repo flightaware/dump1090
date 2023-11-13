@@ -33,6 +33,9 @@
 #ifdef ENABLE_LIMESDR
 #  include "sdr_limesdr.h"
 #endif
+#ifdef ENABLE_SOAPYSDR
+#  include "sdr_soapy.h"
+#endif
 
 typedef struct {
     const char *name;
@@ -128,6 +131,9 @@ static sdr_handler sdr_handlers[] = {
 #ifdef ENABLE_LIMESDR
     { "limesdr", SDR_LIMESDR, limesdrInitConfig, limesdrShowHelp, limesdrHandleOption, limesdrOpen, limesdrRun, noStop, limesdrClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
 #endif
+#ifdef ENABLE_SOAPYSDR
+    { "soapy", SDR_SOAPYSDR, soapyInitConfig, soapyShowHelp, soapyHandleOption, soapyOpen, soapyRun, noStop, soapyClose, soapyGetGain, soapyGetMaxGain, soapyGetGainDb, soapySetGain },
+#endif
 
     { "none", SDR_NONE, noInitConfig, noShowHelp, noHandleOption, noOpen, noRun, noStop, noClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
     { "ifile", SDR_IFILE, ifileInitConfig, ifileShowHelp, ifileHandleOption, ifileOpen, ifileRun, noStop, ifileClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
@@ -179,12 +185,12 @@ bool sdrHandleOption(int argc, char **argv, int *jptr)
         return false;
     }
 
+    bool handled = false;
     for (int i = 0; sdr_handlers[i].name; ++i) {
-        if (sdr_handlers[i].handleOption(argc, argv, jptr))
-            return true;
+        handled = sdr_handlers[i].handleOption(argc, argv, jptr) || handled;
     }
 
-    return false;
+    return handled;
 }
 
 static sdr_handler *current_handler()

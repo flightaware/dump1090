@@ -38,17 +38,17 @@ cp -a $TOP/debian $OUT
 [ -d $TOP/debian-$DIST ] && cp -a $TOP/debian-$DIST/* $OUT/debian/
 
 case "$DIST" in
-    stretch)
-        echo "Updating changelog for stretch backport build" >&2
-        dch --changelog $OUT/debian/changelog --local ~bpo9+ --force-distribution --distribution stretch-backports "Automated backport build for jessie"
-        ;;
-
     buster)
         echo "Updating changelog for buster backport build" >&2
         dch --changelog $OUT/debian/changelog --local ~bpo10+ --force-distribution --distribution buster-backports "Automated backport build for buster"
         ;;
 
     bullseye)
+        echo "Updating changelog for bullseye backport build" >&2
+        dch --changelog $OUT/debian/changelog --local ~bpo11+ --force-distribution --distribution bullseye-backports "Automated backport build for bullseye"
+        ;;
+
+    bookworm)
         ;;
 
     *)

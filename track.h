@@ -167,10 +167,10 @@ struct aircraft {
     float         nav_qnh;        // Altimeter setting (QNH/QFE), millibars
 
     data_validity nav_altitude_mcp_valid;
-    unsigned      nav_altitude_mcp;    // FCU/MCP selected altitude
+    int           nav_altitude_mcp;    // FCU/MCP selected altitude
 
     data_validity nav_altitude_fms_valid;
-    unsigned      nav_altitude_fms;    // FMS selected altitude
+    int           nav_altitude_fms;    // FMS selected altitude
 
     data_validity nav_altitude_src_valid;
     nav_altitude_source_t nav_altitude_src;  // source of altitude used by automation
@@ -216,15 +216,15 @@ struct aircraft {
     data_validity gva_valid;
     data_validity sda_valid;
 
-    unsigned      nic_a : 1;      // NIC supplement A from opstatus
-    unsigned      nic_c : 1;      // NIC supplement C from opstatus
-    unsigned      nic_baro : 1;   // NIC baro supplement from TSS or opstatus
-    unsigned      nac_p : 4;      // NACp from TSS or opstatus
-    unsigned      nac_v : 3;      // NACv from airborne velocity or opstatus
-    unsigned      sil : 2;        // SIL from TSS or opstatus
-    sil_type_t    sil_type;       // SIL supplement from TSS or opstatus
-    unsigned      gva : 2;        // GVA from opstatus
-    unsigned      sda : 2;        // SDA from opstatus
+    unsigned      nic_a : 1;     // NIC supplement A from opstatus
+    unsigned      nic_c : 1;     // NIC supplement C from opstatus
+    unsigned      nic_baro : 1;  // NIC baro supplement from TSS or opstatus
+    unsigned      nac_p;         // NACp from TSS or opstatus
+    unsigned      nac_v;         // NACv from airborne velocity or opstatus
+    unsigned      sil;           // SIL from TSS or opstatus
+    sil_type_t    sil_type;      // SIL supplement from TSS or opstatus
+    unsigned      gva;           // GVA from opstatus
+    unsigned      sda;           // SDA from opstatus
 
     // data extracted from MRAR
     data_validity mrar_source_valid;
@@ -259,9 +259,9 @@ struct aircraft {
     unsigned      fatsv_emitted_tas;              //      -"-         TAS
     float         fatsv_emitted_mach;             //      -"-         Mach number
     airground_t   fatsv_emitted_airground;        //      -"-         air/ground state
-    unsigned      fatsv_emitted_nav_altitude_mcp; //      -"-         MCP altitude
-    unsigned      fatsv_emitted_nav_altitude_fms; //      -"-         FMS altitude
-    unsigned      fatsv_emitted_nav_altitude_src; //      -"-         automation altitude source
+    int           fatsv_emitted_nav_altitude_mcp; //      -"-         MCP altitude
+    int           fatsv_emitted_nav_altitude_fms; //      -"-         FMS altitude
+    nav_altitude_source_t fatsv_emitted_nav_altitude_src; // -"-      automation altitude source
     float         fatsv_emitted_nav_heading;      //      -"-         target heading
     nav_modes_t   fatsv_emitted_nav_modes;        //      -"-         enabled navigation modes
     float         fatsv_emitted_nav_qnh;          //      -"-         altimeter setting
