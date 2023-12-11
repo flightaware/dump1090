@@ -7,6 +7,7 @@ Build-Depends: debhelper(>=10),
   libbladerf-dev <!custom> <bladerf>,
   libhackrf-dev <!custom> <hackrf>,
   liblimesuite-dev <!custom> <limesdr>,
+  libsoapysdr-dev <!custom> <soapysdr>,
   libusb-1.0-0-dev <!custom> <rtlsdr> <bladerf> <hackrf> <limesdr>,
   pkg-config, libncurses5-dev
 Standards-Version: 3.9.3

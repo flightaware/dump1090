@@ -603,7 +603,7 @@ static void adaptive_control_update()
             // Do this even if we're waiting to rescan or if burst control is also active
             if (available_range + adaptive_gain_down_db / 2 < Modes.adaptive_range_target && sdrGetGain() > adaptive_gain_min) {
                 fprintf(stderr, "adaptive: available dynamic range (%.1fdB) + half gain step down (%.1fdB) < required dynamic range (%.1fdB), starting downward scan\n",
-                        available_range, Modes.adaptive_range_target, adaptive_gain_down_db);
+                        available_range, adaptive_gain_down_db / 2, Modes.adaptive_range_target);
                 if (adaptive_range_gain_limit >= current_gain) {
                     adaptive_range_gain_limit = current_gain - 1;
                 }

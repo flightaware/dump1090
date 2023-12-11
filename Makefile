@@ -35,6 +35,10 @@ ifeq ($(PKGCONFIG), yes)
   ifndef UHD
     UHD := $(shell pkg-config --exists uhd && echo "yes" || echo "no")
   endif
+  
+  ifndef SOAPYSDR
+    SOAPYSDR := $(shell pkg-config --exists SoapySDR && echo "yes" || echo "no")
+  endif
 else
   # pkg-config not available. Only use explicitly enabled libraries.
   RTLSDR ?= no
@@ -42,13 +46,14 @@ else
   HACKRF ?= no
   LIMESDR ?= no
   UHD ?= no
+  SOAPYSDR ?= no
 endif
 
-HOST_UNAME := $(shell uname)
-HOST_ARCH := $(shell uname -m)
+BUILD_UNAME := $(shell uname)
+BUILD_ARCH := $(shell uname -m)
 
-UNAME ?= $(HOST_UNAME)
-ARCH ?= $(HOST_ARCH)
+UNAME ?= $(BUILD_UNAME)
+ARCH ?= $(BUILD_ARCH)
 
 ifeq ($(UNAME), Linux)
   DUMP1090_CPPFLAGS += -D_DEFAULT_SOURCE
@@ -167,6 +172,13 @@ ifeq ($(UHD), yes)
   LIBS_SDR += $(shell pkg-config --libs uhd)
 endif
 
+ifeq ($(SOAPYSDR), yes)
+  SDR_OBJ += sdr_soapy.o
+  DUMP1090_CPPFLAGS += -DENABLE_SOAPYSDR
+  DUMP1090_CFLAGS += $(shell pkg-config --cflags SoapySDR)
+  LIBS_SDR += $(shell pkg-config --libs SoapySDR)
+endif
+
 ##
 ## starch (runtime DSP code selection) mix, architecture-specific
 ##
@@ -178,6 +190,10 @@ ifneq ($(CPUFEATURES),yes)
 else
   ifeq ($(ARCH),x86_64)
     # AVX, AVX2
+    STARCH_MIX := x86
+    DUMP1090_CPPFLAGS += -DSTARCH_MIX_X86
+  else ifeq ($(ARCH),amd64)
+    # this is the Debian naming of x86_64
     STARCH_MIX := x86
     DUMP1090_CPPFLAGS += -DSTARCH_MIX_X86
   else ifeq ($(findstring aarch,$(ARCH)),aarch)
@@ -213,6 +229,7 @@ showconfig:
 	@echo "  HackRF support:  $(HACKRF)" >&2
 	@echo "  LimeSDR support: $(LIMESDR)" >&2
 	@echo "  UHD support    : $(UHD)" >&2
+	@echo "  SoapySDR support: $(SOAPYSDR)" >&2
 
 %.o: %.c *.h
 	$(CC) $(ALL_CCFLAGS) -c $< -o $@

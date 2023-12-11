@@ -13,26 +13,22 @@ CPUFEATURES_EXTRA_CPPFLAGS := -DSTACK_LINE_READER_BUFFER_SIZE=1024 -DNDEBUG -Icp
 ifeq ($(CPUFEATURES_UNAME),Linux)
   CPUFEATURES_OBJS += cpu_features/src/hwcaps.o
   CPUFEATURES_EXTRA_CPPFLAGS += -DHAVE_STRONG_GETAUXVAL
-endif
-
-ifeq ($(CPUFEATURES_UNAME),Darwin)
+else ifeq ($(CPUFEATURES_UNAME),Darwin)
   CPUFEATURES_EXTRA_CPPFLAGS += -DHAVE_SYSCTLBYNAME
 endif
 
 ifeq ($(CPUFEATURES_ARCH),x86_64)
   CPUFEATURES_OBJS += cpu_features/src/cpuinfo_x86.o
-endif
-
-ifneq (,$(filter i%86,$(CPUFEATURES_ARCH)))
+else ifeq ($(CPUFEATURES_ARCH),amd64)
   CPUFEATURES_OBJS += cpu_features/src/cpuinfo_x86.o
-endif
-
-ifneq (,$(findstring arm,$(CPUFEATURES_ARCH)))
-  CPUFEATURES_OBJS += cpu_features/src/cpuinfo_arm.o
-endif
-
-ifneq (,$(findstring aarch64,$(CPUFEATURES_ARCH)))
+else ifneq (,$(filter i%86,$(CPUFEATURES_ARCH)))
+  CPUFEATURES_OBJS += cpu_features/src/cpuinfo_x86.o
+else ifneq (,$(findstring aarch64,$(CPUFEATURES_ARCH)))
   CPUFEATURES_OBJS += cpu_features/src/cpuinfo_aarch64.o
+else ifneq (,$(findstring arm64,$(CPUFEATURES_ARCH)))
+  CPUFEATURES_OBJS += cpu_features/src/cpuinfo_aarch64.o
+else ifneq (,$(findstring arm,$(CPUFEATURES_ARCH)))
+  CPUFEATURES_OBJS += cpu_features/src/cpuinfo_arm.o
 endif
 
 $(CPUFEATURES_OBJS): override ALL_CCFLAGS := $(CPUFEATURES_CPPFLAGS) $(CPUFEATURES_EXTRA_CPPFLAGS) $(CPUFEATURES_CFLAGS) $(CPUFEATURES_EXTRA_CFLAGS)
