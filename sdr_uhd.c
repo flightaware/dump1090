@@ -143,7 +143,7 @@ bool uhdOpen() {
     if (Modes.gain != MODES_DEFAULT_GAIN) {
 	fprintf(stderr, "setting rx gain to %f\n", Modes.gain);
 	uhd_error = uhd_usrp_set_rx_gain(*uhd.usrp, Modes.gain, uhd.channel, "");
-	if (!uhd_error) {
+	if (uhd_error) {
 	    fprintf(stderr, "uhd_usrp_set_rx_gain() failed: %x", uhd_error);
 	    goto failed;
 	}
