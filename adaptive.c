@@ -195,7 +195,7 @@ void adaptive_init()
     adaptive_burst_window_remaining = adaptive_samples_per_window;
     adaptive_burst_window_counter = 0;
 
-    adaptive_range_radix = calloc(sizeof(unsigned), 65536);
+    adaptive_range_radix = calloc(65536, sizeof(unsigned));
     adaptive_range_state = RANGE_RESCAN_UP;
 
     // select and enforce gain limits
