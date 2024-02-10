@@ -1068,3 +1068,19 @@ input.error {
 .ui-resizable {
     min-width: 400px;
 }
+
+@media (max-width: 1024px) {
+    #sidebar_container {
+        width: 50%;
+    }
+}
+
+@media (max-width: 800px) {
+    #layout_container {
+        flex-direction: column;
+    }
+
+    #sidebar_container {
+        width: 100%;
+    }
+}
