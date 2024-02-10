@@ -2,6 +2,7 @@
 <html>
 	<head>
 		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="stylesheet" type="text/css" href="style.css?v=8.0" />
 		<link rel="stylesheet" href="jquery/jquery-ui-1.11.4-smoothness.css" />
 		<link rel="icon" href="favicon.ico" />
@@ -66,8 +67,8 @@
 		</div>
 
 		<div id="layout_container">
-			
-			
+
+
 
 			<div id="highlighted_infoblock">
 				<div class="highlightedTitle">
@@ -195,8 +196,8 @@
 			<div id="sidebar_container">
 				<div id="splitter" class="ui-resizable-handle ui-resizable-w"></div>
 					<div id="sidebar_canvas">
-							
-							
+
+
 					<div id="sidebar-table">
 							<div id="dump1090_infoblock">
 									<table style="width: 100%">
@@ -215,7 +216,7 @@
 											<td><span class="infoBlockTitleText">Total Aircraft:</span> <span id="dump1090_total_ac">n/a</span></td>
 											<td id="adsb_message_rate_row"><span class="infoBlockTitleText">ADS-B Message Rate:</span> <span id="dump1090_message_rate">n/a</span></td>
 										</tr>
-			
+
 										<tr class="infoblock_body">
 											<td><span class="infoBlockTitleText">With Positions:</span> <span id="dump1090_total_ac_positions">n/a</span></td>
 											<td id="uat_message_rate_row"><span class="infoBlockTitleText">UAT Message Rate:</span> <span id="uat_message_rate">n/a</span></td>
@@ -435,12 +436,12 @@
 					</div>
 
 
-					
-				</div> <!-- sidebar_canvas -->	
-				
+
+				</div> <!-- sidebar_canvas -->
+
 
 					<div id="selected_infoblock" class="hidden">
-							
+
 							<div id="splitter-infoblock" class="ui-resizable-handle ui-resizable-n"></div>
 							<div id="close-button">Close</div>
 							<div class="infoblock-container">
@@ -449,7 +450,7 @@
 								<span class="identLarge" title="Typically the air traffic control callsign or the aircraft's registration, as entered into the transponder by the pilot."><span id="selected_callsign">n/a</span></span>
 								<span class="identSmall" title="The aircraft's unique ICAO identification number shown in hexadecimal format."><span id="selected_icao">n/a</span></span>
 							</div>
-						
+
 								<div class="infoBlockTopSection">
 									<span id="selected_flightaware_link" class=""></span>
 									<div class="infoRow removePadding">
@@ -804,7 +805,7 @@
 											<span id="selected_rc">n/a</span>
 										</div>
 									</div>
-								
+
 
 							</div>
 
@@ -814,18 +815,18 @@
 
 							<div class="bottom-container">
 								<div class="selected_airframe">
-									<a href="http://www.airframes.org/" onclick="document.getElementById('horrible_hack').submit.call(document.getElementById('airframes_post')); return false;">	
-										airframes.org	
+									<a href="http://www.airframes.org/" onclick="document.getElementById('horrible_hack').submit.call(document.getElementById('airframes_post')); return false;">
+										airframes.org
 									</a>
 								</div>
 							</div>
-							
+
 							</div>
 						</div> <!-- selected_infoblock -->
 
-					
 
-				
+
+
 			</div> <!-- sidebar_container -->
 		</div> <!-- layout_container -->
 
