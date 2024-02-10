@@ -448,12 +448,9 @@ input.error {
     font-weight: bold;
     font-size: 14px;
     line-height: 18px;
-    color: #ffffff;
-    color: rgb(255, 255, 255);
-    line-height: 60px;
+    color: white;
     text-align: right;
     display: inline-block;
-    padding-right: 20px;
 }
 
 .infoHeading {
@@ -566,8 +563,16 @@ input.error {
     flex: 1;
 }
 
-.buttonContainer {
+.menuContainer {
+    display: flex;
+    align-items: center;
+    gap: 1em;
     margin-left: auto;
+    margin-right: 2em;
+}
+
+.buttonContainer {
+    gap: 1em;
 }
 
 .buttonText {
@@ -600,20 +605,18 @@ input.error {
     color: #00a0e2;
 }
 
-.buttonHeader {
-    margin-top: 15px;
-}
-
 .buttonTable {
     margin-bottom: 5px;
 }
 
 .settingsContainer {
-    padding-right: 60px;
-    padding-left: 2px;
-    margin-top: 18px;
-    margin-left: auto;
+    display: flex;
+    align-items: center;
     cursor: pointer;
+}
+
+.settingsContainer .buttonText {
+    display: none;
 }
 
 #highlighted_infoblock {
