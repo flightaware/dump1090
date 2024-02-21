@@ -1292,11 +1292,34 @@ label.sourceCheckboxChecked div.sourceCheckbox {
 }
 
 @media (max-width: 800px) {
+    html,
+    body {
+        overflow: auto;
+        height: auto;
+    }
+
     #layout_container {
         flex-direction: column;
     }
 
+    #map_container {
+        width: 100vw;
+        height: calc(90vw - 60px);
+    }
+
     #sidebar_container {
         width: 100%;
+    }
+
+    #altitude_chart {
+        width: auto;
+        left: 5px;
+    }
+}
+
+@media (max-width: 800px) and (orientation: landscape) {
+    #map_container {
+        width: 100vw;
+        height: calc(90vh - 60px);
     }
 }
