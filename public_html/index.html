@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="stylesheet" type="text/css" href="style.css?v=8.0" />
+		<link rel="stylesheet" type="text/css" href="style.css?v=9.0" />
 		<link rel="stylesheet" href="jquery/jquery-ui-1.11.4-smoothness.css" />
 		<link rel="icon" href="favicon.ico" />
 		<script src="jquery/jquery-3.0.0.min.js"></script>
@@ -71,6 +71,8 @@
 					<img src="images/settings-icon.png" id="settingsCog" srcset="images/settings-icon.png 1x, images/settings-icon@2x.png 2x, images/settings-icon@3x.png 3x">
 					<span class="buttonText">Settings</span>
 				</div>
+
+				<button type="button" class="navToggle" onclick="() => $('body').toggleClass('navOpen')"><span></span></button>
 			</div>
 		</div>
 
@@ -204,36 +206,50 @@
 			<div id="sidebar_container">
 				<div id="splitter" class="ui-resizable-handle ui-resizable-w"></div>
 					<div id="sidebar_canvas">
-
-
-					<div id="sidebar-table">
+						<div id="sidebar-table">
 							<div id="dump1090_infoblock">
-									<table style="width: 100%">
-										<tr class="infoblock_heading">
-											<td>
-												<button id="stats_page_button" class="stats_button">Go to My ADS-B Statistics Page</button>
-											</td>
-											<td style="text-align: right">
-												<a href="https://github.com/flightaware/dump1090" id="skyaware_version" target="_blank"></a>
-											</td>
-										</tr>
-										<tr>
-											<div class="button buttonTable" id="show_map_button"><span class="buttonText">Show Map</span></div>
-										</tr>
-										<tr class="infoblock_body">
-											<td><span class="infoBlockTitleText">Total Aircraft:</span> <span id="dump1090_total_ac">n/a</span></td>
-											<td id="adsb_message_rate_row"><span class="infoBlockTitleText">ADS-B Message Rate:</span> <span id="dump1090_message_rate">n/a</span></td>
-										</tr>
+								<div class="infoblock_heading">
+									<button id="stats_page_button" class="stats_button">Go to My ADS-B Statistics Page</button>
+									<a href="https://github.com/flightaware/dump1090" id="skyaware_version" target="_blank"></a>
+								</div>
 
-										<tr class="infoblock_body">
-											<td><span class="infoBlockTitleText">With Positions:</span> <span id="dump1090_total_ac_positions">n/a</span></td>
-											<td id="uat_message_rate_row"><span class="infoBlockTitleText">UAT Message Rate:</span> <span id="uat_message_rate">n/a</span></td>
-										</tr>
-										<tr class="infoblock_body">
-											<td><span class="infoBlockTitleText">Position History:</span> <span id="dump1090_total_history">n/a</span></td>
-										</tr>
-									</table>
-								</div> <!-- dump1090_infoblock -->
+								<div class="button buttonTable" id="show_map_button">
+									<span class="buttonText">Show Map</span>
+								</div>
+
+								<div>
+									<dl>
+										<div class="counters">
+											<div>
+												<dt>Total Aircraft</dt>
+												<dd id="dump1090_total_ac">n/a</dd>
+											</div>
+
+											<div>
+												<dt>With Positions</dt>
+												<dd id="dump1090_total_ac_positions">n/a</dd>
+											</div>
+
+											<div>
+												<dt>Position History</dt>
+												<dd id="dump1090_total_history">n/a</dd>
+											</div>
+										</div>
+
+										<div class="message-rates">
+											<div id="adsb_message_rate_row">
+												<dt>ADS-B Message Rate</dt>
+												<dd id="dump1090_message_rate">n/a</dd>
+											</div>
+
+											<div id="uat_message_rate_row">
+												<dt>UAT Message Rate</dt>
+												<dd id="uat_message_rate">n/a</dd>
+											</div>
+										</div>
+									</dl>
+								</div>
+							</div> <!-- dump1090_infoblock -->
 
 								<div class="config_button_row">
 									<button id="filter_button" class="config_button">Filters (<span class="italicize"><span id="active_filter_count">0</span> Enabled)</span></button>
@@ -428,16 +444,30 @@
 									</div> <!-- planes_table -->
 									<div>
 										<div class="legend">
-											<div class="sourceCheckbox" id="adsb_datasource_checkbox"></div>
-											<div class="legendTitle vPosition" id="adsb_datasource_label">ADS-B</div>
-											<div class="sourceCheckbox" id="uat_datasource_checkbox"></div>
-											<div class="legendTitle uat" id="uat_datasource_label">UAT</div>
-											<div class="sourceCheckbox" id="mlat_datasource_checkbox"></div>
-											<div class="legendTitle mlat">MLAT</div>
-											<div class="sourceCheckbox" id="other_datasource_checkbox"></div>
-											<div class="legendTitle other">Other</div>
-											<div class="sourceCheckbox" id="tisb_datasource_checkbox"></div>
-											<div class="legendTitle tisb">TIS-B</div>
+											<label id="adsb_datasource_label">
+												<div class="sourceCheckbox" id="adsb_datasource_checkbox"></div>
+												<div class="legendTitle vPosition">ADS-B</div>
+											</label>
+
+											<label id="uat_datasource_label">
+												<div class="sourceCheckbox" id="uat_datasource_checkbox"></div>
+												<div class="legendTitle uat">UAT</div>
+											</label>
+
+											<label id="mlat_datasource_checkbox">
+												<div class="sourceCheckbox"></div>
+												<div class="legendTitle mlat">MLAT</div>
+											</label>
+
+											<label id="other_datasource_checkbox">
+												<div class="sourceCheckbox"></div>
+												<div class="legendTitle other">Other</div>
+											</label>
+
+											<label id="tisb_datasource_checkbox">
+												<div class="sourceCheckbox"></div>
+												<div class="legendTitle tisb">TIS-B</div>
+											</label>
 										</div>
 									</div>
 								</div> <!-- planes_table_container -->

@@ -369,7 +369,12 @@ div#loader {
 }
 
 .infoblock_heading {
+    display: flex;
     font-size: larger;
+}
+
+#skyaware_version {
+    margin-left: auto;
 }
 
 .infoblock_heading a {
@@ -491,8 +496,15 @@ input.error {
     color: #000000;
     color: rgb(0, 0, 0);
     display: inline-flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     padding-top: 10px;
+    gap: 1em;
+}
+
+.legend label {
+    display: flex;
+    cursor: pointer;
 }
 
 .settingsHeading {
@@ -521,6 +533,7 @@ input.error {
 }
 
 #header {
+    position: relative;
     width: 100%;
     height: 60px;
     background: #002f5d;
@@ -572,7 +585,162 @@ input.error {
 }
 
 .buttonContainer {
+    display: flex;
     gap: 1em;
+}
+
+.menuContainer .navToggle {
+    display: none;
+}
+
+/**
+ * Hide the header buttons behind a hamburger menu
+ */
+@media (max-width: 1023px) {
+    .menuContainer .navToggle {
+        position: relative;
+        display: block;
+        width: 22px;
+        height: 22px;
+        border: none;
+        background: none;
+        outline: none;
+    }
+
+    .menuContainer .navToggle:before,
+    .menuContainer .navToggle:after,
+    .menuContainer .navToggle span:before,
+    .menuContainer .navToggle span:after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background-color: #cbcbcc;
+        transition: 0.15s ease;
+        transition-delay: 0;
+    }
+
+    .menuContainer .navToggle:before,
+    .menuContainer .navToggle:after {
+        top: calc(50% - 2px);
+    }
+
+    .menuContainer .navToggle span:before {
+        top: 2px;
+    }
+
+    .menuContainer .navToggle span:after {
+        bottom: 3px;
+    }
+
+    .menuContainer .navToggle:before,
+    .menuContainer .navToggle:after {
+        transition-delay: 0.15s;
+    }
+
+    .navOpen .menuContainer .navToggle:before,
+    .navOpen .menuContainer .navToggle:after {
+        transition-delay: 0;
+    }
+
+    .navOpen .menuContainer .navToggle:before {
+        transform: rotate(45deg);
+    }
+
+    .navOpen .menuContainer .navToggle:after {
+        transform: rotate(-45deg);
+    }
+
+    .navOpen .menuContainer .navToggle span:before {
+        opacity: 0;
+        top: 50%;
+    }
+
+    .navOpen .menuContainer .navToggle span:after {
+        opacity: 0;
+        bottom: 50%;
+    }
+
+    .buttonContainer {
+        position: absolute;
+        flex-direction: column;
+        top: 100%;
+        right: 0;
+        padding: 1em;
+        background-color: white;
+        box-shadow: 0 0 10px 6px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: 0.15 ease;
+    }
+
+    .navOpen .buttonContainer {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+}
+
+/**
+ * Reduce the logo sizes
+ */
+@media (max-width: 680px) {
+    #header {
+        height: 40px;
+    }
+
+    .logoContainer {
+        display: flex;
+        height: 100%;
+    }
+
+    .logoContainer a {
+        display: block;
+        height: 100%;
+    }
+
+    .logoContainer img {
+        display: block;
+        box-sizing: border-box;
+    }
+
+    .flightawareLogo {
+        width: auto;
+        height: 100%;
+        padding: 5px 1em;
+    }
+
+    .adsbLogo {
+        width: auto;
+        height: auto;
+        padding: 1em;
+    }
+
+    .menuContainer {
+        margin-right: 1em;
+    }
+}
+
+@media (max-width: 600px) {
+    .dateTime {
+        font-weight: normal;
+        opacity: 0.9;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        line-height: 1;
+    }
+}
+
+@media (max-width: 480px) {
+    #header {
+        height: 36px;
+    }
+
+    .dateTime {
+        display: none;
+    }
 }
 
 .buttonText {
@@ -595,7 +763,6 @@ input.error {
     -moz-border-radius: 4px;
     -webkit-border-radius: 4px;
     display: inline-block;
-    margin-right: 10px;
     cursor: pointer;
     text-align: center;
 }
@@ -723,6 +890,59 @@ input.error {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
+#dump1090_infoblock dl {
+    display: flex;
+    justify-content: space-between;
+    gap: 2em;
+    font-weight: bold;
+    color: #002f5d;
+}
+
+#dump1090_infoblock dl dt {
+    white-space: nowrap;
+}
+
+#dump1090_infoblock .counters {
+    display: flex;
+    width: 160px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+#dump1090_infoblock .message-rates {
+    display: flex;
+    flex-direction: column;
+    width: 220px;
+}
+
+#dump1090_infoblock .counters > div,
+#dump1090_infoblock .message-rates > div {
+    display: flex;
+    justify-content: space-between;
+    flex-basis: 100%;
+}
+
+@media (max-width: 440px) {
+    #dump1090_infoblock dl {
+        flex-direction: column;
+        gap: 1em;
+    }
+
+    #dump1090_infoblock .counters,
+    #dump1090_infoblock .message-rates {
+        width: 100%;
+        max-width: 220px;
+    }
+}
+
+#dump1090_infoblock dl dt:after {
+    content: ":";
+}
+
+#dump1090_infoblock dl dd {
+    margin: 0;
+}
+
 .infoBlockTitleText {
     font-weight: bold;
     color: #002f5d;
@@ -743,7 +963,6 @@ input.error {
     padding-right: 5px;
     padding-left: 5px;
     border-radius: 5px;
-    margin-right: 20px;
 }
 
 #settings_infoblock {
@@ -797,7 +1016,8 @@ input.error {
     margin-right: 3px;
 }
 
-.sourceCheckboxChecked {
+div.sourceCheckbox.sourceCheckboxChecked,
+label.sourceCheckboxChecked div.sourceCheckbox {
     background-image: url("images/box-checked.png") !important;
 }
 
@@ -1063,10 +1283,6 @@ input.error {
 .filter_input_group {
     margin-top: 10px;
     margin-bottom: 5px;
-}
-
-.ui-resizable {
-    min-width: 400px;
 }
 
 @media (max-width: 1024px) {
