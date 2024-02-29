@@ -215,6 +215,16 @@ body {
     left: 10px !important;
 }
 
+.ol-attribution {
+    max-width: calc(100% - 160px);
+}
+
+@media (max-width: 560px) {
+    .ol-attribution {
+        font-size: 10px;
+    }
+}
+
 div#SpecialSquawkWarning {
     position: absolute;
     bottom: 25px;
