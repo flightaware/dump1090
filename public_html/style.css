@@ -941,7 +941,6 @@ input.error {
     #dump1090_infoblock .counters,
     #dump1090_infoblock .message-rates {
         width: 100%;
-        max-width: 220px;
     }
 }
 
