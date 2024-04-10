@@ -20,8 +20,8 @@ many other Linux or Unix-like systems.
 
 ```bash
 $ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev libsoapysdr-dev
-$ ./prepare-build.sh bullseye    # or buster, or stretch
-$ cd package-bullseye            # or buster, or stretch
+$ ./prepare-build.sh bookworm    # or bullseye, or buster, or stretch
+$ cd package-bookworm            # or bullseye, or buster, or stretch
 $ dpkg-buildpackage -b --no-sign
 ```
 
