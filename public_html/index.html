@@ -255,6 +255,17 @@
 										<div id="speed_slider"></div>
 									</div>
 									<div class="group">
+										<label><span class="infoBlockTitleText">Filter by Distance</span></label>
+										<div class="align_right">
+											<span id="minDistanceText" class="infoBlockTitleText"></span>
+											<label for="minDistance" class="distanceUnit"></label>
+											<span> to </span>
+											<span id="maxDistanceText" class="infoBlockTitleText"></span>
+											<label for="maxDistance" class="distanceUnit"></label>
+										</div>
+										<div id="distance_slider"></div>
+									</div>
+									<div class="group">
 										<form id="aircraft_type_filter_form">
 											<label><span class="infoBlockTitleText">Filter by Aircraft Type</span></label>
 											<div class="align_right">
@@ -271,6 +282,26 @@
 												<input id="aircraft_ident_filter" name="aircraftIdentFilter" type="text" class="aircraftFilterInput" maxlength="10">
 												<button type="submit">Filter</button>
 												<button id="aircraft_ident_filter_reset_button">Reset</button>
+											</div>
+										</form>
+									</div>
+									<div class="group">
+										<form id="distance_alert_beep_form">
+											<label><span class="infoBlockTitleText">Alert Distance</span></label>
+											<div class="align_right">
+												<input id="distance_alert_beep" name="distanceAlertBeep" type="number" step="0.01" class="aircraftFilterInput" maxlength="6">
+												<button type="submit">Filter</button>
+												<button id="distance_alert_beep_reset_button">Reset</button>
+											</div>
+										</form>
+									</div>
+									<div class="group">
+										<form id="altitude_alert_beep_form">
+											<label><span class="infoBlockTitleText">Alert Altitude</span></label>
+											<div class="align_right">
+												<input id="altitude_alert_beep" name="altitudeAlertBeep" type="number" step="100" class="aircraftFilterInput" maxlength="6">
+												<button type="submit">Filter</button>
+												<button id="altitude_alert_beep_reset_button">Reset</button>
 											</div>
 										</form>
 									</div>

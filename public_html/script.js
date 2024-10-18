@@ -61,6 +61,7 @@ var ActiveFilterCount = 0;
 
 var altitude_slider = null;
 var speed_slider = null;
+var distance_slider = null;
 
 var AircraftLabels = false;
 
@@ -92,9 +93,9 @@ var checkbox_div_map = new Map ([
 ]);
 
 var DefaultMinMaxFilters = {
-        'nautical': {min: 0, maxSpeed: 1000, maxAltitude: 65000},       // kt, ft
-        'metric' : {min: 0, maxSpeed: 1000, maxAltitude: 20000},        // km/h, m
-        'imperial' : {min: 0, maxSpeed: 600, maxAltitude: 65000}        // mph, ft
+        'nautical': {min: 0, maxSpeed: 1000, maxAltitude: 65000, maxDistance: 200},       // kt, ft, NM
+        'metric' : {min: 0, maxSpeed: 1000, maxAltitude: 20000, maxDistance: 400},        // km/h, m, km
+        'imperial' : {min: 0, maxSpeed: 600, maxAltitude: 65000, maxDistance: 250}        // mph, ft, mi
 };
 
 // Update Planes with data in aircraft json
@@ -370,6 +371,12 @@ function initialize() {
         $("#aircraft_ident_filter_form").submit(onFilterByAircraftIdent);
         $("#aircraft_ident_filter_reset_button").click(onResetAircraftIdentFilter);
 
+        $("#distance_alert_beep_form").submit(onFilterByDistanceAlertBeep);
+        $("#distance_alert_beep_reset_button").click(onResetDistanceAlertBeep);
+
+        $("#altitude_alert_beep_form").submit(onFilterByAltitudeAlertBeep);
+        $("#altitude_alert_beep_reset_button").click(onResetAltitudeAlertBeep);
+
         $('#settingsCog').on('click', function() {
         	$('#settings_infoblock').toggle();
         });
@@ -535,10 +542,13 @@ function initialize() {
 }
 
 function create_filter_sliders() {
+	console.log('create filters')
         var maxAltitude = DefaultMinMaxFilters[DisplayUnits].maxAltitude;
         var minAltitude = DefaultMinMaxFilters[DisplayUnits].min;
         var maxSpeed = DefaultMinMaxFilters[DisplayUnits].maxSpeed;
         var minSpeed = DefaultMinMaxFilters[DisplayUnits].min;
+        var maxDistance = DefaultMinMaxFilters[DisplayUnits].maxDistance;
+        var minDistance = DefaultMinMaxFilters[DisplayUnits].min;
 
         altitude_slider = document.getElementById('altitude_slider');
 
@@ -593,7 +603,7 @@ function create_filter_sliders() {
         var minSpeedInput = document.getElementById('minSpeedText'),
             maxSpeedInput = document.getElementById('maxSpeedText');
 
-            speed_slider.noUiSlider.on('update', function (values, handle) {
+        speed_slider.noUiSlider.on('update', function (values, handle) {
                 if (handle) {
                         maxSpeedInput.innerHTML = values[handle];
                 } else {
@@ -605,6 +615,41 @@ function create_filter_sliders() {
         speed_slider.noUiSlider.on('set', function (values, handle) {
                 onFilterBySpeed();
         });
+
+
+        // 'Set' event - Whenever a slider is changed to a new value, this event is fired. This function will trigger every time a slider stops changing, including after calls to the .set() method. This event can be considered as the 'end of slide'.
+        distance_slider = document.getElementById('distance_slider');
+
+        noUiSlider.create(distance_slider, {
+                start: [minDistance, maxDistance],
+                connect: true,
+                range: {
+                    'min': minDistance,
+                    'max': maxDistance
+                },
+                step: 1,
+                format: {
+                        to: (v) => parseFloat(v).toFixed(0),
+                        from: (v) => parseFloat(v).toFixed(0)
+                    }
+            });
+
+        // Change text to reflect slider values
+        var minDistanceInput = document.getElementById('minDistanceText'),
+            maxDistanceInput = document.getElementById('maxDistanceText');
+
+        distance_slider.noUiSlider.on('update', function (values, handle) {
+                if (handle) {
+                        maxDistanceInput.innerHTML = values[handle];
+                } else {
+                        minDistanceInput.innerHTML = values[handle];
+                }
+        });
+
+        // 'Set' event - Whenever a slider is changed to a new value, this event is fired. This function will trigger every time a slider stops changing, including after calls to the .set() method. This event can be considered as the 'end of slide'.
+        distance_slider.noUiSlider.on('set', function (values, handle) {
+                onFilterByDistance();
+        });
 }
 
 function reset_filter_sliders() {
@@ -612,6 +657,8 @@ function reset_filter_sliders() {
         var minAltitude = DefaultMinMaxFilters[DisplayUnits].min;
         var maxSpeed = DefaultMinMaxFilters[DisplayUnits].maxSpeed;
         var minSpeed = DefaultMinMaxFilters[DisplayUnits].min;
+        var maxDistance = DefaultMinMaxFilters[DisplayUnits].maxDistance;
+        var minDistance = DefaultMinMaxFilters[DisplayUnits].min;
 
         altitude_slider.noUiSlider.updateOptions({
                 start: [minAltitude, maxAltitude],
@@ -626,6 +673,14 @@ function reset_filter_sliders() {
                 range: {
                         'min': minSpeed,
                         'max': maxSpeed
+                }
+        });
+
+        distance_slider.noUiSlider.updateOptions({
+                start: [minDistance, maxDistance],
+                range: {
+                        'min': minDistance,
+                        'max': maxDistance
                 }
         });
 
@@ -1674,6 +1729,18 @@ function removeHighlight() {
 function refreshTableInfo() {
         var show_squawk_warning = false;
 
+        // Get alert distance
+        var distanceAlert = $("#distance_alert_beep").val().trim()
+        if (distanceAlert === "") {
+            distanceAlert = undefined
+        }
+
+        // Get alert altitude
+        var altitudeAlert = $("#altitude_alert_beep").val().trim()
+        if (altitudeAlert === "") {
+            altitudeAlert = undefined
+        }
+
         TrackedAircraft = 0
         TrackedAircraftPositions = 0
         TrackedHistorySize = 0
@@ -1748,6 +1815,19 @@ function refreshTableInfo() {
                         tableplane.tr.cells[18].innerHTML = getFlightAwareModeSLink(tableplane.icao, tableplane.flight);
                         tableplane.tr.cells[19].innerHTML = getFlightAwarePhotoLink(tableplane.registration);
                         tableplane.tr.className = classes;
+
+                        if (Number(format_distance_brief(tableplane.sitedist, DisplayUnits)) < (Number(distanceAlert))) {
+                                distanceBeep();
+                        }
+
+			// Extract the altitude as a string
+                        var altitude_string = format_altitude_brief(tableplane.altitude, tableplane.vert_rate, DisplayUnits);
+			// Split the altitude string out, remove the comma, and convert to a base 10 number.
+                        var current_altitude = parseInt(altitude_string.split('<')[0].replace(/\,/g,''),10);
+
+                        if (Number(current_altitude) < (Number(altitudeAlert))) {
+                                altitudeBeep();
+                        }
                 }
         }
 
@@ -2301,13 +2381,18 @@ function onFilterByAltitude() {
         SelectedPlane = null;
         selectedPlane.selected = false;
         selectedPlane.clearLines();
-        selectedPlane.updateMarker();         
+        selectedPlane.updateMarker();
         refreshSelected();
         refreshHighlighted();
     }
 }
 
 function onFilterBySpeed() {
+        updatePlaneFilter();
+        refreshTableInfo();
+}
+
+function onFilterByDistance() {
         updatePlaneFilter();
         refreshTableInfo();
 }
@@ -2336,6 +2421,88 @@ function onResetAircraftIdentFilter(e) {
         updatePlaneFilter();
         refreshTableInfo();
 }
+
+// Main Alert Distance beep function
+function distanceBeep2() {
+        try {
+                const audioCtx = new AudioContext();
+                const oscillator = audioCtx.createOscillator();
+
+                //oscillator.type = "sine";
+                oscillator.type = "sawtooth";
+                oscillator.frequency.setValueAtTime(330, audioCtx.currentTime);
+                oscillator.connect(audioCtx.destination);
+                oscillator.start();
+                setTimeout(
+                        function() {
+                                oscillator.stop();
+                        },
+                275);
+        } catch (error) {
+                console.error("Error in distanceBeep - script.js: ", error);
+        }
+}
+
+// Call this distanceBeep function
+// insert additional calls to distanceBeep2();
+// if you want the beep to occur multiple times
+function distanceBeep() {
+        distanceBeep2();
+}
+
+function onFilterByDistanceAlertBeep(e) {
+        e.preventDefault();
+        updatePlaneFilter();
+        refreshTableInfo();
+}
+
+function onResetDistanceAlertBeep(e) {
+        $("#distance_alert_beep").val("");
+        updatePlaneFilter();
+        refreshTableInfo();
+}
+
+// Main Altitude beep function
+function altitudeBeep2() {
+        try {
+                const audioCtx = new AudioContext();
+                const oscillator = audioCtx.createOscillator();
+
+                oscillator.type = "sine";
+                //oscillator.type = "sawtooth";
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                oscillator.connect(audioCtx.destination);
+                oscillator.start();
+                setTimeout(
+                        function() {
+                                oscillator.stop();
+                        },
+                275);
+        } catch (error) {
+                console.error("Error in altitudeBeep - script.js: ", error);
+        }
+}
+
+// Call this altitudeBeep function
+// insert additional calls to altitudeBeep2();
+// if you want the beep to occur multiple times
+function altitudeBeep() {
+        altitudeBeep2();
+}
+
+function onFilterByAltitudeAlertBeep(e) {
+        e.preventDefault();
+        updatePlaneFilter();
+        refreshTableInfo();
+}
+
+function onResetAltitudeAlertBeep(e) {
+        $("#altitude_alert_beep").val("");
+        updatePlaneFilter();
+        refreshTableInfo();
+}
+
+
 
 function filterGroundVehicles(switchFilter) {
 	if (typeof localStorage['groundVehicleFilter'] === 'undefined') {
@@ -2419,6 +2586,14 @@ function updatePlaneFilter() {
     PlaneFilter.maxSpeedFilter = maxSpeedFilter;
     PlaneFilter.speedUnits = DisplayUnits;
 
+    // Get min/max distance values from slider
+    var minDistanceFilter = document.getElementById('minDistanceText').innerHTML.trim();
+    var maxDistanceFilter = document.getElementById('maxDistanceText').innerHTML.trim();
+
+    PlaneFilter.minDistanceFilter = minDistanceFilter;
+    PlaneFilter.maxDistanceFilter = maxDistanceFilter;
+    //PlaneFilter.distanceUnits = DisplayUnits;
+
     // Get aircraft type code filter from input box
     var aircraftTypeCode = $("#aircraft_type_filter").val().trim().toUpperCase()
     if (aircraftTypeCode === "") {
@@ -2431,15 +2606,33 @@ function updatePlaneFilter() {
         aircraftIdent = undefined
     }
 
+    // Get alert distance
+    var distanceAlert = $("#distance_alert_beep").val().trim()
+    if (distanceAlert === "") {
+        distanceAlert = undefined
+    }
+
+
+    // Get alert distance
+    var altitudeAlert = $("#altitude_alert_beep").val().trim()
+    if (altitudeAlert === "") {
+        altitudeAlert = undefined
+    }
+
     PlaneFilter.aircraftTypeCode = aircraftTypeCode;
     PlaneFilter.aircraftIdent = aircraftIdent;
+    PlaneFilter.distanceAlert = distanceAlert;
+    PlaneFilter.altitudeAlert = altitudeAlert;
 
     var altitudeFilterSet = (PlaneFilter.minAltitude == DefaultMinMaxFilters[DisplayUnits].min && PlaneFilter.maxAltitude == DefaultMinMaxFilters[DisplayUnits].maxAltitude) ? 0 : 1;
     var speedFilterSet = (PlaneFilter.minSpeedFilter == DefaultMinMaxFilters[DisplayUnits].min && PlaneFilter.maxSpeedFilter == DefaultMinMaxFilters[DisplayUnits].maxSpeed) ? 0 : 1;
+    var distanceFilterSet = (PlaneFilter.minDistanceFilter == DefaultMinMaxFilters[DisplayUnits].min && PlaneFilter.maxDistanceFilter == DefaultMinMaxFilters[DisplayUnits].maxDistance) ? 0 : 1;
     var aircraftTypeFilterSet = (PlaneFilter.aircraftTypeCode == undefined) ? 0 : 1;
     var aircraftIdentFilterSet = (PlaneFilter.aircraftIdent == undefined) ? 0 : 1;
+    var distanceAlertSet = (PlaneFilter.distanceAlert == undefined) ? 0 : 1;
+    var altitudeAlertSet = (PlaneFilter.altitudeAlert == undefined) ? 0 : 1;
 
-    ActiveFilterCount = altitudeFilterSet + speedFilterSet + aircraftTypeFilterSet + aircraftIdentFilterSet;
+    ActiveFilterCount = altitudeFilterSet + speedFilterSet + distanceFilterSet + aircraftTypeFilterSet + aircraftIdentFilterSet + distanceAlertSet + altitudeAlertSet;
 
     var filter = document.getElementById('filter_button');
     filter.style.backgroundColor = (ActiveFilterCount > 0) ? "Lime" : "#FEBC11";
@@ -2843,4 +3036,8 @@ function toggleTISBAircraft(switchFilter) {
 		$('#tisb_datasource_checkbox').addClass('sourceCheckboxChecked');
 	}
 	localStorage.setItem('sourceTISBFilter', sourceTISBFilter);
+}
+
+function resetAllFilters() {
+	var PlaneFilter   = {};
 }
