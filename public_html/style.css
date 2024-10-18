@@ -898,7 +898,7 @@ select.error, textarea.error, input.error {
     grid-template-columns: repeat(3, 1fr);
   }
 
-#altitude_slider, #speed_slider {
+#altitude_slider, #speed_slider, #distance_slider {
     position: relative;
     display: block;
     margin-left: 10px;
@@ -929,6 +929,8 @@ select.error, textarea.error, input.error {
     background: #00A0E2 !important;
 }
 
+#altitude_alert_beep_form,
+#distance_alert_beep_form,
 #aircraft_type_filter_form,
 #aircraft_ident_filter_form {
     position: relative;

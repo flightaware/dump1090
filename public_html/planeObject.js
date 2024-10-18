@@ -30,7 +30,7 @@ function PlaneObject(icao) {
         this.nav_modes      = null;
         this.nav_qnh        = null;
         this.rc				= null;
-		
+       
         this.nac_p			= null;
         this.nac_v			= null;
         this.nic_baro		= null;
@@ -111,8 +111,10 @@ function PlaneObject(icao) {
                 if (this.selected) {
                         refreshSelected();
                 }
+
         }.bind(this));
 }
+
 
 PlaneObject.prototype.isFiltered = function() {
     // aircraft type filter
@@ -128,6 +130,22 @@ PlaneObject.prototype.isFiltered = function() {
                 return true;
         }
     }
+
+    // distance alert filter
+    if (this.filter.distanceAlert) {
+        var warndistance = document.getElementById('distance_alert_beep')
+        if (this.sitedist < Number(warndistance)) {
+                return true;
+        }
+     }
+
+    // altitude alert filter
+    if (this.filter.altitudeAlert) {
+        var warnaltitude = document.getElementById('altitude_alert_beep')
+        if (this.nav_altitude < Number(warnaltitude)) {
+                return true;
+        }
+     }
 
     var dataSource = this.getDataSource();
     if (dataSource === 'uat') {
@@ -161,6 +179,18 @@ PlaneObject.prototype.isFiltered = function() {
         var convertedSpeed = convert_speed(this.speed, this.filter.speedUnits)
         var isFilteredBySpeed = convertedSpeed < this.filter.minSpeedFilter || convertedSpeed > this.filter.maxSpeedFilter;
         if (isFilteredBySpeed) {
+                return true;
+        }
+    }
+
+    if (this.filter.minDistanceFilter !== undefined && this.filter.maxDistanceFilter !== undefined) {
+        if (this.sitedist === null || this.sitedist === undefined) {
+                return true;
+        }
+
+        var convertedDistance = convert_distance(this.sitedist, this.filter.distanceUnits)
+        var isFilteredByDistance = convertedDistance < this.filter.minDistanceFilter || convertedDistance > this.filter.maxDistanceFilter;
+        if (isFilteredByDistance) {
                 return true;
         }
     }

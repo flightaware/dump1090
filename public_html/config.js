@@ -130,3 +130,5 @@ DefaultMaxAltitudeFilter = 65000
 DefaultMinAltitudeFilter = 0
 DefaultMaxSpeedFilter = 1000
 DefaultMinSpeedFilter = 0
+DefaultMaxDistanceFilter = 200
+DefaultMinDistanceFilter = 0
