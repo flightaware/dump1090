@@ -19,7 +19,7 @@ many other Linux or Unix-like systems.
 ## Building under bullseye, buster, or stretch
 
 ```bash
-$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev libsoapysdr-dev
+$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev libsoapysdr-dev libuhd-dev
 $ ./prepare-build.sh bullseye    # or buster, or stretch
 $ cd package-bullseye            # or buster, or stretch
 $ dpkg-buildpackage -b --no-sign
@@ -35,7 +35,7 @@ limited SDR support only.
 
 Pass `--build-profiles` to `dpkg-buildpackage` with a comma-separated list of
 profiles. The list of profiles should include `custom` and zero or more of
-`rtlsdr`, `bladerf`, `hackrf`, `limesdr`, 'soapysdr' depending on what you want:
+`rtlsdr`, `bladerf`, `hackrf`, `limesdr`, 'soapysdr', `uhd` depending on what you want:
 
 ```bash
 $ dpkg-buildpackage -b --no-sign --build-profiles=custom,rtlsdr          # builds with rtlsdr support only
@@ -61,6 +61,9 @@ libhackrf.
 
 ``make LIMESDR=no`` will disable LimeSDR support and remove the dependency on
 libLimeSuite.
+
+``make UHD=no`` will disable UHD support and remove the dependency on
+uhd-dev.
 
 ``make SOAPYSDR=no`` will disable SoapySDR support and remove the dependency on
 libSoapySDR.
