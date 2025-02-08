@@ -61,6 +61,13 @@
 
 // ============================= Include files ==========================
 
+#ifdef _WIN32
+//WinSocks2 must be included before Windows.h
+#  include <winsock2.h>
+#else
+#  include <sys/ioctl.h>
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -76,7 +83,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
+#include <string.h>
 #include <time.h>
 #include <limits.h>
 #include <strings.h>

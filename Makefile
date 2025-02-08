@@ -44,8 +44,14 @@ else
   SOAPYSDR ?= no
 endif
 
+
 BUILD_UNAME := $(shell uname)
 BUILD_ARCH := $(shell uname -m)
+
+# There is no standard for the uname's output on a Windows environment
+ifeq ($(OS), Windows_NT) 
+  BUILD_UNAME := Windows
+endif
 
 UNAME ?= $(BUILD_UNAME)
 ARCH ?= $(BUILD_ARCH)
@@ -81,6 +87,7 @@ ifeq ($(UNAME), OpenBSD)
   COMPAT += compat/clock_nanosleep/clock_nanosleep.o
   LIBS_USB += -lusb-1.0
   LIBS_CURSES := -lncurses
+  CPUFEATURES ?= yes
 endif
 
 ifeq ($(UNAME), FreeBSD)
@@ -97,8 +104,17 @@ ifeq ($(UNAME), NetBSD)
   LIBS_CURSES := -lcurses
 endif
 
-CPUFEATURES ?= no
+ifeq ($(UNAME), Windows)
+  # TODO: Perhaps copy the DLL files to the output folder?
+  CPPFLAGS += -DMISSING_TIME_R_FUNCS -DMISSING_CURSES_H_NCURSES -D_USE_MATH_DEFINES -DNCURSES_STATIC
+  LIBS += -lws2_32 -lsystre
+  LIBS_USB += -lusb-1.0
+  LIBS_CURSES := -lncurses
+  CPUFEATURES ?= yes
+endif
 
+
+CPUFEATURES ?= no
 ifeq ($(CPUFEATURES),yes)
   include Makefile.cpufeatures
   DUMP1090_CPPFLAGS += -DENABLE_CPUFEATURES -Icpu_features/include
@@ -235,7 +251,9 @@ starch-benchmark: cpu.o dsp/helpers/tables.o $(CPUFEATURES_OBJS) $(STARCH_OBJS) 
 	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS)
 
 clean:
-	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o cpu_features/src/*.o dsp/generated/*.o dsp/helpers/*.o $(CPUFEATURES_OBJS) dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
+	rm -f dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
+	find . -type f -name '*.o' -exec rm {} +
+	find . -type f -name '*.exe' -exec rm {} +
 
 test: cprtests
 	./cprtests

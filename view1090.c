@@ -66,18 +66,6 @@ static void view1090InitConfig(void) {
 //=========================================================================
 //
 static void view1090Init(void) {
-
-#ifdef _WIN32
-    if ( (!Modes.wsaData.wVersion)
-      && (!Modes.wsaData.wHighVersion) ) {
-      // Try to start the windows socket support
-      if (WSAStartup(MAKEWORD(2,1),&Modes.wsaData) != 0)
-        {
-        fprintf(stderr, "WSAStartup returned Error\n");
-        }
-      }
-#endif
-
     // Validate the users Lat/Lon home location inputs
     if ( (Modes.fUserLat >   90.0)  // Latitude must be -90 to +90
       || (Modes.fUserLat <  -90.0)  // and
@@ -211,12 +199,6 @@ int main(int argc, char **argv) {
         }
     }
 
-#ifdef _WIN32
-    // Try to comply with the Copyright license conditions for binary distribution
-    if (!Modes.quiet) {showCopyright();}
-#define MSG_DONTWAIT 0
-#endif
-
     if (Modes.nfix_crc > MODES_MAX_BITERRORS)
         Modes.nfix_crc = MODES_MAX_BITERRORS;
 
@@ -228,6 +210,7 @@ int main(int argc, char **argv) {
     s = makeBeastInputService();
     c = serviceConnect(s, bo_connect_ipaddr, bo_connect_port);
     if (!c) {
+        modesDeInitNet();
         interactiveCleanup();
         fprintf(stderr, "Failed to connect to %s:%d: %s\n", bo_connect_ipaddr, bo_connect_port, Modes.aneterr);
         exit(1);
@@ -261,6 +244,7 @@ int main(int argc, char **argv) {
         nanosleep(&r, NULL);
     }
 
+    modesDeInitNet();
     interactiveCleanup();
     return (0);
 }
