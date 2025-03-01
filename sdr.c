@@ -36,6 +36,9 @@
 #ifdef ENABLE_SOAPYSDR
 #  include "sdr_soapy.h"
 #endif
+#ifdef ENABLE_AD9361
+#  include "sdr_ad9361.h"
+#endif
 
 typedef struct {
     const char *name;
@@ -133,6 +136,9 @@ static sdr_handler sdr_handlers[] = {
 #endif
 #ifdef ENABLE_SOAPYSDR
     { "soapy", SDR_SOAPYSDR, soapyInitConfig, soapyShowHelp, soapyHandleOption, soapyOpen, soapyRun, noStop, soapyClose, soapyGetGain, soapyGetMaxGain, soapyGetGainDb, soapySetGain },
+#endif
+#ifdef ENABLE_AD9361
+    { "ad9361", SDR_AD9361, ad9361InitConfig, ad9361ShowHelp, ad9361HandleOption, ad9361Open, ad9361Run, noStop, ad9361Close, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
 #endif
 
     { "none", SDR_NONE, noInitConfig, noShowHelp, noHandleOption, noOpen, noRun, noStop, noClose, noGetGain, noGetMaxGain, noGetGainDb, noSetGain },
