@@ -51,17 +51,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef _WIN32
+#  include <winsock2.h>
+#  include <ws2def.h>
+#  include <ws2tcpip.h>
+#  include <Windows.h>
+#  define socklen_t int
+#  define sockaddr_storage sockaddr
+#  define p_setsockopt_optval_t const char*
+#else
+#  include <sys/socket.h>
+#  include <sys/un.h>
+#  include <netinet/in.h>
+#  include <netinet/tcp.h>
+#  include <arpa/inet.h>
+#  include <unistd.h>
+#  include <netdb.h>
+#  define p_setsockopt_optval_t void*
+#endif
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/un.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
-#include <netdb.h>
+
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -80,6 +92,7 @@ static void anetSetError(char *err, const char *fmt, ...)
 
 int anetNonBlock(char *err, int fd)
 {
+#if !defined(_WIN32)
     int flags;
 
     /* Set the socket nonblocking.
@@ -93,14 +106,21 @@ int anetNonBlock(char *err, int fd)
         anetSetError(err, "fcntl(F_SETFL,O_NONBLOCK): %s", strerror(errno));
         return ANET_ERR;
     }
-
+#else
+    u_long mode = 1;  // 1 to enable non-blocking socket
+    int errorCode = ioctlsocket(fd, FIONBIO, &mode);
+    if (errorCode != 0) {
+        anetSetError(err, "ioctlsocket(FIONBIO): %d", errorCode);
+        return ANET_ERR;
+    }
+#endif
     return ANET_OK;
 }
 
 int anetTcpNoDelay(char *err, int fd)
 {
     int yes = 1;
-    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void*)&yes, sizeof(yes)) == -1)
+    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (p_setsockopt_optval_t)&yes, sizeof(yes)) == -1)
     {
         anetSetError(err, "setsockopt TCP_NODELAY: %s", strerror(errno));
         return ANET_ERR;
@@ -110,7 +130,7 @@ int anetTcpNoDelay(char *err, int fd)
 
 int anetSetSendBuffer(char *err, int fd, int buffsize)
 {
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (void*)&buffsize, sizeof(buffsize)) == -1)
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (p_setsockopt_optval_t)&buffsize, sizeof(buffsize)) == -1)
     {
         anetSetError(err, "setsockopt SO_SNDBUF: %s", strerror(errno));
         return ANET_ERR;
@@ -121,7 +141,7 @@ int anetSetSendBuffer(char *err, int fd, int buffsize)
 int anetTcpKeepAlive(char *err, int fd)
 {
     int yes = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&yes, sizeof(yes)) == -1) {
+    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (p_setsockopt_optval_t)&yes, sizeof(yes)) == -1) {
         anetSetError(err, "setsockopt SO_KEEPALIVE: %s", strerror(errno));
         return ANET_ERR;
     }
@@ -138,7 +158,7 @@ static int anetCreateSocket(char *err, int domain)
 
     /* Make sure connection-intensive things like the redis benckmark
      * will be able to close/open sockets a zillion of times */
-    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void*)&on, sizeof(on)) == -1) {
+    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (p_setsockopt_optval_t)&on, sizeof(on)) == -1) {
         anetSetError(err, "setsockopt SO_REUSEADDR: %s", strerror(errno));
         return ANET_ERR;
     }
@@ -239,7 +259,7 @@ int anetWrite(int fd, char *buf, int count)
 static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len) {
     if (sa->sa_family == AF_INET6) {
         int on = 1;
-        setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
+        setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (p_setsockopt_optval_t)&on, sizeof(on));
     }
 
     if (bind(s,sa,len) == -1) {

@@ -87,6 +87,7 @@ struct net_service *makeFaCmdInputService(void);
 void sendBeastSettings(struct client *c, const char *settings);
 
 void modesInitNet(void);
+void modesDeInitNet(void);
 void modesQueueOutput(struct modesMessage *mm, struct aircraft *a);
 void modesNetPeriodicWork(void);
 

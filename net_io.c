@@ -258,10 +258,36 @@ struct net_service *makeFaCmdInputService(void)
     return serviceInit("faup Command input", NULL, NULL, READ_MODE_ASCII, "\n", handleFaupCommand);
 }
 
-void modesInitNet(void) {
+void modesDeInitNet(void)
+{
+#if defined(_WIN32)
+    if ((Modes.wsaData.wVersion) && (Modes.wsaData.wHighVersion))
+    {
+        if (WSACleanup() != 0)
+        {
+            fprintf(stderr, "WSACleanup returned Error\n");
+        }
+    }
+#endif
+}
+
+void modesInitNet(void)
+{
     struct net_service *s;
 
+#if !defined(_WIN32)
     signal(SIGPIPE, SIG_IGN);
+#else
+    if ((!Modes.wsaData.wVersion) && (!Modes.wsaData.wHighVersion))
+    {
+        // Try to start the windows socket support
+        if (WSAStartup(MAKEWORD(2, 1), &Modes.wsaData) != 0)
+        {
+            fprintf(stderr, "WSAStartup returned Error\n");
+        }
+    }
+#endif
+
     Modes.clients = NULL;
     Modes.services = NULL;
 
@@ -354,7 +380,7 @@ static void flushWrites(struct net_writer *writer) {
 #ifndef _WIN32
             int nwritten = write(c->fd, writer->data, writer->dataUsed);
 #else
-            int nwritten = send(c->fd, writer->data, writer->dataUsed, 0 );
+            int nwritten = send(c->fd, writer->data, writer->dataUsed, 0);
 #endif
             if (nwritten != writer->dataUsed) {
                 modesCloseClient(c);
@@ -2156,63 +2182,88 @@ static void ratelimitWriteError(const char *format, ...)
     va_end(ap);
 }
 
+static bool UtilDeleteFile(const char *path)
+{
+#ifdef _WIN32
+    return DeleteFileA(path);
+#else
+    return unlink(path) == 0;
+#endif
+}
+
+static bool UtilMoveFile(const char *fromPath, const char *toPath)
+{
+#ifdef _WIN32
+    return MoveFileA(fromPath, toPath);
+#else
+    return rename(fromPath, toPath) == 0;
+#endif
+}
+
+static bool UtilCreateWritableTempFile(char* outPathBuffer, const char* prefix, const char* path)
+{
+#ifdef _WIN32
+    if (GetTempFileNameA(path, prefix, 0, outPathBuffer) == 0) {
+        return false;
+    }
+#else
+    int unix_fd = 0;
+    mode_t mask = 0;
+
+    snprintf(outPathBuffer, PATH_MAX, "%s/%sXXXXXX", path, prefix);
+    unix_fd = mkstemp(outPathBuffer);
+    if (unix_fd < 0) {
+        return NULL;
+    }
+
+    mask = umask(0);
+    umask(mask);
+    fchmod(unix_fd, 0644 & ~mask);
+    close(unix_fd);
+#endif
+
+    return true;
+}
+
 // Write JSON to file
 void writeJsonToFile(const char *file, char * (*generator) (const char *,int*))
 {
-#ifndef _WIN32
     char pathbuf[PATH_MAX];
     char tmppath[PATH_MAX];
-    int fd;
-    int len = 0;
-    mode_t mask;
+    FILE *fd;
+    size_t len = 0;
     char *content;
 
     if (!Modes.json_dir)
         return;
 
-    snprintf(tmppath, PATH_MAX, "%s/%s.XXXXXX", Modes.json_dir, file);
-    tmppath[PATH_MAX-1] = 0;
-    fd = mkstemp(tmppath);
-    if (fd < 0) {
+    if(!UtilCreateWritableTempFile(tmppath, file, Modes.json_dir) ||
+        (fd = fopen(tmppath, "wb")) == NULL) {
+        //TODO: implement a function to get the last error on windows and linux as a string
         ratelimitWriteError("failed to create %s (while updating %s/%s): %s", tmppath, Modes.json_dir, file, strerror(errno));
         return;
     }
 
-    mask = umask(0);
-    umask(mask);
-    fchmod(fd, 0644 & ~mask);
-
     snprintf(pathbuf, PATH_MAX, "/data/%s", file);
-    pathbuf[PATH_MAX-1] = 0;
-    content = generator(pathbuf, &len);
+    content = generator(pathbuf, (int*)&len);
 
-    if (write(fd, content, len) != len) {
+    if (fwrite(content, 1, len, fd) != len || fclose(fd) != 0)
+    {
         ratelimitWriteError("failed to write to %s (while updating %s/%s): %s", tmppath, Modes.json_dir, file, strerror(errno));
-        goto error_1;
-    }
-
-    if (close(fd) < 0) {
-        ratelimitWriteError("failed to write to %s (while updating %s/%s): %s", tmppath, Modes.json_dir, file, strerror(errno));
-        goto error_2;
+        goto cleanup;
     }
 
     snprintf(pathbuf, PATH_MAX, "%s/%s", Modes.json_dir, file);
-    pathbuf[PATH_MAX-1] = 0;
-    if (rename(tmppath, pathbuf) < 0) {
+    if(!UtilMoveFile(tmppath, pathbuf)){
         ratelimitWriteError("failed to rename %s to %s: %s", tmppath, pathbuf, strerror(errno));
-        goto error_2;
+        goto cleanup;
     }
 
+cleanup:
+    UtilDeleteFile(tmppath);
+    fclose(fd);
     free(content);
     return;
-
- error_1:
-    close(fd);
- error_2:
-    unlink(tmppath);
-    free(content);
-    return;
-#endif
 }
 
 
