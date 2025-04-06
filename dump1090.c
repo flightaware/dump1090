@@ -466,8 +466,8 @@ static void backgroundTasks(void) {
 
     uint64_t now = mstime();
 
-    if (Modes.sdr_type != SDR_IFILE) {
-        // don't run these if processing data from a file
+    if (Modes.sdr_type != SDR_IFILE || Modes.force_background_tasks) {
+        // don't run these if processing data from a file unless explicitly enabled
         icaoFilterExpire();
         trackPeriodicUpdate();
     }
