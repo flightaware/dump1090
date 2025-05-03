@@ -2,6 +2,16 @@
 "use strict";
 
 // Define our global variables
+
+var DefaultSiteElevationAsl =0;	////
+var DefaultSiteNegativeAngle= -0.5	////
+var SiteElevationAsl //// will be set from LocalStorage
+var SiteNegativeAngle //// will be set from LocalStorage
+
+var SpecialElevations    = [ { exceptional: -0.0, markerColor: 'rgb(255, 0, 0)'},
+                             { exceptional: -1.0, markerColor: 'rgb(0, 255, 0)'},
+                             { exceptional: -1.5, markerColor: 'rgb(0, 0, 255)'} ] ; ////
+							 
 var OLMap         = null;
 var StaticFeatures = new ol.Collection();
 var SiteCircleFeatures = new ol.Collection();
@@ -88,7 +98,7 @@ var checkbox_div_map = new Map ([
         ['#airframes_col_checkbox', '#airframes_mode_s_link'],
         ['#fa_modes_link_checkbox', '#flightaware_mode_s_link'],
         ['#fa_photo_link_checkbox', '#flightaware_photo_link'],
-
+		['#elevation_col_checkbox', '#elevation'], ////
 ]);
 
 var DefaultMinMaxFilters = {
@@ -469,6 +479,9 @@ function initialize() {
         });
 
         // Initialize settings from local storage
+		setElevation();	////
+		setAngle();////
+		
         filterGroundVehicles(false);
         filterBlockedMLAT(false);
         toggleAltitudeChart(false);
@@ -856,6 +869,10 @@ function applyUrlQueryStrings() {
     if (params.get('ringInterval')) {
         setRingInterval(params.get('ringInterval'));
     }
+	
+	if (params.get('siteElevation')) {
+        setSiteElevation(params.get('siteElevation'));
+    }
 }
 
 // Make a LineString with 'points'-number points
@@ -1101,6 +1118,11 @@ function initialize_map() {
 		toggleLayer('#actrail_checkbox', 'ac_trail');
 		toggleLayer('#acpositions_checkbox', 'ac_positions');
 	});
+
+	////
+	$('#elevation_asl_button').click(onSetElevationAsl);
+	$('#negative_angle_button').click(onSetNegativeAngle);
+	////
 
 	// Add home marker if requested
 	if (SitePosition) {
@@ -1445,6 +1467,9 @@ function refreshSelected() {
         $('#selected_rssi').text(selected.rssi.toFixed(1) + ' dBFS');
         $('#selected_message_count').text(selected.messages);
         $('#selected_photo_link').html(getFlightAwarePhotoLink(selected.registration));
+
+		$('#selected_elevation').text(selected.elevation); ////
+
         $('#selected_altitude_geom').text(format_altitude_long(selected.alt_geom, selected.geom_rate, DisplayUnits));
         $('#selected_mag_heading').text(format_track_long(selected.mag_heading));
         $('#selected_true_heading').text(format_track_long(selected.true_heading));
@@ -1730,25 +1755,41 @@ function refreshTableInfo() {
 				tableplane.tr.cells[2].className = "";
 			}
 
-                        tableplane.tr.cells[3].textContent = (tableplane.registration !== null ? tableplane.registration : "");
-                        tableplane.tr.cells[4].textContent = (tableplane.icaotype !== null ? tableplane.icaotype : "");
-                        tableplane.tr.cells[5].textContent = (tableplane.squawk !== null ? tableplane.squawk : "");
-                        tableplane.tr.cells[6].innerHTML = format_altitude_brief(tableplane.altitude, tableplane.vert_rate, DisplayUnits);
-                        tableplane.tr.cells[7].textContent = format_speed_brief(tableplane.gs, DisplayUnits);
-                        tableplane.tr.cells[8].textContent = format_vert_rate_brief(tableplane.vert_rate, DisplayUnits);
-                        tableplane.tr.cells[9].textContent = format_distance_brief(tableplane.sitedist, DisplayUnits);
-                        tableplane.tr.cells[10].textContent = format_track_brief(tableplane.track);
-                        tableplane.tr.cells[11].textContent = tableplane.messages;
-                        tableplane.tr.cells[12].textContent = tableplane.seen.toFixed(0);
-                        tableplane.tr.cells[13].textContent = (tableplane.rssi !== null ? tableplane.rssi : "");
-                        tableplane.tr.cells[14].textContent = (tableplane.position !== null ? tableplane.position[1].toFixed(4) : "");
-                        tableplane.tr.cells[15].textContent = (tableplane.position !== null ? tableplane.position[0].toFixed(4) : "");
-                        tableplane.tr.cells[16].textContent = format_data_source(tableplane.getDataSource());
-                        tableplane.tr.cells[17].innerHTML = getAirframesModeSLink(tableplane.icao);
-                        tableplane.tr.cells[18].innerHTML = getFlightAwareModeSLink(tableplane.icao, tableplane.flight);
-                        tableplane.tr.cells[19].innerHTML = getFlightAwarePhotoLink(tableplane.registration);
-                        tableplane.tr.className = classes;
-                }
+				tableplane.tr.cells[3].textContent = (tableplane.registration !== null ? tableplane.registration : "");
+				tableplane.tr.cells[4].textContent = (tableplane.icaotype !== null ? tableplane.icaotype : "");
+				tableplane.tr.cells[5].textContent = (tableplane.squawk !== null ? tableplane.squawk : "");
+				tableplane.tr.cells[6].innerHTML = format_altitude_brief(tableplane.altitude, tableplane.vert_rate, DisplayUnits);
+				tableplane.tr.cells[7].textContent = format_speed_brief(tableplane.gs, DisplayUnits);
+				tableplane.tr.cells[8].textContent = format_vert_rate_brief(tableplane.vert_rate, DisplayUnits);
+				tableplane.tr.cells[9].textContent = format_distance_brief(tableplane.sitedist, DisplayUnits);
+				tableplane.tr.cells[10].textContent = format_track_brief(tableplane.track);
+				tableplane.tr.cells[11].textContent = tableplane.messages;
+				tableplane.tr.cells[12].textContent = tableplane.seen.toFixed(0);
+				tableplane.tr.cells[13].textContent = (tableplane.rssi !== null ? tableplane.rssi : "");
+				tableplane.tr.cells[14].textContent = (tableplane.position !== null ? tableplane.position[1].toFixed(4) : "");
+				tableplane.tr.cells[15].textContent = (tableplane.position !== null ? tableplane.position[0].toFixed(4) : "");
+				tableplane.tr.cells[16].textContent = format_data_source(tableplane.getDataSource());
+				tableplane.tr.cells[17].innerHTML = getAirframesModeSLink(tableplane.icao);
+				tableplane.tr.cells[18].innerHTML = getFlightAwareModeSLink(tableplane.icao, tableplane.flight);
+				tableplane.tr.cells[19].innerHTML = getFlightAwarePhotoLink(tableplane.registration);
+
+
+				////
+				var elevationAngle  = format_elevation(SiteElevationAsl, tableplane.sitedist, tableplane.altitude, tableplane.gs);
+				tableplane.elevation =  elevationAngle;
+
+				if(     elevationAngle > 90 ) {
+
+					tableplane.tr.cells[20].textContent = '';
+				}
+				else {
+
+					tableplane.tr.cells[20].textContent = tableplane.elevation+'\u00b0';
+				}
+				////
+
+				tableplane.tr.className = classes;
+			}
         }
 
         if (show_squawk_warning) {
@@ -1796,6 +1837,8 @@ function sortByRssi()     { sortBy('rssi',    compareNumeric, function(x) { retu
 function sortByLatitude()   { sortBy('lat',   compareNumeric, function(x) { return (x.position !== null ? x.position[1] : null) }); }
 function sortByLongitude()  { sortBy('lon',   compareNumeric, function(x) { return (x.position !== null ? x.position[0] : null) }); }
 function sortByDataSource() { sortBy('data_source',     compareAlpha, function(x) { return x.getDataSource() } ); }
+
+function sortByElevation()  { sortBy('elevation',     compareNumeric, function(x) { return x.elevation; }); } ////
 
 var sortId = '';
 var sortCompare = null;
@@ -2050,15 +2093,19 @@ function resetMap() {
         localStorage['ZoomLvl']   = ZoomLvl = DefaultZoomLvl;
 
         // Reset to default range rings
+////	localStorage['SiteCirclesElevation'] = SiteCirclesElevation = DefaultSiteCirclesElevation;
         localStorage['SiteCirclesCount'] = SiteCirclesCount = DefaultSiteCirclesCount;
         localStorage['SiteCirclesBaseDistance'] = SiteCirclesBaseDistance = DefaultSiteCirclesBaseDistance;
         localStorage['SiteCirclesInterval'] = SiteCirclesInterval = DefaultSiteCirclesInterval;
         setRangeRings();
         createSiteCircleFeatures();
+		
+		localStorage['SiteElevationAsl'] = SiteElevationAsl = DefaultSiteElevationAsl;	////
+		localStorage['SiteNegativeAngle'] = SiteNegativeAngle = DefaultSiteNegativeAngle;	////
 
         // Set and refresh
         OLMap.getView().setZoom(ZoomLvl);
-	OLMap.getView().setCenter(ol.proj.fromLonLat([CenterLon, CenterLat]));
+		OLMap.getView().setCenter(ol.proj.fromLonLat([CenterLon, CenterLat]));
 	
 	selectPlaneByHex(null,false);
 }
@@ -2135,6 +2182,7 @@ function setColumnVisibility() {
     ]
 
     // Show default columns if checkboxes have not been set
+	
     for (var i=0; i < defaultCheckBoxes.length; i++) {
         var checkBoxdiv = defaultCheckBoxes[i];
         var columnDiv = checkbox_div_map.get(checkBoxdiv)
@@ -2145,6 +2193,7 @@ function setColumnVisibility() {
                 showColumn(infoTable, columnDiv, true);
         }
     }
+	
 
     // Now check local storage checkbox status
     checkbox_div_map.forEach(function (div, checkbox) {
@@ -2654,6 +2703,7 @@ function setRangeRingVisibility (showhide) {
     });
 }
 
+
 // simple function to set range ring count
 function setRingCount(val) {
     localStorage['SiteCirclesCount'] = val;
@@ -2677,11 +2727,13 @@ function setRingInterval(val) {
 
 // Set range ring globals and populate form values
 function setRangeRings() {
+
     SiteCirclesCount = Number(localStorage['SiteCirclesCount']) || DefaultSiteCirclesCount;
     SiteCirclesBaseDistance = Number(localStorage['SiteCirclesBaseDistance']) || DefaultSiteCirclesBaseDistance;
     SiteCirclesInterval = Number(localStorage['SiteCirclesInterval']) || DefaultSiteCirclesInterval;
 
     // Populate text fields with current values
+
     $('#range_ring_count').val(SiteCirclesCount);
     $('#range_ring_base').val(SiteCirclesBaseDistance);
     $('#range_ring_interval').val(SiteCirclesInterval);
@@ -2690,6 +2742,7 @@ function setRangeRings() {
 // redraw range rings with form values
 function onSetRangeRings() {
     // Save state to localStorage
+
     localStorage.setItem('SiteCirclesCount', parseFloat($("#range_ring_count").val().trim()));
     localStorage.setItem('SiteCirclesBaseDistance', parseFloat($("#range_ring_base").val().trim()));
     localStorage.setItem('SiteCirclesInterval', parseFloat($("#range_ring_interval").val().trim()));
@@ -2698,6 +2751,54 @@ function onSetRangeRings() {
 
     createSiteCircleFeatures();
 }
+
+//// functions to support configuration of global SiteElevationAsl & SiteNegativeAngle
+
+function setElevationAsl(val) {
+    localStorage['SiteElevationAsl'] = val;
+    setElevation();
+}
+
+function setElevation() {
+	
+	SiteElevationAsl = Number(localStorage['SiteElevationAsl']) || DefaultSiteElevationAsl;
+	
+	// Populate text field with current value
+
+    $('#elevation_asl').val(SiteElevationAsl);
+}
+
+function onSetElevationAsl() {
+    // Save state to localStorage
+
+    localStorage.setItem('SiteElevationAsl', parseFloat($("#elevation_asl").val().trim()));
+
+    setElevation();
+}
+
+function setNegativeAngle(val) {
+    localStorage['SiteNegativeAngle'] = val;
+    setAngle();
+}
+
+function setAngle() {
+	
+	SiteNegativeAngle = Number(localStorage['SiteNegativeAngle']) || DefaultSiteNegativeAngle;
+	
+	// Populate text field with current value
+
+    $('#negative_angle').val(SiteNegativeAngle);
+}
+
+function onSetNegativeAngle() {
+    // Save state to localStorage
+
+	var desiredNegativeAngle = parseFloat($("#negative_angle").val().trim());
+    localStorage.setItem('SiteNegativeAngle', desiredNegativeAngle < 0 ? desiredNegativeAngle : DefaultSiteNegativeAngle);
+
+    setAngle();
+}
+////
 
 function toggleColumn(div, checkbox, toggled) {
 	if (typeof localStorage[checkbox] === 'undefined') {
