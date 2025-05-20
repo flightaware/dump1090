@@ -62,6 +62,7 @@ body {
 
 #planes_table {
     overflow-x: scroll;
+    padding-bottom: 30px;
 }
 
 .columnOptionContainer {
