@@ -35,6 +35,11 @@ ifeq ($(PKGCONFIG), yes)
   ifndef SOAPYSDR
     SOAPYSDR := $(shell pkg-config --exists SoapySDR && echo "yes" || echo "no")
   endif
+
+  ifndef AD9361SDR
+    AD9361SDR := $(shell pkg-config --exists libiio libad9361 && echo "yes" || echo "no")
+  endif
+
 else
   # pkg-config not available. Only use explicitly enabled libraries.
   RTLSDR ?= no
@@ -42,6 +47,7 @@ else
   HACKRF ?= no
   LIMESDR ?= no
   SOAPYSDR ?= no
+  AD9361SDR ?= no
 endif
 
 BUILD_UNAME := $(shell uname)
@@ -54,7 +60,7 @@ ifeq ($(UNAME), Linux)
   DUMP1090_CPPFLAGS += -D_DEFAULT_SOURCE
   LIBS += -lrt
   LIBS_USB += -lusb-1.0
-  LIBS_CURSES := -lncurses
+  LIBS_CURSES := -lncurses -ltinfo
   CPUFEATURES ?= yes
 endif
 
@@ -167,6 +173,13 @@ ifeq ($(SOAPYSDR), yes)
   LIBS_SDR += $(shell pkg-config --libs SoapySDR)
 endif
 
+ifeq ($(AD9361SDR), yes)
+  SDR_OBJ += sdr_ad9361.o
+  DUMP1090_CPPFLAGS += -DENABLE_LIBIIO -DENABLE_AD9361
+  DUMP1090_CFLAGS += -DENABLE_LIBIIO -DENABLE_AD9361
+  DUMP1090_CFLAGS += $(shell pkg-config --cflags libiio libad9361)
+  LIBS_SDR += $(shell pkg-config --libs libiio libad9361)
+endif
 
 ##
 ## starch (runtime DSP code selection) mix, architecture-specific
@@ -218,6 +231,7 @@ showconfig:
 	@echo "  HackRF support:   $(HACKRF)" >&2
 	@echo "  LimeSDR support:  $(LIMESDR)" >&2
 	@echo "  SoapySDR support: $(SOAPYSDR)" >&2
+	@echo "  AD9361 support:   $(AD9361SDR)" >&2
 
 %.o: %.c *.h
 	$(CC) $(ALL_CCFLAGS) -c $< -o $@
