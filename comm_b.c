@@ -244,14 +244,14 @@ static int decodeBDS20(struct modesMessage *mm, bool store)
         return 0;
     }
 
-    callsign[0] = ais_charset[getbits(msg, 9, 14)];
-    callsign[1] = ais_charset[getbits(msg, 15, 20)];
-    callsign[2] = ais_charset[getbits(msg, 21, 26)];
-    callsign[3] = ais_charset[getbits(msg, 27, 32)];
-    callsign[4] = ais_charset[getbits(msg, 33, 38)];
-    callsign[5] = ais_charset[getbits(msg, 39, 44)];
-    callsign[6] = ais_charset[getbits(msg, 45, 50)];
-    callsign[7] = ais_charset[getbits(msg, 51, 56)];
+    callsign[0] = ais_to_ascii(getbits(msg, 9, 14));
+    callsign[1] = ais_to_ascii(getbits(msg, 15, 20));
+    callsign[2] = ais_to_ascii(getbits(msg, 21, 26));
+    callsign[3] = ais_to_ascii(getbits(msg, 27, 32));
+    callsign[4] = ais_to_ascii(getbits(msg, 33, 38));
+    callsign[5] = ais_to_ascii(getbits(msg, 39, 44));
+    callsign[6] = ais_to_ascii(getbits(msg, 45, 50));
+    callsign[7] = ais_to_ascii(getbits(msg, 51, 56));
     callsign[8] = 0;
 
     // score based on number of valid characters
