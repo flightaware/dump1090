@@ -140,7 +140,7 @@ void interactiveShowData(void) {
     static bool need_clear = true;
     uint64_t now = mstime();
     char progress;
-    char spinner[4] = "|/-\\";
+    char spinner[5] = "|/-\\";
     int valid = 0;
     double signalMax = -100.0;
     double signalMin = +100.0;
