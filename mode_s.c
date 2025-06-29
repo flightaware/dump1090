@@ -802,14 +802,14 @@ static void decodeESIdentAndCategory(struct modesMessage *mm)
 
     mm->mesub = getbits(me, 6, 8);
 
-    mm->callsign[0] = ais_charset[getbits(me, 9, 14)];
-    mm->callsign[1] = ais_charset[getbits(me, 15, 20)];
-    mm->callsign[2] = ais_charset[getbits(me, 21, 26)];
-    mm->callsign[3] = ais_charset[getbits(me, 27, 32)];
-    mm->callsign[4] = ais_charset[getbits(me, 33, 38)];
-    mm->callsign[5] = ais_charset[getbits(me, 39, 44)];
-    mm->callsign[6] = ais_charset[getbits(me, 45, 50)];
-    mm->callsign[7] = ais_charset[getbits(me, 51, 56)];
+    mm->callsign[0] = ais_to_ascii(getbits(me, 9, 14));
+    mm->callsign[1] = ais_to_ascii(getbits(me, 15, 20));
+    mm->callsign[2] = ais_to_ascii(getbits(me, 21, 26));
+    mm->callsign[3] = ais_to_ascii(getbits(me, 27, 32));
+    mm->callsign[4] = ais_to_ascii(getbits(me, 33, 38));
+    mm->callsign[5] = ais_to_ascii(getbits(me, 39, 44));
+    mm->callsign[6] = ais_to_ascii(getbits(me, 45, 50));
+    mm->callsign[7] = ais_to_ascii(getbits(me, 51, 56));
     mm->callsign[8] = 0;
     mm->callsign_valid = 1;
 
