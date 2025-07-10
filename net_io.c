@@ -568,8 +568,7 @@ static void send_raw_heartbeat(struct net_service *service)
 //
 // Write SBS output to TCP clients
 //
-static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
-    char *p;
+void modesPrepareSBSOutput(struct modesMessage *mm, struct aircraft *a, char *p) {
     struct timespec now;
     struct tm    stTime_receive, stTime_now;
     int          msgType;
@@ -592,10 +591,6 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
 
     // For now, suppress non-ICAO addresses
     if (mm->addr & MODES_NON_ICAO_ADDRESS)
-        return;
-
-    p = prepareWrite(&Modes.sbs_out, 200);
-    if (!p)
         return;
 
     //
@@ -782,7 +777,15 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     }
 
     p += sprintf(p, "\r\n");
+}
 
+static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
+
+    char *p;
+    p = prepareWrite(&Modes.sbs_out, 200);
+    if (!p)
+        return;
+    modesPrepareSBSOutput(mm, a, p);
     completeWrite(&Modes.sbs_out, p);
 }
 
@@ -1024,7 +1027,7 @@ void modesQueueOutput(struct modesMessage *mm, struct aircraft *a) {
 }
 
 // Decode a little-endian IEEE754 float (binary32)
-static float ieee754_binary32_le_to_float(uint8_t *data)
+float ieee754_binary32_le_to_float(uint8_t *data)
 {
     double sign = (data[3] & 0x80) ? -1.0 : 1.0;
     int16_t raw_exponent = ((data[3] & 0x7f) << 1) | ((data[2] & 0x80) >> 7);
@@ -1058,7 +1061,7 @@ static float ieee754_binary32_le_to_float(uint8_t *data)
     return ldexp(sign * ((1 << 23) | raw_significand), raw_exponent - 127 - 23);
 }
 
-static void handle_radarcape_position(float lat, float lon, float alt)
+void handle_radarcape_position(float lat, float lon, float alt)
 {
     if (!isfinite(lat) || lat < -90 || lat > 90 || !isfinite(lon) || lon < -180 || lon > 180 || !isfinite(alt))
         return;
