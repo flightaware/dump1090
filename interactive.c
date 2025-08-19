@@ -49,7 +49,11 @@
 
 #include "dump1090.h"
 
-#include <curses.h>
+#ifdef MISSING_CURSES_H_NCURSES
+#  include <ncurses/curses.h>
+#else
+#  include <curses.h>
+#endif
 #include <regex.h>
 #include <sys/types.h>
 
