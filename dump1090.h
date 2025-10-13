@@ -273,6 +273,10 @@ typedef enum {
 #define HISTORY_SIZE 120
 #define HISTORY_INTERVAL 30000
 
+// Range outline configuration
+#define RANGE_OUTLINE_DEGREES 360
+#define RANGE_OUTLINE_DEFAULT_RETENTION_HOURS 24   // Default retention: 24 hours
+
 #define MODES_NOTUSED(V) ((void) V)
 
 #define MAX_AMPLITUDE 65535.0
@@ -401,6 +405,12 @@ struct _Modes {                             // Internal state
     double fUserLon;                // Users receiver/antenna lat/lon needed for initial surface location
     int    bUserFlags;              // Flags relating to the user details
     double maxRange;                // Absolute maximum decoding range, in *metres*
+
+    // Range outline tracking
+    double range_outline_max[RANGE_OUTLINE_DEGREES];      // Maximum range seen at each bearing (0-359 degrees)
+    uint64_t range_outline_updated[RANGE_OUTLINE_DEGREES]; // Timestamp when each bearing was last updated
+    char *range_outline_persistence_file;                   // File to persist range outline data
+    uint64_t range_outline_retention_ms;                    // Current retention period in milliseconds (configurable at runtime)
 
     // State tracking
     struct aircraft *aircrafts;

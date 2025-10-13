@@ -270,6 +270,26 @@ static void update_range_histogram(double lat, double lon)
     }
 }
 
+static void update_range_outline(double lat, double lon)
+{
+    if (Modes.bUserFlags & MODES_USER_LATLON_VALID) {
+        double range = greatcircle(Modes.fUserLat, Modes.fUserLon, lat, lon);
+        double bearing = get_bearing(Modes.fUserLat, Modes.fUserLon, lat, lon);
+
+        // Round bearing to nearest integer degree (0-359)
+        int bearing_idx = ((int)round(bearing)) % 360;
+
+        uint64_t now = messageNow();
+
+        // Update if this is a new maximum for this bearing, or if we don't have data yet
+        if (range > Modes.range_outline_max[bearing_idx] ||
+            Modes.range_outline_updated[bearing_idx] == 0) {
+            Modes.range_outline_max[bearing_idx] = range;
+            Modes.range_outline_updated[bearing_idx] = now;
+        }
+    }
+}
+
 // return true if it's OK for the aircraft to have travelled from its last known position
 // to a new position at (lat,lon,surface) at a time of now.
 static int speed_check(struct aircraft *a, double lat, double lon, int surface)
@@ -603,6 +623,7 @@ static void updatePosition(struct aircraft *a, struct modesMessage *mm)
         a->pos_rc = new_rc;
 
         update_range_histogram(new_lat, new_lon);
+        update_range_outline(new_lat, new_lon);
     }
 }
 
@@ -1445,6 +1466,21 @@ static void trackRemoveStaleAircraft(uint64_t now)
 
 
 //
+// Expire old range outline data
+//
+static void expireRangeOutline(uint64_t now)
+{
+    for (int i = 0; i < RANGE_OUTLINE_DEGREES; i++) {
+        if (Modes.range_outline_updated[i] != 0 &&
+            (now - Modes.range_outline_updated[i]) > Modes.range_outline_retention_ms) {
+            // Expire this bearing - reset to zero
+            Modes.range_outline_max[i] = 0;
+            Modes.range_outline_updated[i] = 0;
+        }
+    }
+}
+
+//
 // Entry point for periodic updates
 //
 
@@ -1458,5 +1494,6 @@ void trackPeriodicUpdate()
         next_update = now + 1000;
         trackRemoveStaleAircraft(now);
         trackMatchAC(now);
+        expireRangeOutline(now);
     }
 }

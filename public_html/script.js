@@ -7,6 +7,10 @@ var StaticFeatures = new ol.Collection();
 var SiteCircleFeatures = new ol.Collection();
 var PlaneIconFeatures = new ol.Collection();
 var PlaneTrailFeatures = new ol.Collection();
+var RangeOutlineFeature = null;
+var RangeOutlineLayer = null;
+var ShowRangeOutline = false;
+var RangeOutlineData = null;
 var Planes        = {};
 var PlanesOrdered = [];
 var PlaneFilter   = {};
@@ -214,6 +218,11 @@ function fetchData() {
                         $("#update_error").css('display','block');
                 });
         }
+
+        // Fetch range outline data along with aircraft data
+        if (ShowRangeOutline) {
+                fetchRangeOutline();
+        }
         // Fetch UAT if enabled
         if (UAT_Enabled) {
                 if (FetchPending_UAT !== null && FetchPending_UAT.state() == 'pending') {
@@ -352,6 +361,7 @@ function initialize() {
         // Set initial element visibility
         $("#show_map_button").hide();
         $("#range_ring_column").hide();
+        $("#range_outline_column").hide();
         setColumnVisibility();
 
         // Initialize other controls
@@ -747,6 +757,9 @@ function end_load_history() {
         window.setInterval(fetchData, RefreshInterval);
         window.setInterval(reaper, 60000);
 
+        // Initialize range outline
+        initRangeOutline();
+
         // And kick off one refresh immediately.
         fetchData();
 
@@ -1100,6 +1113,19 @@ function initialize_map() {
 		toggleLayer('#sitepos_checkbox', 'site_pos');
 		toggleLayer('#actrail_checkbox', 'ac_trail');
 		toggleLayer('#acpositions_checkbox', 'ac_positions');
+
+		// Set up range outline checkbox
+		if (ShowRangeOutline) {
+			$('#range_outline_checkbox').addClass('settingsCheckboxChecked');
+		}
+		$('#range_outline_checkbox').on('click', function() {
+			toggleRangeOutline();
+			if (ShowRangeOutline) {
+				$('#range_outline_checkbox').addClass('settingsCheckboxChecked');
+			} else {
+				$('#range_outline_checkbox').removeClass('settingsCheckboxChecked');
+			}
+		});
 	});
 
 	// Add home marker if requested
@@ -1120,6 +1146,7 @@ function initialize_map() {
                 StaticFeatures.push(feature);
 
 		$('#range_ring_column').show();
+		$('#range_outline_column').show();
 
                 setRangeRings();
 
@@ -2843,4 +2870,156 @@ function toggleTISBAircraft(switchFilter) {
 		$('#tisb_datasource_checkbox').addClass('sourceCheckboxChecked');
 	}
 	localStorage.setItem('sourceTISBFilter', sourceTISBFilter);
+}
+
+// ============================================================================
+// Range Outline Functions
+// ============================================================================
+
+// Fetch range outline data from the server
+function fetchRangeOutline() {
+	$.ajax({
+		url: 'data/range_outline.json',
+		timeout: 5000,
+		cache: false,
+		dataType: 'json'
+	}).done(function(data) {
+		RangeOutlineData = data;
+		if (ShowRangeOutline && SitePosition) {
+			updateRangeOutline();
+		}
+	}).fail(function(jqXHR, textStatus, errorThrown) {
+		// Silently fail - range outline is optional
+	});
+}
+
+// Convert range outline data to map polygon and update display
+function updateRangeOutline() {
+	if (!RangeOutlineData || !SitePosition) {
+		return;
+	}
+
+	if (!ShowRangeOutline) {
+		if (RangeOutlineFeature) {
+			RangeOutlineFeature.setGeometry(null);
+		}
+		return;
+	}
+
+	var ranges = RangeOutlineData.range_outline;
+	var timestamps = RangeOutlineData.range_outline_timestamps;
+	if (!ranges || ranges.length !== 360 || !timestamps || timestamps.length !== 360) {
+		return;
+	}
+
+	// Build polygon coordinates from range data
+	// Include all 360 bearings to create a continuous outline
+	// Backend pre-filters data based on retention setting, so no client-side filtering needed
+	var coordinates = [];
+	var hasData = false;
+	for (var bearing = 0; bearing < 360; bearing++) {
+		var range = ranges[bearing];
+		var timestamp = timestamps[bearing];
+
+		// Backend sends 0 for ranges outside retention window
+		var isValid = range > 0 && timestamp > 0;
+
+		if (isValid) {
+			hasData = true;
+		}
+
+		// Convert bearing and range to lat/lon
+		// bearing is in degrees, range is in meters
+		// If range is 0, use a very small distance to keep polygon at center
+		var effectiveRange = isValid ? range : 1;
+		var point = destinationPoint(SitePosition[1], SitePosition[0], bearing, effectiveRange);
+		coordinates.push(ol.proj.fromLonLat([point.lon, point.lat]));
+	}
+
+	// Close the polygon
+	if (hasData && coordinates.length > 0) {
+		coordinates.push(coordinates[0]);
+
+		var polygon = new ol.geom.Polygon([coordinates]);
+
+		if (!RangeOutlineFeature) {
+			RangeOutlineFeature = new ol.Feature(polygon);
+			RangeOutlineFeature.setStyle(new ol.style.Style({
+				stroke: new ol.style.Stroke({
+					color: 'rgba(0, 128, 255, 0.8)',
+					width: 2
+				})
+			}));
+
+			// Add to static features or create dedicated layer
+			if (!RangeOutlineLayer) {
+				var source = new ol.source.Vector({
+					features: [RangeOutlineFeature]
+				});
+				RangeOutlineLayer = new ol.layer.Vector({
+					source: source,
+					zIndex: 99  // Below site circles but above base layers
+				});
+				OLMap.addLayer(RangeOutlineLayer);
+			}
+		} else {
+			RangeOutlineFeature.setGeometry(polygon);
+		}
+
+		// Ensure layer is visible when ShowRangeOutline is true
+		if (RangeOutlineLayer) {
+			RangeOutlineLayer.setVisible(true);
+		}
+	}
+}
+
+// Calculate destination point given start point, bearing and distance
+// Uses Haversine formula
+function destinationPoint(lat, lon, bearing, distance) {
+	var R = 6371000; // Earth radius in meters
+	var bearingRad = bearing * Math.PI / 180;
+	var latRad = lat * Math.PI / 180;
+	var lonRad = lon * Math.PI / 180;
+
+	var latRad2 = Math.asin(Math.sin(latRad) * Math.cos(distance / R) +
+	                        Math.cos(latRad) * Math.sin(distance / R) * Math.cos(bearingRad));
+
+	var lonRad2 = lonRad + Math.atan2(Math.sin(bearingRad) * Math.sin(distance / R) * Math.cos(latRad),
+	                                   Math.cos(distance / R) - Math.sin(latRad) * Math.sin(latRad2));
+
+	return {
+		lat: latRad2 * 180 / Math.PI,
+		lon: lonRad2 * 180 / Math.PI
+	};
+}
+
+// Toggle range outline visibility
+function toggleRangeOutline() {
+	ShowRangeOutline = !ShowRangeOutline;
+	localStorage.setItem('ShowRangeOutline', ShowRangeOutline);
+
+	if (ShowRangeOutline) {
+		// Fetch data which will call updateRangeOutline when done
+		fetchRangeOutline();
+	} else {
+		// Hide the layer
+		if (RangeOutlineLayer) {
+			RangeOutlineLayer.setVisible(false);
+		}
+		// Also clear the feature geometry
+		if (RangeOutlineFeature) {
+			RangeOutlineFeature.setGeometry(null);
+		}
+	}
+}
+
+// Initialize range outline from localStorage
+function initRangeOutline() {
+	var saved = localStorage.getItem('ShowRangeOutline');
+	if (saved === 'true') {
+		ShowRangeOutline = true;
+		fetchRangeOutline();
+		// Update checkbox to match loaded state
+		$('#range_outline_checkbox').addClass('settingsCheckboxChecked');
+	}
 }
