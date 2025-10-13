@@ -361,7 +361,6 @@ function initialize() {
         // Set initial element visibility
         $("#show_map_button").hide();
         $("#range_ring_column").hide();
-        $("#range_outline_column").hide();
         setColumnVisibility();
 
         // Initialize other controls
