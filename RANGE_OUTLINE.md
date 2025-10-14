@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Range Outline feature tracks and visualizes the maximum detection range of the ADS-B receiver at each bearing (0-359 degrees). It displays a polygon on the map showing the actual coverage area based on received aircraft positions, providing a real-time view of detection capabilities that adapts to environmental conditions, antenna characteristics, and terrain.
+The Range Outline feature tracks and visualizes the maximum detection range of the ADS-B receiver at each bearing (0-359 degrees). It displays an altitude-colored outline on the map showing the actual coverage area based on received aircraft positions, providing a real-time view of detection capabilities that adapts to environmental conditions, antenna characteristics, and terrain. Each segment of the outline is colored according to the altitude of the aircraft at maximum range for that bearing, creating a gradient visualization that shows both coverage and altitude information.
 
 ## How It Works
 
@@ -17,18 +17,21 @@ The backend continuously tracks aircraft positions and calculates the maximum de
    - Distance and bearing from receiver to aircraft are calculated using great circle formulas
 
 2. **Range Outline Updates** (`update_range_outline()` starting at line 273):
+   - Accepts aircraft object to access altitude information
    - Calculates the great circle distance from receiver to aircraft
    - Calculates the bearing from receiver to aircraft (0-359 degrees)
    - Rounds bearing to nearest integer degree
+   - Retrieves altitude (prefers barometric, falls back to geometric)
    - Updates maximum range for that bearing if:
      - This is the first position at this bearing, OR
      - This distance exceeds the previous maximum for this bearing
-   - Records timestamp of the update
+   - Records timestamp and altitude of the update
 
-3. **Data Structure** (`dump1090.h` lines 411-413):
+3. **Data Structure** (`dump1090.h` lines 409-414):
    ```c
    double range_outline_max[RANGE_OUTLINE_DEGREES];      // Maximum range at each bearing (meters)
    uint64_t range_outline_updated[RANGE_OUTLINE_DEGREES]; // Timestamp when each bearing was last updated
+   int range_outline_altitude[RANGE_OUTLINE_DEGREES];     // Altitude (feet) of aircraft at maximum range
    char *range_outline_persistence_file;                   // File to persist range outline data
    uint64_t range_outline_retention_ms;                    // Current retention period in milliseconds
    ```
@@ -43,16 +46,15 @@ The backend continuously tracks aircraft positions and calculates the maximum de
 
 Range outline data persists across application restarts:
 
-1. **Save Function** (`saveRangeOutline()` starting at line 104):
-   - Writes binary file with version header and both arrays
+1. **Save Function** (`saveRangeOutline()` starting at line 105):
+   - Writes binary file with three arrays
    - Called every 60 seconds by `backgroundTasks()`
    - Also called at shutdown
-   - File format: `uint32_t version | double[360] ranges | uint64_t[360] timestamps`
+   - File format: `double[360] ranges | uint64_t[360] timestamps | int[360] altitudes`
 
-2. **Load Function** (`loadRangeOutline()` starting at line 127):
+2. **Load Function** (`loadRangeOutline()` starting at line 125):
    - Reads binary file at startup
-   - Validates version number
-   - Restores previous range and timestamp data
+   - Restores previous range, timestamp, and altitude data
    - Logs success/failure messages
 
 3. **Storage Location**:
@@ -64,8 +66,8 @@ Range outline data persists across application restarts:
 The backend generates JSON output for the web interface:
 
 1. **Function** (`generateRangeOutlineJson()` starting at line 1732):
-   - Generates JSON with current timestamp, range array, and timestamp array
-   - Applies retention filter: outputs 0 for bearings outside retention window
+   - Generates JSON with current timestamp, range array, timestamp array, and altitude array
+   - Applies retention filter: outputs 0/null for bearings outside retention window
    - Called by `backgroundTasks()` at the JSON update interval
 
 2. **JSON Format**:
@@ -73,7 +75,8 @@ The backend generates JSON output for the web interface:
    {
      "now": 1760394506.0,
      "range_outline": [104761, 211010, ...360 values in meters...],
-     "range_outline_timestamps": [1760390035.1, 1760389259.8, ...360 values in seconds...]
+     "range_outline_timestamps": [1760390035.1, 1760389259.8, ...360 values in seconds...],
+     "range_outline_altitudes": [35000, 28000, null, ...360 values in feet or null...]
    }
    ```
 
@@ -114,17 +117,17 @@ The backend generates JSON output for the web interface:
    - On success: stores data and calls `updateRangeOutline()`
    - On failure: silently ignores (outline is optional feature)
 
-#### Polygon Rendering
+#### Altitude-Colored Outline Rendering
 
 1. **Coordinate Conversion** (`updateRangeOutline()`):
-   - Validates data structure (must have 360 ranges and timestamps)
+   - Validates data structure (must have 360 ranges, timestamps, and altitudes)
    - Iterates through all 360 bearings
    - For each bearing:
      - Checks if range > 0 and timestamp > 0 (backend sends 0 for expired data)
-     - Uses effective range (actual if valid, 1 meter if invalid to keep point at center)
+     - Uses effective range (actual if valid, 1 meter if invalid to create small circle at center)
      - Calculates lat/lon using `destinationPoint()` Haversine formula
      - Converts to map projection coordinates
-   - Closes polygon by appending first coordinate to end
+     - Stores altitude information for coloring
 
 2. **Haversine Calculation** (`destinationPoint()`):
    - Takes lat/lon origin, bearing, and distance in meters
@@ -132,15 +135,21 @@ The backend generates JSON output for the web interface:
    - Earth radius: 6,371,000 meters
    - Uses standard spherical trigonometry formulas
 
-3. **OpenLayers Integration**:
-   - Creates `ol.geom.Polygon` from coordinate array
-   - First render: creates Feature with blue stroke style, adds to new Vector layer
-   - Subsequent updates: updates existing Feature geometry
+3. **Multi-Segment Rendering**:
+   - Creates 360 individual LineString segments (one for each degree transition)
+   - Each segment connects bearing N to bearing N+1 (with wraparound from 359 to 0)
+   - Always draws complete circle: segments without data stay at 1 meter radius
+   - Color calculation for each segment:
+     - If both endpoints have valid altitude: uses midpoint altitude
+     - If only one endpoint has valid altitude: uses that altitude
+     - If no altitude data: uses default blue color
+   - Uses existing `PlaneObject.prototype.getAltitudeColor()` function for altitude-to-color mapping
+   - Uses existing `PlaneObject.prototype.hslRepr()` function for HSL color conversion
    - Layer properties:
-     - Stroke: `rgba(0, 128, 255, 0.8)` (semi-transparent blue)
      - Width: 2 pixels
      - No fill
      - zIndex: 99 (below site circles, above base layers)
+   - Creates smooth gradient effect as colors transition between adjacent segments
 
 #### User Controls
 
@@ -152,7 +161,7 @@ The backend generates JSON output for the web interface:
      - Data fetch callback updates display
    - When disabling:
      - Hides the layer (`setVisible(false)`)
-     - Clears feature geometry
+     - Clears all line segment features from the source
 
 2. **State Persistence**:
    - Uses browser localStorage with key `ShowRangeOutline`
@@ -213,33 +222,24 @@ The web interface provides a simple on/off toggle:
 
 #### Visual Customization
 
-To modify the outline appearance, edit the style in `public_html/script.js` in the `updateRangeOutline()` function:
+The outline is automatically colored based on altitude using the same color scale as aircraft markers. Each line segment is colored according to the altitude of the aircraft at maximum range for that bearing.
 
+**Altitude Color Scale**:
+- The colors are determined by `PlaneObject.prototype.getAltitudeColor()` in `planeObject.js`
+- Higher altitudes appear in different hues than lower altitudes
+- Colors smoothly gradient between adjacent bearings
+
+**Line Width**: To change the line thickness, edit `public_html/script.js` in the `updateRangeOutline()` function around line 2995:
 ```javascript
-RangeOutlineFeature.setStyle(new ol.style.Style({
+lineFeature.setStyle(new ol.style.Style({
     stroke: new ol.style.Stroke({
-        color: 'rgba(0, 128, 255, 0.8)',  // Color: RGBA (red, green, blue, alpha)
-        width: 2                           // Line width in pixels
+        color: color,
+        width: 2  // Change this value (in pixels)
     })
 }));
 ```
 
-**Color Options**:
-- Current: `rgba(0, 128, 255, 0.8)` - semi-transparent blue
-- Examples:
-  - Solid red: `'rgba(255, 0, 0, 1.0)'`
-  - Green: `'rgba(0, 255, 0, 0.8)'`
-  - Yellow: `'rgba(255, 255, 0, 0.8)'`
-  - Purple: `'rgba(128, 0, 255, 0.8)'`
-
-**Width**: Change the `width` value (in pixels) to make the line thicker or thinner
-
-**Fill** (currently disabled): To add interior fill, add after the stroke definition:
-```javascript
-fill: new ol.style.Fill({
-    color: 'rgba(0, 128, 255, 0.2)'  // Very transparent for subtle fill
-})
-```
+**Default Color for No Altitude Data**: Segments without altitude information use `'rgba(0, 128, 255, 0.8)'` (semi-transparent blue). This can be changed in the same location around line 2992.
 
 ## Technical Flow
 
@@ -291,13 +291,15 @@ fill: new ol.style.Fill({
        ↓ Updates aircraft state
    updatePosition() [track.c]
        ↓ Validates new position
-       ↓ update_range_outline(lat, lon)
+       ↓ update_range_outline(aircraft)
            ↓ greatcircle(receiver, aircraft) → distance in meters
            ↓ get_bearing(receiver, aircraft) → bearing 0-359°
            ↓ bearing_idx = round(bearing) % 360
+           ↓ Get altitude (prefer barometric, fallback to geometric)
            ↓ if (distance > max[bearing_idx] || no data yet)
                ↓ range_outline_max[bearing_idx] = distance
                ↓ range_outline_updated[bearing_idx] = now (ms)
+               ↓ range_outline_altitude[bearing_idx] = altitude (feet)
    ```
 
 2. **Periodic Updates (Every 1 Second)**:
@@ -320,9 +322,11 @@ fill: new ol.style.Fill({
                        ↓ if updated[bearing] != 0 && (now - updated[bearing]) <= retention_ms
                            ↓ output: range_outline[bearing] = max[bearing]
                            ↓ output: range_outline_timestamps[bearing] = updated[bearing]
+                           ↓ output: range_outline_altitudes[bearing] = altitude[bearing] or null
                        ↓ else
                            ↓ output: range_outline[bearing] = 0
                            ↓ output: range_outline_timestamps[bearing] = 0
+                           ↓ output: range_outline_altitudes[bearing] = null
    ```
 
 4. **Persistence (Every 60 Seconds + Shutdown)**:
@@ -331,9 +335,9 @@ fill: new ol.style.Fill({
        ↓ if (now >= next_range_outline_save)
            ↓ saveRangeOutline()
                ↓ fopen(persistence_file, "wb")
-               ↓ fwrite(version = 1)
                ↓ fwrite(range_outline_max[360])
                ↓ fwrite(range_outline_updated[360])
+               ↓ fwrite(range_outline_altitude[360])
                ↓ fclose()
    ```
 
@@ -346,16 +350,21 @@ fill: new ol.style.Fill({
                ↓ on success:
                    ↓ RangeOutlineData = data
                    ↓ updateRangeOutline()
-                       ↓ for bearing = 0 to 359:
+                       ↓ Build points array for all 360 bearings:
                            ↓ range = data.range_outline[bearing]
                            ↓ timestamp = data.range_outline_timestamps[bearing]
+                           ↓ altitude = data.range_outline_altitudes[bearing]
                            ↓ isValid = (range > 0 && timestamp > 0)
                            ↓ effectiveRange = isValid ? range : 1
                            ↓ point = destinationPoint(receiver, bearing, effectiveRange)
-                           ↓ coordinates.push(toMapProjection(point))
-                       ↓ coordinates.push(coordinates[0])  // close polygon
-                       ↓ polygon = new ol.geom.Polygon([coordinates])
-                       ↓ RangeOutlineFeature.setGeometry(polygon)
+                           ↓ points[bearing] = {coord, altitude, isValid}
+                       ↓ Clear existing features from layer
+                       ↓ for bearing = 0 to 359:
+                           ↓ nextBearing = (bearing + 1) % 360
+                           ↓ Create LineString from points[bearing] to points[nextBearing]
+                           ↓ Calculate color based on altitude(s)
+                           ↓ Apply style with calculated color
+                           ↓ Add feature to layer
                        ↓ RangeOutlineLayer.setVisible(true)
    ```
 
@@ -368,10 +377,10 @@ fill: new ol.style.Fill({
 
 1. **`dump1090.h`** - Data structure definitions
    - Lines 276-277: Constants for degrees and default retention
-   - Lines 411-413: State variables in `struct _Modes`
+   - Lines 409-414: State variables in `struct _Modes` (includes altitude array)
 
 2. **`dump1090.c`** - Persistence and initialization
-   - Lines 104-154: `saveRangeOutline()` and `loadRangeOutline()` functions
+   - Lines 105-149: `saveRangeOutline()` and `loadRangeOutline()` functions
    - Default configuration in `modesInitConfig()`
    - Periodic save logic in `backgroundTasks()` (every 60 seconds)
    - JSON generation call in `backgroundTasks()`
@@ -381,13 +390,13 @@ fill: new ol.style.Fill({
    - Save data at shutdown
 
 3. **`track.c`** - Position tracking and expiration
-   - Lines 273-290: `update_range_outline()` function
-   - Line 626: Call to `update_range_outline()` in `updatePosition()`
+   - Lines 273-300: `update_range_outline()` function (updated to accept aircraft object and store altitude)
+   - Line 635: Call to `update_range_outline()` in `updatePosition()`
    - Lines 1472-1480: `expireRangeOutline()` function
    - Line 1497: Call to `expireRangeOutline()` in `trackPeriodicUpdate()`
 
 4. **`net_io.c`** - JSON generation
-   - Lines 1732-1777: `generateRangeOutlineJson()` function
+   - Lines 1732-1789: `generateRangeOutlineJson()` function (includes altitude array output)
 
 5. **`net_io.h`** - Function declaration
    - Declaration of `generateRangeOutlineJson()`
@@ -401,7 +410,7 @@ fill: new ol.style.Fill({
    - Line 759: Initialize on startup in `end_load_history()`
    - Lines 1115-1126: Checkbox setup in `initialize_map()`
    - Line 1148: Show column if site position configured
-   - Lines 2878-3023: Range outline functions (fetch, update, destinationPoint, toggle, init)
+   - Lines 2878-3056: Range outline functions (fetch, update with multi-segment rendering, destinationPoint, toggle, init)
 
 ### Generated Files
 
@@ -410,9 +419,10 @@ fill: new ol.style.Fill({
    - Read by frontend for display
 
 2. **`data/range_outline.dat` (or `/tmp/range_outline.dat`)** - Persistence file
-   - Binary format: version (uint32) + ranges (double[360]) + timestamps (uint64[360])
+   - Binary format: ranges (double[360]) + timestamps (uint64[360]) + altitudes (int[360])
    - Updated every 60 seconds and at shutdown
    - Loaded at startup
+   - **Note**: If upgrading from a version without altitude support, delete this file to start fresh
 
 ## Design Decisions
 
@@ -427,15 +437,26 @@ fill: new ol.style.Fill({
 - Prevents indefinite growth from one-off long-distance reception events
 
 ### Why Binary Persistence Format?
-- Compact: 2 arrays × 360 elements + version header = ~7 KB
+- Compact: 3 arrays × 360 elements = ~11 KB
 - Fast to read/write
 - Simple implementation without dependencies
-- Version field allows future format changes
 
 ### Why No Fill Color?
 - User preference: outline-only provides clear boundary without obscuring map
 - Reduces visual clutter
 - Better visibility of aircraft icons inside coverage area
+
+### Why Altitude-Based Coloring?
+- Provides additional insight into coverage characteristics
+- High-altitude aircraft typically have longer ranges
+- Color gradients show both coverage and altitude profile at a glance
+- Uses existing altitude color scale for consistency with aircraft display
+
+### Why Multi-Segment Rendering Instead of Single Polygon?
+- Allows individual coloring of each degree transition
+- Creates smooth gradient effect between different altitudes
+- More flexible for future enhancements
+- Always shows complete circle (small radius for bearings without data yet)
 
 ### Why Layer Visibility Instead of Add/Remove?
 - More efficient: layer and feature persist in memory
@@ -483,31 +504,52 @@ fill: new ol.style.Fill({
 3. **Check backend is generating JSON** (`ls -l data/range_outline.json` shows recent timestamp)
 4. **Check backend is receiving aircraft** (dump1090 console shows messages?)
 
+## Feature Highlights
+
+### Altitude-Based Gradient Visualization
+The range outline displays a color gradient based on the altitude of aircraft at maximum range for each bearing:
+
+- **Purple/Magenta**: High altitude aircraft (typically 35,000+ feet)
+- **Blue/Cyan**: Medium altitude aircraft (typically 15,000-30,000 feet)
+- **Green/Yellow**: Lower altitude aircraft (below 15,000 feet)
+- **Smooth Gradients**: Colors smoothly transition between adjacent bearings
+
+This provides immediate visual feedback about your coverage profile:
+- Areas with high-altitude colors suggest good line-of-sight coverage
+- Lower altitude colors may indicate terrain limitations or closer aircraft
+- Uniform coloring suggests consistent altitude coverage
+- Varied coloring shows diverse altitude profiles across different directions
+
+### Dynamic Coverage Display
+- Starts as a small circle at receiver location
+- Gradually expands outward as aircraft are tracked at each bearing
+- Segments with no data yet remain at center (1 meter radius)
+- Segments extend to maximum observed range when aircraft are detected
+
 ## Future Enhancements
 
 Potential improvements not currently implemented:
 
-1. **Color Customization UI**:
-   - Color picker in settings panel
-   - Save preference to localStorage
-
-2. **Multiple Outline Layers**:
+1. **Multiple Outline Layers**:
    - Show 24-hour, 7-day, and 30-day outlines simultaneously
-   - Different colors for each time period
+   - Different rendering styles for each time period
 
-3. **Export/Import**:
+2. **Export/Import**:
    - Download range outline data as GeoJSON
    - Import previously saved outlines
 
-4. **Statistics Display**:
+3. **Statistics Display**:
    - Total coverage area calculation
    - Coverage percentage by direction
    - Identify weak coverage areas
+   - Altitude distribution analysis
 
-5. **Altitude-Based Outlines**:
-   - Separate outlines for different altitude bands
-   - Better understanding of ground-level vs. high-altitude coverage
+4. **Altitude Band Filtering**:
+   - Toggle between different altitude bands
+   - Compare low-altitude vs high-altitude coverage
+   - Better understanding of ground-level vs. high-altitude capabilities
 
-6. **Historical Comparison**:
+5. **Historical Comparison**:
    - Overlay previous period's outline to see changes
    - Detect antenna degradation or improvements
+   - Track seasonal variations
