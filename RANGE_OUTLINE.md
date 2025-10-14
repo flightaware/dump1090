@@ -32,10 +32,10 @@ The backend continuously tracks aircraft positions and calculates the maximum de
    uint64_t range_outline_retention_ms; // Data retention period (milliseconds)
    ```
 
-4. **Data Expiration** (`track.c` `expireRangeOutline()` starting at line 1468):
+4. **Data Expiration** (`expireRangeOutline()` at line 1471 in `track.c`):
    - Called every second by `trackPeriodicUpdate()`
-   - Checks each bearing's timestamp
-   - Resets range and timestamp to 0 if data exceeds retention period
+   - Iterates through all 360 bearings
+   - Resets bearings to 0 if timestamp exceeds retention period
    - Allows the outline to adapt to changing conditions over time
 
 #### Data Persistence (`dump1090.c`)
@@ -44,12 +44,12 @@ Range outline data persists across application restarts:
 
 1. **Save Function** (`saveRangeOutline()` starting at line 104):
    - Writes binary file with version header and both arrays
-   - Called every 60 seconds by `backgroundTasks()` (line 634)
-   - Also called at shutdown (line 1027)
+   - Called every 60 seconds by `backgroundTasks()`
+   - Also called at shutdown
    - File format: `uint32_t version | double[360] ranges | uint64_t[360] timestamps`
 
 2. **Load Function** (`loadRangeOutline()` starting at line 127):
-   - Reads binary file at startup (called at line 940)
+   - Reads binary file at startup
    - Validates version number
    - Restores previous range and timestamp data
    - Logs success/failure messages
@@ -57,7 +57,6 @@ Range outline data persists across application restarts:
 3. **Storage Location**:
    - Default: `/tmp/range_outline.dat`
    - When `--write-json <dir>` is used: `<dir>/range_outline.dat`
-   - Configured at lines 199 and 833-836
 
 #### JSON Generation (`net_io.c`)
 
@@ -66,7 +65,7 @@ The backend generates JSON output for the web interface:
 1. **Function** (`generateRangeOutlineJson()` starting at line 1732):
    - Generates JSON with current timestamp, range array, and timestamp array
    - Applies retention filter: outputs 0 for bearings outside retention window
-   - Called by `backgroundTasks()` at the JSON update interval (line 608)
+   - Called by `backgroundTasks()` at the JSON update interval
 
 2. **JSON Format**:
    ```json
@@ -92,19 +91,19 @@ The backend generates JSON output for the web interface:
    ```
 
 2. **Startup** (`initRangeOutline()` at line 3017):
-   - Called from `end_load_history()` (line 760) after map initialization
+   - Called from `end_load_history()` after map initialization
    - Reads `ShowRangeOutline` preference from localStorage
    - If enabled, fetches data and updates checkbox visual state
    - Ensures UI state matches saved preference after browser refresh
 
-3. **UI Setup** (`initialize_map()` starting at line 1117):
-   - Adds checkbox to settings panel (HTML at `public_html/index.html` line 134)
+3. **UI Setup** (`initialize_map()`):
+   - Adds checkbox to settings panel (HTML in `public_html/index.html`)
    - Registers click handler for `toggleRangeOutline()`
    - Synchronizes checkbox appearance with boolean state
 
 #### Data Fetching
 
-1. **Periodic Updates** (`fetchData()` at line 221):
+1. **Periodic Updates** (`fetchData()`):
    - If `ShowRangeOutline` is enabled, calls `fetchRangeOutline()` each refresh interval
    - Runs alongside aircraft data updates
 
@@ -139,7 +138,7 @@ The backend generates JSON output for the web interface:
    - Layer properties:
      - Stroke: `rgba(0, 128, 255, 0.8)` (semi-transparent blue)
      - Width: 2 pixels
-     - No fill (removed per user request)
+     - No fill
      - zIndex: 99 (below site circles, above base layers)
 
 #### User Controls
@@ -179,7 +178,7 @@ No new command-line options were added. The feature uses existing options:
 
 #### Runtime Settings
 
-**Data Retention Period** (defined in `dump1090.h` line 277):
+**Data Retention Period** (defined in `dump1090.h` line 278):
 ```c
 #define RANGE_OUTLINE_DEFAULT_RETENTION_HOURS 24
 ```
@@ -189,10 +188,6 @@ No new command-line options were added. The feature uses existing options:
 - **Purpose**: Allows outline to adapt to changing conditions (weather, seasonal foliage, antenna adjustments)
 - **Stored in**: `Modes.range_outline_retention_ms` (converted to milliseconds)
 - **To Change**: Modify the `#define` constant and recompile
-
-**Note**: There is currently no command-line option to change retention period at runtime. This could be added if needed by:
-1. Adding a new command-line option like `--range-outline-retention <hours>`
-2. Parsing it in `main()` and updating `Modes.range_outline_retention_ms`
 
 ### Frontend Configuration
 
@@ -209,7 +204,7 @@ The web interface provides a simple on/off toggle:
 
 #### Visual Customization
 
-To modify the outline appearance, edit `public_html/script.js` line 2948:
+To modify the outline appearance, edit `public_html/script.js` around line 2946:
 
 ```javascript
 RangeOutlineFeature.setStyle(new ol.style.Style({
@@ -368,40 +363,37 @@ fill: new ol.style.Fill({
 
 2. **`dump1090.c`** - Persistence and initialization
    - Lines 104-154: `saveRangeOutline()` and `loadRangeOutline()` functions
-   - Lines 199-202: Default configuration in `modesInitConfig()`
-   - Lines 523, 629-639: Periodic save logic in `backgroundTasks()`
-   - Lines 608: JSON generation call
-   - Lines 833-836: Path update when `--write-json` parsed
-   - Line 940: Load persisted data at startup
-   - Line 942: Write initial JSON at startup
-   - Line 1027: Save data at shutdown
+   - Default configuration in `modesInitConfig()`
+   - Periodic save logic in `backgroundTasks()` (every 60 seconds)
+   - JSON generation call in `backgroundTasks()`
+   - Path update when `--write-json` parsed
+   - Load persisted data at startup
+   - Write initial JSON at startup
+   - Save data at shutdown
 
 3. **`track.c`** - Position tracking and expiration
-   - Lines 273-290: `update_range_outline()` function
+   - Lines 273-291: `update_range_outline()` function
    - Line 626: Call to `update_range_outline()` in `updatePosition()`
-   - Lines 1468-1480: `expireRangeOutline()` function
+   - Lines 1471-1481: `expireRangeOutline()` function
    - Line 1497: Call to `expireRangeOutline()` in `trackPeriodicUpdate()`
 
 4. **`net_io.c`** - JSON generation
-   - Lines 1732-1779: `generateRangeOutlineJson()` function
+   - Lines 1732-1777: `generateRangeOutlineJson()` function
 
 5. **`net_io.h`** - Function declaration
-   - Line 98: Declaration of `generateRangeOutlineJson()`
+   - Declaration of `generateRangeOutlineJson()`
 
 6. **`public_html/index.html`** - UI element
-   - Lines 134-137: Range outline checkbox in settings panel
+   - Range outline checkbox in settings panel
 
 7. **`public_html/script.js`** - Frontend logic
    - Lines 10-13: Global variables
-   - Lines 221-223: Fetch call in `fetchData()`
-   - Line 364: Hide column initially in `initialize()`
-   - Line 760: Initialize on startup in `end_load_history()`
-   - Lines 1117-1127: Checkbox setup in `initialize_map()`
-   - Line 1149: Show column if site position configured
-   - Lines 2879-2924: Data fetching and rendering functions
-   - Lines 2977-2989: Haversine calculation function
-   - Lines 2995-3008: Toggle function
-   - Lines 3017-3024: Initialization from localStorage
+   - Fetch call in `fetchData()`
+   - Hide column initially in `initialize()`
+   - Initialize on startup in `end_load_history()`
+   - Checkbox setup in `initialize_map()`
+   - Show column if site position configured
+   - Lines 2879-3024: Range outline functions (fetch, update, toggle, init)
 
 ### Generated Files
 
@@ -443,11 +435,11 @@ fill: new ol.style.Fill({
 - Maintains geometry when disabled, instant re-show when enabled
 - Standard OpenLayers pattern
 
-### Why Client-Side Filtering Was Removed?
-- Backend already applies retention filter before JSON generation
-- Avoids duplicate logic
-- Reduces frontend code complexity
-- Backend retention check is more accurate (uses millisecond timestamps)
+### Why Dual Retention Filtering?
+- Backend applies actual expiration: zeros out in-memory data older than retention period
+- JSON generation applies read-time filter: outputs 0 for expired bearings
+- Frontend skips rendering points with 0 range values
+- This layered approach ensures data consistency and clean visualization
 
 ## Troubleshooting
 
@@ -473,8 +465,8 @@ fill: new ol.style.Fill({
 
 ### Checkbox State Wrong After Refresh
 
-- **Fixed**: Issue was resolved in `initRangeOutline()` by adding checkbox update (line 3023)
-- If still occurring: Check browser localStorage is enabled
+- Check browser localStorage is enabled
+- Verify `initRangeOutline()` is being called on page load
 
 ### Outline Doesn't Update
 
@@ -487,35 +479,27 @@ fill: new ol.style.Fill({
 
 Potential improvements not currently implemented:
 
-1. **Runtime Retention Configuration**:
-   - Add command-line option: `--range-outline-retention <hours>`
-   - Allow users to adjust without recompiling
-
-2. **Web UI Retention Control**:
-   - Add slider or dropdown in settings panel
-   - Send retention value to backend (requires new API endpoint)
-
-3. **Color Customization UI**:
+1. **Color Customization UI**:
    - Color picker in settings panel
    - Save preference to localStorage
 
-4. **Multiple Outline Layers**:
+2. **Multiple Outline Layers**:
    - Show 24-hour, 7-day, and 30-day outlines simultaneously
    - Different colors for each time period
 
-5. **Export/Import**:
+3. **Export/Import**:
    - Download range outline data as GeoJSON
    - Import previously saved outlines
 
-6. **Statistics Display**:
+4. **Statistics Display**:
    - Total coverage area calculation
    - Coverage percentage by direction
    - Identify weak coverage areas
 
-7. **Altitude-Based Outlines**:
+5. **Altitude-Based Outlines**:
    - Separate outlines for different altitude bands
    - Better understanding of ground-level vs. high-altitude coverage
 
-8. **Historical Comparison**:
+6. **Historical Comparison**:
    - Overlay previous period's outline to see changes
    - Detect antenna degradation or improvements
