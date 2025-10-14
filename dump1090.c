@@ -472,6 +472,8 @@ static void showHelp(void)
 "--json-stats-every <t>   Write json stats output every t seconds (default 60)\n"
 "--json-location-accuracy <n>  Accuracy of receiver location in json metadata\n"
 "                          (0=no location, 1=approximate, 2=exact)\n"
+"--range-outline-retention <h>  Set range outline data retention period in hours\n"
+"                          (default: 24)\n"
 "\n"
 "      Interactive mode\n"
 "\n"
@@ -880,6 +882,8 @@ int main(int argc, char **argv) {
             Modes.adaptive_range_scan_delay = atoi(argv[++j]);
         } else if (!strcmp(argv[j], "--adaptive-range-rescan-delay") && more) {
             Modes.adaptive_range_rescan_delay = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--range-outline-retention") && more) {
+            Modes.range_outline_retention_ms = (uint64_t)(atof(argv[++j]) * 3600 * 1000); // convert hours to milliseconds
         } else if (sdrHandleOption(argc, argv, &j)) {
             /* handled */
         } else {

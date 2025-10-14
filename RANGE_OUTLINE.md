@@ -25,14 +25,15 @@ The backend continuously tracks aircraft positions and calculates the maximum de
      - This distance exceeds the previous maximum for this bearing
    - Records timestamp of the update
 
-3. **Data Structure** (`dump1090.h` lines 410-412):
+3. **Data Structure** (`dump1090.h` lines 411-413):
    ```c
-   double range_outline_max[360];      // Maximum range at each bearing (meters)
-   uint64_t range_outline_updated[360]; // Timestamp of last update (milliseconds)
-   uint64_t range_outline_retention_ms; // Data retention period (milliseconds)
+   double range_outline_max[RANGE_OUTLINE_DEGREES];      // Maximum range at each bearing (meters)
+   uint64_t range_outline_updated[RANGE_OUTLINE_DEGREES]; // Timestamp when each bearing was last updated
+   char *range_outline_persistence_file;                   // File to persist range outline data
+   uint64_t range_outline_retention_ms;                    // Current retention period in milliseconds
    ```
 
-4. **Data Expiration** (`expireRangeOutline()` at line 1471 in `track.c`):
+4. **Data Expiration** (`expireRangeOutline()` at line 1472 in `track.c`):
    - Called every second by `trackPeriodicUpdate()`
    - Iterates through all 360 bearings
    - Resets bearings to 0 if timestamp exceeds retention period
@@ -90,7 +91,7 @@ The backend generates JSON output for the web interface:
    var RangeOutlineData = null;     // Cached JSON data from server
    ```
 
-2. **Startup** (`initRangeOutline()` at line 3017):
+2. **Startup** (`initRangeOutline()`):
    - Called from `end_load_history()` after map initialization
    - Reads `ShowRangeOutline` preference from localStorage
    - If enabled, fetches data and updates checkbox visual state
@@ -107,7 +108,7 @@ The backend generates JSON output for the web interface:
    - If `ShowRangeOutline` is enabled, calls `fetchRangeOutline()` each refresh interval
    - Runs alongside aircraft data updates
 
-2. **AJAX Request** (`fetchRangeOutline()` starting at line 2879):
+2. **AJAX Request** (`fetchRangeOutline()`):
    - Fetches `data/range_outline.json` from server
    - 5-second timeout, no caching
    - On success: stores data and calls `updateRangeOutline()`
@@ -115,7 +116,7 @@ The backend generates JSON output for the web interface:
 
 #### Polygon Rendering
 
-1. **Coordinate Conversion** (`updateRangeOutline()` starting at line 2897):
+1. **Coordinate Conversion** (`updateRangeOutline()`):
    - Validates data structure (must have 360 ranges and timestamps)
    - Iterates through all 360 bearings
    - For each bearing:
@@ -125,7 +126,7 @@ The backend generates JSON output for the web interface:
      - Converts to map projection coordinates
    - Closes polygon by appending first coordinate to end
 
-2. **Haversine Calculation** (`destinationPoint()` starting at line 2977):
+2. **Haversine Calculation** (`destinationPoint()`):
    - Takes lat/lon origin, bearing, and distance in meters
    - Returns destination lat/lon point
    - Earth radius: 6,371,000 meters
@@ -143,7 +144,7 @@ The backend generates JSON output for the web interface:
 
 #### User Controls
 
-1. **Toggle Function** (`toggleRangeOutline()` starting at line 2995):
+1. **Toggle Function** (`toggleRangeOutline()`):
    - Inverts `ShowRangeOutline` boolean
    - Saves state to localStorage for persistence
    - When enabling:
@@ -164,7 +165,14 @@ The backend generates JSON output for the web interface:
 
 #### Command-Line Options
 
-No new command-line options were added. The feature uses existing options:
+The feature adds one new command-line option and uses existing options:
+
+- **Range Outline Retention Period**: Use `--range-outline-retention <hours>` to control data retention
+  - Default: 24 hours
+  - Specified in hours (accepts decimal values)
+  - Example: `--range-outline-retention 48` for 48 hours
+  - Example: `--range-outline-retention 0.5` for 30 minutes
+  - Controls how long range data is kept before expiring
 
 - **Data Directory**: Use `--write-json <directory>` to specify where JSON and persistence files are written
   - Default JSON location: Uses the directory specified by `--write-json`
@@ -176,18 +184,19 @@ No new command-line options were added. The feature uses existing options:
   - Minimum: 0.1 seconds
   - Affects how often `range_outline.json` is regenerated
 
-#### Runtime Settings
+#### Retention Period Details
 
-**Data Retention Period** (defined in `dump1090.h` line 278):
-```c
-#define RANGE_OUTLINE_DEFAULT_RETENTION_HOURS 24
-```
+The data retention period controls how long range data is kept before expiring.
 
-- **Default**: 24 hours
-- **Behavior**: Data older than retention period is automatically expired and reset to 0
-- **Purpose**: Allows outline to adapt to changing conditions (weather, seasonal foliage, antenna adjustments)
-- **Stored in**: `Modes.range_outline_retention_ms` (converted to milliseconds)
-- **To Change**: Modify the `#define` constant and recompile
+**Default Value**: 24 hours (defined in `dump1090.h` line 278 as `RANGE_OUTLINE_DEFAULT_RETENTION_HOURS`)
+
+**Runtime Configuration**: Use the `--range-outline-retention <hours>` command-line option to override the default at startup.
+
+**Retention Period Behavior**:
+- Data older than the retention period is automatically expired and reset to 0
+- Expiration happens every second via `expireRangeOutline()` in `track.c`
+- Allows outline to adapt to changing conditions (weather, seasonal foliage, antenna adjustments)
+- Stored internally as `Modes.range_outline_retention_ms` (converted to milliseconds)
 
 ### Frontend Configuration
 
@@ -204,7 +213,7 @@ The web interface provides a simple on/off toggle:
 
 #### Visual Customization
 
-To modify the outline appearance, edit `public_html/script.js` around line 2946:
+To modify the outline appearance, edit the style in `public_html/script.js` in the `updateRangeOutline()` function:
 
 ```javascript
 RangeOutlineFeature.setStyle(new ol.style.Style({
@@ -359,7 +368,7 @@ fill: new ol.style.Fill({
 
 1. **`dump1090.h`** - Data structure definitions
    - Lines 276-277: Constants for degrees and default retention
-   - Lines 410-412: State variables in `struct _Modes`
+   - Lines 411-413: State variables in `struct _Modes`
 
 2. **`dump1090.c`** - Persistence and initialization
    - Lines 104-154: `saveRangeOutline()` and `loadRangeOutline()` functions
@@ -372,9 +381,9 @@ fill: new ol.style.Fill({
    - Save data at shutdown
 
 3. **`track.c`** - Position tracking and expiration
-   - Lines 273-291: `update_range_outline()` function
+   - Lines 273-290: `update_range_outline()` function
    - Line 626: Call to `update_range_outline()` in `updatePosition()`
-   - Lines 1471-1481: `expireRangeOutline()` function
+   - Lines 1472-1480: `expireRangeOutline()` function
    - Line 1497: Call to `expireRangeOutline()` in `trackPeriodicUpdate()`
 
 4. **`net_io.c`** - JSON generation
@@ -388,12 +397,11 @@ fill: new ol.style.Fill({
 
 7. **`public_html/script.js`** - Frontend logic
    - Lines 10-13: Global variables
-   - Fetch call in `fetchData()`
-   - Hide column initially in `initialize()`
-   - Initialize on startup in `end_load_history()`
-   - Checkbox setup in `initialize_map()`
-   - Show column if site position configured
-   - Lines 2879-3024: Range outline functions (fetch, update, toggle, init)
+   - Line 221-224: Fetch call in `fetchData()`
+   - Line 759: Initialize on startup in `end_load_history()`
+   - Lines 1115-1126: Checkbox setup in `initialize_map()`
+   - Line 1148: Show column if site position configured
+   - Lines 2878-3023: Range outline functions (fetch, update, destinationPoint, toggle, init)
 
 ### Generated Files
 
@@ -461,7 +469,7 @@ fill: new ol.style.Fill({
 ### Outline Shows Then Disappears
 
 - **Cause**: Data has expired (exceeds retention period with no new aircraft at those bearings)
-- **Solution**: Wait for aircraft to be received again, or increase retention period (requires recompile)
+- **Solution**: Wait for aircraft to be received again, or increase retention period using `--range-outline-retention <hours>` and restart dump1090
 
 ### Checkbox State Wrong After Refresh
 
