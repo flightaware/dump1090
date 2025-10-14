@@ -409,6 +409,7 @@ struct _Modes {                             // Internal state
     // Range outline tracking
     double range_outline_max[RANGE_OUTLINE_DEGREES];      // Maximum range seen at each bearing (0-359 degrees)
     uint64_t range_outline_updated[RANGE_OUTLINE_DEGREES]; // Timestamp when each bearing was last updated
+    int range_outline_altitude[RANGE_OUTLINE_DEGREES];     // Altitude (feet) of aircraft at maximum range for each bearing
     char *range_outline_persistence_file;                   // File to persist range outline data
     uint64_t range_outline_retention_ms;                    // Current retention period in milliseconds (configurable at runtime)
 

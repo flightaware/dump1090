@@ -1771,6 +1771,23 @@ char *generateRangeOutlineJson(const char *url_path, int *len) {
         }
     }
 
+    p = safe_snprintf(p, end, "],\n  \"range_outline_altitudes\" : [");
+
+    // Output array of altitudes for each degree (0-359)
+    for (int i = 0; i < RANGE_OUTLINE_DEGREES; i++) {
+        if (i > 0)
+            p = safe_snprintf(p, end, ",");
+
+        // Output altitude in feet (or null if no data or invalid altitude)
+        if (Modes.range_outline_updated[i] != 0 &&
+            (now - Modes.range_outline_updated[i]) <= Modes.range_outline_retention_ms &&
+            Modes.range_outline_altitude[i] != INVALID_ALTITUDE) {
+            p = safe_snprintf(p, end, "%d", Modes.range_outline_altitude[i]);
+        } else {
+            p = safe_snprintf(p, end, "null");
+        }
+    }
+
     p = safe_snprintf(p, end, "]\n}\n");
     *len = p-buf;
     return buf;

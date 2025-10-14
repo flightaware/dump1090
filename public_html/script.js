@@ -2899,22 +2899,22 @@ function updateRangeOutline() {
 	}
 
 	if (!ShowRangeOutline) {
-		if (RangeOutlineFeature) {
-			RangeOutlineFeature.setGeometry(null);
+		// Clear all features when hiding
+		if (RangeOutlineLayer) {
+			RangeOutlineLayer.getSource().clear();
 		}
 		return;
 	}
 
 	var ranges = RangeOutlineData.range_outline;
 	var timestamps = RangeOutlineData.range_outline_timestamps;
-	if (!ranges || ranges.length !== 360 || !timestamps || timestamps.length !== 360) {
+	var altitudes = RangeOutlineData.range_outline_altitudes;
+	if (!ranges || ranges.length !== 360 || !timestamps || timestamps.length !== 360 || !altitudes || altitudes.length !== 360) {
 		return;
 	}
 
-	// Build polygon coordinates from range data
-	// Include all 360 bearings to create a continuous outline
-	// Backend pre-filters data based on retention setting, so no client-side filtering needed
-	var coordinates = [];
+	// Build coordinates for each bearing
+	var points = [];
 	var hasData = false;
 	for (var bearing = 0; bearing < 360; bearing++) {
 		var range = ranges[bearing];
@@ -2928,48 +2928,82 @@ function updateRangeOutline() {
 		}
 
 		// Convert bearing and range to lat/lon
-		// bearing is in degrees, range is in meters
-		// If range is 0, use a very small distance to keep polygon at center
 		var effectiveRange = isValid ? range : 1;
 		var point = destinationPoint(SitePosition[1], SitePosition[0], bearing, effectiveRange);
-		coordinates.push(ol.proj.fromLonLat([point.lon, point.lat]));
+		points.push({
+			coord: ol.proj.fromLonLat([point.lon, point.lat]),
+			altitude: altitudes[bearing],
+			isValid: isValid
+		});
 	}
 
-	// Close the polygon
-	if (hasData && coordinates.length > 0) {
-		coordinates.push(coordinates[0]);
-
-		var polygon = new ol.geom.Polygon([coordinates]);
-
-		if (!RangeOutlineFeature) {
-			RangeOutlineFeature = new ol.Feature(polygon);
-			RangeOutlineFeature.setStyle(new ol.style.Style({
-				stroke: new ol.style.Stroke({
-					color: 'rgba(0, 128, 255, 0.8)',
-					width: 2
-				})
-			}));
-
-			// Add to static features or create dedicated layer
-			if (!RangeOutlineLayer) {
-				var source = new ol.source.Vector({
-					features: [RangeOutlineFeature]
-				});
-				RangeOutlineLayer = new ol.layer.Vector({
-					source: source,
-					zIndex: 99  // Below site circles but above base layers
-				});
-				OLMap.addLayer(RangeOutlineLayer);
-			}
-		} else {
-			RangeOutlineFeature.setGeometry(polygon);
-		}
-
-		// Ensure layer is visible when ShowRangeOutline is true
+	if (!hasData) {
 		if (RangeOutlineLayer) {
-			RangeOutlineLayer.setVisible(true);
+			RangeOutlineLayer.getSource().clear();
 		}
+		return;
 	}
+
+	// Create or get the layer
+	if (!RangeOutlineLayer) {
+		var source = new ol.source.Vector();
+		RangeOutlineLayer = new ol.layer.Vector({
+			source: source,
+			zIndex: 99  // Below site circles but above base layers
+		});
+		OLMap.addLayer(RangeOutlineLayer);
+	}
+
+	// Clear existing features
+	RangeOutlineLayer.getSource().clear();
+
+	// Create 360 individual line segments with altitude-based gradient coloring
+	// Always draw all segments to create a complete circle
+	for (var bearing = 0; bearing < 360; bearing++) {
+		var nextBearing = (bearing + 1) % 360;  // Wrap around at 359
+
+		var p1 = points[bearing];
+		var p2 = points[nextBearing];
+
+		// Create a line segment from bearing to bearing+1
+		var lineCoords = [p1.coord, p2.coord];
+		var lineGeom = new ol.geom.LineString(lineCoords);
+		var lineFeature = new ol.Feature(lineGeom);
+
+		// Calculate color based on altitude
+		// If we have valid altitudes, interpolate the color
+		// Otherwise use a default color
+		var color;
+		if (p1.isValid && p2.isValid && p1.altitude !== null && p2.altitude !== null) {
+			// Both points valid with altitude - use midpoint altitude for the segment color
+			var midAltitude = (p1.altitude + p2.altitude) / 2;
+			var colorArr = PlaneObject.prototype.getAltitudeColor(midAltitude);
+			color = PlaneObject.prototype.hslRepr(colorArr);
+		} else if (p1.isValid && p1.altitude !== null) {
+			// Only p1 has valid data and altitude
+			var colorArr = PlaneObject.prototype.getAltitudeColor(p1.altitude);
+			color = PlaneObject.prototype.hslRepr(colorArr);
+		} else if (p2.isValid && p2.altitude !== null) {
+			// Only p2 has valid data and altitude
+			var colorArr = PlaneObject.prototype.getAltitudeColor(p2.altitude);
+			color = PlaneObject.prototype.hslRepr(colorArr);
+		} else {
+			// No altitude data, use default color
+			color = 'rgba(0, 128, 255, 0.8)';
+		}
+
+		lineFeature.setStyle(new ol.style.Style({
+			stroke: new ol.style.Stroke({
+				color: color,
+				width: 2
+			})
+		}));
+
+		RangeOutlineLayer.getSource().addFeature(lineFeature);
+	}
+
+	// Ensure layer is visible when ShowRangeOutline is true
+	RangeOutlineLayer.setVisible(true);
 }
 
 // Calculate destination point given start point, bearing and distance
@@ -3001,13 +3035,10 @@ function toggleRangeOutline() {
 		// Fetch data which will call updateRangeOutline when done
 		fetchRangeOutline();
 	} else {
-		// Hide the layer
+		// Hide and clear the layer
 		if (RangeOutlineLayer) {
 			RangeOutlineLayer.setVisible(false);
-		}
-		// Also clear the feature geometry
-		if (RangeOutlineFeature) {
-			RangeOutlineFeature.setGeometry(null);
+			RangeOutlineLayer.getSource().clear();
 		}
 	}
 }

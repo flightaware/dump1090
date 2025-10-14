@@ -270,7 +270,7 @@ static void update_range_histogram(double lat, double lon)
     }
 }
 
-static void update_range_outline(double lat, double lon)
+static void update_range_outline(struct aircraft *a, double lat, double lon)
 {
     if (Modes.bUserFlags & MODES_USER_LATLON_VALID) {
         double range = greatcircle(Modes.fUserLat, Modes.fUserLon, lat, lon);
@@ -281,11 +281,20 @@ static void update_range_outline(double lat, double lon)
 
         uint64_t now = messageNow();
 
+        // Get altitude - prefer barometric, fall back to geometric if available
+        int altitude = INVALID_ALTITUDE;
+        if (trackDataValid(&a->altitude_baro_valid)) {
+            altitude = a->altitude_baro;
+        } else if (trackDataValid(&a->altitude_geom_valid)) {
+            altitude = a->altitude_geom;
+        }
+
         // Update if this is a new maximum for this bearing, or if we don't have data yet
         if (range > Modes.range_outline_max[bearing_idx] ||
             Modes.range_outline_updated[bearing_idx] == 0) {
             Modes.range_outline_max[bearing_idx] = range;
             Modes.range_outline_updated[bearing_idx] = now;
+            Modes.range_outline_altitude[bearing_idx] = altitude;
         }
     }
 }
@@ -623,7 +632,7 @@ static void updatePosition(struct aircraft *a, struct modesMessage *mm)
         a->pos_rc = new_rc;
 
         update_range_histogram(new_lat, new_lon);
-        update_range_outline(new_lat, new_lon);
+        update_range_outline(a, new_lat, new_lon);
     }
 }
 

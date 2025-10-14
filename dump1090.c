@@ -114,11 +114,10 @@ static void saveRangeOutline(void)
         return;
     }
 
-    // Write a simple binary format: version, then arrays
-    uint32_t version = 1;
-    fwrite(&version, sizeof(version), 1, f);
+    // Write a simple binary format: three arrays
     fwrite(Modes.range_outline_max, sizeof(Modes.range_outline_max), 1, f);
     fwrite(Modes.range_outline_updated, sizeof(Modes.range_outline_updated), 1, f);
+    fwrite(Modes.range_outline_altitude, sizeof(Modes.range_outline_altitude), 1, f);
     fclose(f);
 }
 
@@ -134,18 +133,14 @@ static void loadRangeOutline(void)
         return;
     }
 
-    uint32_t version;
-    if (fread(&version, sizeof(version), 1, f) != 1 || version != 1) {
-        log_with_timestamp("Range outline data file has incompatible version, ignoring");
-        fclose(f);
-        return;
-    }
-
+    // Read the three arrays
     if (fread(Modes.range_outline_max, sizeof(Modes.range_outline_max), 1, f) != 1 ||
-        fread(Modes.range_outline_updated, sizeof(Modes.range_outline_updated), 1, f) != 1) {
+        fread(Modes.range_outline_updated, sizeof(Modes.range_outline_updated), 1, f) != 1 ||
+        fread(Modes.range_outline_altitude, sizeof(Modes.range_outline_altitude), 1, f) != 1) {
         log_with_timestamp("Failed to load range outline data, file may be corrupted");
         memset(Modes.range_outline_max, 0, sizeof(Modes.range_outline_max));
         memset(Modes.range_outline_updated, 0, sizeof(Modes.range_outline_updated));
+        memset(Modes.range_outline_altitude, 0, sizeof(Modes.range_outline_altitude));
     } else {
         log_with_timestamp("Loaded range outline data from %s", Modes.range_outline_persistence_file);
     }
