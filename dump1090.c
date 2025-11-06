@@ -393,8 +393,9 @@ static void showHelp(void)
 "--net-sbs-port <ports>   TCP BaseStation output listen ports (default: 30003)\n"
 "--net-bi-port <ports>    TCP Beast input listen ports  (default: 30004,30104)\n"
 "--net-bo-port <ports>    TCP Beast output listen ports (default: 30005)\n"
-"--net-stratux-port <ports>  TCP Stratux output listen ports (default: disabled)\n"
+"--net-stratux-port <ports> TCP Stratux output listen ports (default: disabled)\n"
 "--net-wiffle-port <ports> TCP Wiffle output listen ports (default: disabled)\n"
+"--net-wiffle-size <size> TCP output minimum size (default: 0)\n"
 "--net-ro-size <size>     TCP output minimum size (default: 0)\n"
 "--net-ro-interval <rate> TCP output memory flush rate in seconds (default: 0)\n"
 "--net-heartbeat <rate>   TCP heartbeat rate in seconds\n"
@@ -416,7 +417,7 @@ static void showHelp(void)
 "--json-stats-every <t>   Write json stats output every t seconds (default 60)\n"
 "--json-location-accuracy <n>  Accuracy of receiver location in json metadata\n"
 "                          (0=no location, 1=approximate, 2=exact)\n"
-"--wiffle-output          Print wiffle CSV output to screen \n"
+"--wiffle-stdout          Print wiffle CSV output to screen \n"
 "\n"
 "      Interactive mode\n"
 "\n"
@@ -657,6 +658,8 @@ int main(int argc, char **argv) {
        } else if (!strcmp(argv[j],"--net-heartbeat") && more) {
             Modes.net_heartbeat_interval = (uint64_t)(1000 * atof(argv[++j]));
        } else if (!strcmp(argv[j],"--net-ro-size") && more) {
+            Modes.net_output_flush_size = atoi(argv[++j]);
+       } else if (!strcmp(argv[j],"--net-wiffle-size") && more) {
             Modes.net_output_flush_size = atoi(argv[++j]);
         } else if (!strcmp(argv[j],"--net-ro-rate") && more) {
             Modes.net_output_flush_interval = 1000 * atoi(argv[++j]) / 15; // backwards compatibility
