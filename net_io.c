@@ -359,9 +359,9 @@ static void flushWrites(struct net_writer *writer) {
 #else
             int nwritten = send(c->fd, writer->data, writer->dataUsed, 0 );
 #endif
-            printf("\n");
-            printf(writer->data);
-            printf("\n");
+            if (Modes.wiffle_echo) {
+                printf(">%.*s", writer->dataUsed, (char *)writer->data);
+            }
 
             if (nwritten != writer->dataUsed) {
                 modesCloseClient(c);

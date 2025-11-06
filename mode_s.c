@@ -2290,7 +2290,7 @@ void displayModesMessageAsWiffleCsv(struct modesMessage* mm) {
       break;
    }
 
-   printf("1090,%s,%lu,%06x,%s%d,DF%d,%.1f,",
+   printf("*1090,%s,%lu,%06x,%s%d,DF%d,%.1f,",
       time_string,
       mm->sysTimestampMsg,
       mm->addr & 0xffffff,
@@ -2335,7 +2335,7 @@ void useModesMessage(struct modesMessage *mm) {
        if (Modes.wiffle_stdout) {
           displayModesMessageAsWiffleCsv(mm);
        }
-       else {
+       else if (!Modes.wiffle_echo) {
           displayModesMessage(mm);
        }
     }

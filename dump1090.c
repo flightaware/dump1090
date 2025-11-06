@@ -418,6 +418,7 @@ static void showHelp(void)
 "--json-location-accuracy <n>  Accuracy of receiver location in json metadata\n"
 "                          (0=no location, 1=approximate, 2=exact)\n"
 "--wiffle-stdout          Print wiffle CSV output to screen \n"
+"--wiffle-echo            Echo wiffle CSV output to network on screen \n"
 "\n"
 "      Interactive mode\n"
 "\n"
@@ -769,6 +770,8 @@ int main(int argc, char **argv) {
             // Ignored
         } else if (!strcmp(argv[j], "--wiffle-stdout")) {
            Modes.wiffle_stdout = 1;
+        } else if (!strcmp(argv[j], "--wiffle-echo")) {
+           Modes.wiffle_echo = 1;
         } else if (!strcmp(argv[j], "--write-json") && more) {
             Modes.json_dir = strdup(argv[++j]);
         } else if (!strcmp(argv[j], "--write-json-every") && more) {
