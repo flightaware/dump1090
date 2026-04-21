@@ -3,6 +3,19 @@
 
 // Base layers configuration
 
+const boundsOfUSA = [ [-194.796845, 73.124945] ,[-179.980517, 5.965754], [-62.470849, 20.303418], [-60.017658,48.690960]]
+
+function bound(coords) {
+        let e =  ol.extent.boundingExtent(coords);
+        e = transform(e);
+        return e;
+}
+
+function transform(extent) {
+        return ol.proj.transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
+}
+
+
 function createBaseLayers() {
         var layers = [];
 
@@ -113,30 +126,32 @@ function createBaseLayers() {
                 }));
         }
 
-        if (ChartBundleLayers) {
-                var chartbundleTypes = {
-                        sec: "Sectional Charts",
-                        tac: "Terminal Area Charts",
-                        hel: "Helicopter Charts",
-                        enrl: "IFR Enroute Low Charts",
-                        enra: "IFR Area Charts",
-                        enrh: "IFR Enroute High Charts",
-                        secgrids: "Sect. w/ SAR grid"
-                };
+        let defaultUSAExtent = bound(boundsOfUSA)
+        if (FAALayers) {
+                const faa_tiles = [
+                        { name: 'VFR_Sectional', title: 'FAA VFR Sectional Chart' , minZoom: 8, maxZoom: 12, extent: defaultUSAExtent}, 
+                        { name: 'IFR_AreaLow', title: 'FAA IFR Area Low', minZoom: 8, maxZoom: 11, extent: defaultUSAExtent},
+                        { name: 'IFR_High', title: 'FAA IFR High',  minZoom: 7, maxZoom: 11, extent: null},
+                        { name: 'VFR_Terminal', title: 'VFR Terminal Chart', minZoom: 10, maxZoom: 12, extent: defaultUSAExtent}
+                ]
 
-                for (var type in chartbundleTypes) {
+                faa_tiles.forEach(tile => {
                         us.push(new ol.layer.Tile({
-                                source: new ol.source.TileWMS({
-                                        url: 'http://wms.chartbundle.com/wms',
-                                        params: {LAYERS: type},
-                                        projection: 'EPSG:3857',
-                                        attributions: 'Tiles courtesy of <a href="http://www.chartbundle.com/">ChartBundle</a>'
+                                extent: defaultUSAExtent,
+                                source: new ol.source.XYZ({
+                                    url: `https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/${tile.name}/MapServer/tile/{z}/{y}/{x}`,
+                                    attributions: 'Tiles courtesy of <a href="https://faa.maps.arcgis.com/home/">FAA</a>',
+                                    attributionsCollapsible: false,
+                                    transition: 0,
+                                    minZoom: tile.minZoom,
+                                    maxZoom: tile.maxZoom
                                 }),
-                                name: 'chartbundle_' + type,
-                                title: chartbundleTypes[type],
-                                type: 'base',
-                                group: 'chartbundle'}));
-                }
+                                name: tile.name,
+                                title: tile.title,
+                                type: 'overlay',
+                                visible: false
+                        }));
+                });
         }
 
         var nexrad_bottomLeft = ol.proj.fromLonLat([-171.0,9.0]);

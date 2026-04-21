@@ -1,3 +1,39 @@
+dump1090-fa (10.2) stable; urgency=medium
+
+  * No change release for 10.2
+
+ -- Nicholas Wan <nicholas.wan@flightaware.com>  Wed, 28 May 2025 12:48:45 -0500
+
+dump1090-fa (10.1) stable; urgency=medium
+
+  * SkyAware: Update aircraft DB to 2025-05-14
+  * SkyAware: Update file name versioning to enable cache busting
+
+ -- Eric Tran <eric.tran@flightaware.com>  Wed, 14 May 2025 21:58:00 -0600
+
+dump1090-fa (10.0.1) stable; urgency=medium
+
+  * No change release for 10.0.1
+
+ -- Nicholas Wan <nicholas.wan@flightaware.com>  Mon, 24 Mar 2025 10:56:18 -0500
+
+dump1090-fa (10.0) stable; urgency=medium
+
+  * Pass options to all SDR drivers for handling
+  * soapysdr: --enable-agc doesn't take an option value, don't require one
+  * Change calloc parameter order to fix build issues with newer gcc (courtesy @Swiftyhu, PR #239)
+  * Add missing build package to README (courtesy @lstolcman, #234)
+  * SkyAware: Replaces broken ChartBundle IFR and VFR layers with argGIS maps
+  * SkyAware: Mobile display improvements (courtesy @gregdev, PR #235)
+
+ -- Nicholas Wan <nicholas.wan@flightaware.com>  Wed, 26 Feb 2025 16:16:10 +0000
+
+dump1090-fa (9.1~dev) UNRELEASED; urgency=medium
+
+  * in development
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Fri, 10 Nov 2023 18:04:49 +0800
+
 dump1090-fa (9.0) stable; urgency=medium
 
   * dump1090: SoapySDR support (courtesy @bkoehm, PR #209)

@@ -191,12 +191,12 @@ bool sdrHandleOption(int argc, char **argv, int *jptr)
         return false;
     }
 
+    bool handled = false;
     for (int i = 0; sdr_handlers[i].name; ++i) {
-        if (sdr_handlers[i].handleOption(argc, argv, jptr))
-            return true;
+        handled = sdr_handlers[i].handleOption(argc, argv, jptr) || handled;
     }
 
-    return false;
+    return handled;
 }
 
 static sdr_handler *current_handler()

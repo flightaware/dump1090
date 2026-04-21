@@ -114,7 +114,7 @@ bool soapyHandleOption(int argc, char **argv, int *jptr)
         SOAPY.antenna = strdup(argv[++j]);
     } else if (!strcmp(argv[j], "--bandwidth") && more) {
         SOAPY.bandwidth = atof(argv[++j]);
-    } else if (!strcmp(argv[j], "--enable-agc") && more) {
+    } else if (!strcmp(argv[j], "--enable-agc")) {
         SOAPY.enable_agc = true;
     } else if (!strcmp(argv[j], "--gain-element") && more) {
         ++SOAPY.num_gain_elements;

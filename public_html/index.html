@@ -2,7 +2,8 @@
 <html>
 	<head>
 		<meta charset="utf-8"/>
-		<link rel="stylesheet" type="text/css" href="style.css?v=8.0" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="stylesheet" type="text/css" href="style.css?v=10.0" />
 		<link rel="stylesheet" href="jquery/jquery-ui-1.11.4-smoothness.css" />
 		<link rel="icon" href="favicon.ico" />
 		<script src="jquery/jquery-3.0.0.min.js"></script>
@@ -18,15 +19,15 @@
 		<script src="noUiSlider/distribute/nouislider.min.js"></script>
 		<link rel="stylesheet" href="noUiSlider/distribute/nouislider.min.css"/>
 
-		<script type="text/javascript" src="config.js?v=8.0"></script>
-		<script type="text/javascript" src="markers.js?v=8.0"></script>
-		<script type="text/javascript" src="dbloader.js?v=8.0"></script>
-		<script type="text/javascript" src="registrations.js?v=8.0"></script>
-		<script type="text/javascript" src="planeObject.js?v=8.0"></script>
-		<script type="text/javascript" src="formatter.js?v=8.0"></script>
-		<script type="text/javascript" src="flags.js?v=8.0"></script>
-		<script type="text/javascript" src="layers.js?v=8.0"></script>
-		<script type="text/javascript" src="script.js?v=8.0"></script>
+		<script type="text/javascript" src="config.js?v=10.0"></script>
+		<script type="text/javascript" src="markers.js?v=10.0"></script>
+		<script type="text/javascript" src="dbloader.js?v=10.0"></script>
+		<script type="text/javascript" src="registrations.js?v=10.0"></script>
+		<script type="text/javascript" src="planeObject.js?v=10.0"></script>
+		<script type="text/javascript" src="formatter.js?v=10.0"></script>
+		<script type="text/javascript" src="flags.js?v=10.0"></script>
+		<script type="text/javascript" src="layers.js?v=10.0"></script>
+		<script type="text/javascript" src="script.js?v=10.0"></script>
 		<title>PiAware SkyAware</title>
 	</head>
 
@@ -56,18 +57,28 @@
 				<img src="images/pa-sa-logo.png" alt="PiAware SkyAware" class="adsbLogo piAwareLogo" srcset="images/pa-sa-logo.png 1x, images/pa-sa-logo@2x.png 2x, images/pa-sa-logo@3x.png 3x">
 				<img src="images/ff-sa-logo.png" alt="FlightFeeder SkyAware" class="adsbLogo flightfeederLogo" srcset="images/ff-sa-logo.png 1x, images/ff-sa-logo@2x.png 2x, images/ff-sa-logo@3x.png 3x" style="display: none;">
 			</div>
-			<div class="buttonContainer">
+
+			<div class="menuContainer">
 				<div class="dateTime" id="clock_div"></div>
-				<div class="button buttonHeader" onclick="resetMap();"><span class="buttonText">Reset Map</span></div>
-				<div class="button buttonHeader" onclick="selectAllPlanes();"><span class="buttonText">Show All Tracks</span></div>
-				<div class="button buttonHeader" onclick="deselectAllPlanes();"><span class="buttonText">Hide All Tracks</span></div>
+
+				<div class="buttonContainer">
+					<div class="button buttonHeader" onclick="resetMap();"><span class="buttonText">Reset Map</span></div>
+					<div class="button buttonHeader" onclick="selectAllPlanes();"><span class="buttonText">Show All Tracks</span></div>
+					<div class="button buttonHeader" onclick="deselectAllPlanes();"><span class="buttonText">Hide All Tracks</span></div>
+				</div>
+
+				<div class="settingsContainer">
+					<img src="images/settings-icon.png" id="settingsCog" srcset="images/settings-icon.png 1x, images/settings-icon@2x.png 2x, images/settings-icon@3x.png 3x">
+					<span class="buttonText">Settings</span>
+				</div>
+
+				<button type="button" class="navToggle" onclick="$('body').toggleClass('navOpen')"><span></span></button>
 			</div>
-			<div class="settingsContainer"><img src="images/settings-icon.png" id="settingsCog" srcset="images/settings-icon.png 1x, images/settings-icon@2x.png 2x, images/settings-icon@3x.png 3x"></div>
 		</div>
 
 		<div id="layout_container">
-			
-			
+
+
 
 			<div id="highlighted_infoblock">
 				<div class="highlightedTitle">
@@ -195,36 +206,50 @@
 			<div id="sidebar_container">
 				<div id="splitter" class="ui-resizable-handle ui-resizable-w"></div>
 					<div id="sidebar_canvas">
-							
-							
-					<div id="sidebar-table">
+						<div id="sidebar-table">
 							<div id="dump1090_infoblock">
-									<table style="width: 100%">
-										<tr class="infoblock_heading">
-											<td>
-												<button id="stats_page_button" class="stats_button">Go to My ADS-B Statistics Page</button>
-											</td>
-											<td style="text-align: right">
-												<a href="https://github.com/flightaware/dump1090" id="skyaware_version" target="_blank"></a>
-											</td>
-										</tr>
-										<tr>
-											<div class="button buttonTable" id="show_map_button"><span class="buttonText">Show Map</span></div>
-										</tr>
-										<tr class="infoblock_body">
-											<td><span class="infoBlockTitleText">Total Aircraft:</span> <span id="dump1090_total_ac">n/a</span></td>
-											<td id="adsb_message_rate_row"><span class="infoBlockTitleText">ADS-B Message Rate:</span> <span id="dump1090_message_rate">n/a</span></td>
-										</tr>
-			
-										<tr class="infoblock_body">
-											<td><span class="infoBlockTitleText">With Positions:</span> <span id="dump1090_total_ac_positions">n/a</span></td>
-											<td id="uat_message_rate_row"><span class="infoBlockTitleText">UAT Message Rate:</span> <span id="uat_message_rate">n/a</span></td>
-										</tr>
-										<tr class="infoblock_body">
-											<td><span class="infoBlockTitleText">Position History:</span> <span id="dump1090_total_history">n/a</span></td>
-										</tr>
-									</table>
-								</div> <!-- dump1090_infoblock -->
+								<div class="infoblock_heading">
+									<button id="stats_page_button" class="stats_button">Go to My ADS-B Statistics Page</button>
+									<a href="https://github.com/flightaware/dump1090" id="skyaware_version" target="_blank"></a>
+								</div>
+
+								<div class="button buttonTable" id="show_map_button">
+									<span class="buttonText">Show Map</span>
+								</div>
+
+								<div>
+									<dl>
+										<div class="counters">
+											<div>
+												<dt>Total Aircraft</dt>
+												<dd id="dump1090_total_ac">n/a</dd>
+											</div>
+
+											<div>
+												<dt>With Positions</dt>
+												<dd id="dump1090_total_ac_positions">n/a</dd>
+											</div>
+
+											<div>
+												<dt>Position History</dt>
+												<dd id="dump1090_total_history">n/a</dd>
+											</div>
+										</div>
+
+										<div class="message-rates">
+											<div id="adsb_message_rate_row">
+												<dt>ADS-B Message Rate</dt>
+												<dd id="dump1090_message_rate">n/a</dd>
+											</div>
+
+											<div id="uat_message_rate_row">
+												<dt>UAT Message Rate</dt>
+												<dd id="uat_message_rate">n/a</dd>
+											</div>
+										</div>
+									</dl>
+								</div>
+							</div> <!-- dump1090_infoblock -->
 
 								<div class="config_button_row">
 									<button id="filter_button" class="config_button">Filters (<span class="italicize"><span id="active_filter_count">0</span> Enabled)</span></button>
@@ -419,28 +444,42 @@
 									</div> <!-- planes_table -->
 									<div>
 										<div class="legend">
-											<div class="sourceCheckbox" id="adsb_datasource_checkbox"></div>
-											<div class="legendTitle vPosition" id="adsb_datasource_label">ADS-B</div>
-											<div class="sourceCheckbox" id="uat_datasource_checkbox"></div>
-											<div class="legendTitle uat" id="uat_datasource_label">UAT</div>
-											<div class="sourceCheckbox" id="mlat_datasource_checkbox"></div>
-											<div class="legendTitle mlat">MLAT</div>
-											<div class="sourceCheckbox" id="other_datasource_checkbox"></div>
-											<div class="legendTitle other">Other</div>
-											<div class="sourceCheckbox" id="tisb_datasource_checkbox"></div>
-											<div class="legendTitle tisb">TIS-B</div>
+											<label id="adsb_datasource_label">
+												<div class="sourceCheckbox" id="adsb_datasource_checkbox"></div>
+												<div class="legendTitle vPosition">ADS-B</div>
+											</label>
+
+											<label id="uat_datasource_label">
+												<div class="sourceCheckbox" id="uat_datasource_checkbox"></div>
+												<div class="legendTitle uat">UAT</div>
+											</label>
+
+											<label id="mlat_datasource_checkbox">
+												<div class="sourceCheckbox"></div>
+												<div class="legendTitle mlat">MLAT</div>
+											</label>
+
+											<label id="other_datasource_checkbox">
+												<div class="sourceCheckbox"></div>
+												<div class="legendTitle other">Other</div>
+											</label>
+
+											<label id="tisb_datasource_checkbox">
+												<div class="sourceCheckbox"></div>
+												<div class="legendTitle tisb">TIS-B</div>
+											</label>
 										</div>
 									</div>
 								</div> <!-- planes_table_container -->
 					</div>
 
 
-					
-				</div> <!-- sidebar_canvas -->	
-				
+
+				</div> <!-- sidebar_canvas -->
+
 
 					<div id="selected_infoblock" class="hidden">
-							
+
 							<div id="splitter-infoblock" class="ui-resizable-handle ui-resizable-n"></div>
 							<div id="close-button">Close</div>
 							<div class="infoblock-container">
@@ -449,7 +488,7 @@
 								<span class="identLarge" title="Typically the air traffic control callsign or the aircraft's registration, as entered into the transponder by the pilot."><span id="selected_callsign">n/a</span></span>
 								<span class="identSmall" title="The aircraft's unique ICAO identification number shown in hexadecimal format."><span id="selected_icao">n/a</span></span>
 							</div>
-						
+
 								<div class="infoBlockTopSection">
 									<span id="selected_flightaware_link" class=""></span>
 									<div class="infoRow removePadding">
@@ -804,7 +843,7 @@
 											<span id="selected_rc">n/a</span>
 										</div>
 									</div>
-								
+
 
 							</div>
 
@@ -814,18 +853,18 @@
 
 							<div class="bottom-container">
 								<div class="selected_airframe">
-									<a href="http://www.airframes.org/" onclick="document.getElementById('horrible_hack').submit.call(document.getElementById('airframes_post')); return false;">	
-										airframes.org	
+									<a href="http://www.airframes.org/" onclick="document.getElementById('horrible_hack').submit.call(document.getElementById('airframes_post')); return false;">
+										airframes.org
 									</a>
 								</div>
 							</div>
-							
+
 							</div>
 						</div> <!-- selected_infoblock -->
 
-					
 
-				
+
+
 			</div> <!-- sidebar_container -->
 		</div> <!-- layout_container -->
 

@@ -19,7 +19,7 @@ many other Linux or Unix-like systems.
 ## Building under bullseye, buster, or stretch
 
 ```bash
-$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev libsoapysdr-dev
+$ sudo apt-get install build-essential fakeroot debhelper librtlsdr-dev pkg-config libncurses5-dev libbladerf-dev libhackrf-dev liblimesuite-dev libsoapysdr-dev devscripts
 $ ./prepare-build.sh bullseye    # or buster, or stretch
 $ cd package-bullseye            # or buster, or stretch
 $ dpkg-buildpackage -b --no-sign

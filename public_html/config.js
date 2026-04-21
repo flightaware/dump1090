@@ -109,8 +109,8 @@ ShowFlags = true;
 // Path to country flags (can be a relative or absolute URL; include a trailing /)
 FlagPath = "flags-tiny/";
 
-// Set to true to enable the ChartBundle base layers (US coverage only)
-ChartBundleLayers = true;
+// Set to true to enable the FAA base layers (US coverage only)
+FAALayers = true;
 
 // Provide a Bing Maps API key here to enable the Bing imagery layer.
 // You can obtain a free key (with usage limits) at
