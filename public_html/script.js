@@ -777,7 +777,11 @@ function applyUrlQueryStrings() {
         'rangeRings',
         'ringCount',
         'ringBaseDistance',
-        'ringInterval'
+        'ringInterval',
+        'baseLayer',
+        'zoom',
+        'lat',
+        'lon'
     ]
 
     var needReset = false;
@@ -855,6 +859,28 @@ function applyUrlQueryStrings() {
     }
     if (params.get('ringInterval')) {
         setRingInterval(params.get('ringInterval'));
+    }
+    if (params.get('baseLayer')) {
+        setBaseLayer(params.get('baseLayer'));
+    }
+    if (params.get('zoom')) {
+        var z = parseFloat(params.get('zoom'));
+        if (!isNaN(z) && z >= 1 && z <= 20) {
+            ZoomLvl = z;
+            localStorage['ZoomLvl'] = ZoomLvl;
+            OLMap.getView().setZoom(ZoomLvl);
+        }
+    }
+    if (params.get('lat') !== null && params.get('lon') !== null) {
+        var lat = parseFloat(params.get('lat'));
+        var lon = parseFloat(params.get('lon'));
+        if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+            CenterLat = lat;
+            CenterLon = lon;
+            localStorage['CenterLat'] = CenterLat;
+            localStorage['CenterLon'] = CenterLon;
+            OLMap.getView().setCenter(ol.proj.fromLonLat([CenterLon, CenterLat]));
+        }
     }
 }
 
@@ -2574,7 +2600,14 @@ function hideBanner() {
     updateMapSize();
 }
 
-// Helper function to restrict the range of the inputs
+function setBaseLayer(name) {
+    ol.control.LayerSwitcher.forEachRecursive(layerGroup, function(lyr) {
+        if (lyr.get('type') === 'base') {
+            lyr.setVisible(lyr.get('name') === name);
+        }
+    });
+}
+
 function restrictUrlRequest(c) {
     let v = parseFloat(c);
     if (v < 0) {
