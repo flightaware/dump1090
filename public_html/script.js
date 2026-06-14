@@ -781,7 +781,8 @@ function applyUrlQueryStrings() {
         'baseLayer',
         'zoom',
         'lat',
-        'lon'
+        'lon',
+        'aircraftLabels'
     ]
 
     var needReset = false;
@@ -859,6 +860,14 @@ function applyUrlQueryStrings() {
     }
     if (params.get('ringInterval')) {
         setRingInterval(params.get('ringInterval'));
+    }
+    if (params.get('aircraftLabels') === 'show') {
+        localStorage.setItem('showAircraftLabels', 'selected');
+        toggleAircraftLabels(false);
+    }
+    if (params.get('aircraftLabels') === 'hide') {
+        localStorage.setItem('showAircraftLabels', 'deselected');
+        toggleAircraftLabels(false);
     }
     if (params.get('baseLayer')) {
         setBaseLayer(params.get('baseLayer'));
