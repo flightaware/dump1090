@@ -9,7 +9,7 @@ echo "Benchmarking .. this will take a while." >&2
 
 # generate initial wisdom so that twopass implementations have something to work with
 echo "First pass: generating $WORKDIR/wisdom.initial" >&2
-/usr/lib/dump1090-fa/starch-benchmark -i 5 -o $WORKDIR/wisdom.initial magnitude_uc8 magnitude_uc8_aligned mean_power_u16 mean_power_u16_aligned
+/usr/lib/dump1090-fa/starch-benchmark -i 5 -o $WORKDIR/wisdom.initial magnitude_uc8 mean_power_u16
 
 # generate the real wisdom
 echo "Second pass: generating $WORKDIR/wisdom.local" >&2
