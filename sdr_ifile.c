@@ -82,8 +82,9 @@ void ifileShowHelp()
     printf("      ifile-specific options (use with --ifile)\n");
     printf("\n");
     printf("--ifile <path>           read samples from given file ('-' for stdin)\n");
-    printf("--iformat <type>         set sample format (UC8, SC16, SC16Q11)\n");
-    printf("--throttle               process samples at the original capture speed\n");
+    printf("--ifile-format <type>    set sample format (UC8, SC16, SC16Q11)\n");
+    printf("--ifile-throttle         process samples at the original capture speed\n");
+    printf("--ifile-enable-bg-tasks  enable timed background maintenance tasks for realtime processing");
     printf("\n");
 }
 
@@ -96,7 +97,7 @@ bool ifileHandleOption(int argc, char **argv, int *jptr)
         // implies --device-type ifile
         ifile.filename = strdup(argv[++j]);
         Modes.sdr_type = SDR_IFILE;
-    } else if (!strcmp(argv[j],"--iformat") && more) {
+    } else if (!strcmp(argv[j],"--ifile-format") && more) {
         ++j;
         if (!strcasecmp(argv[j], "uc8")) {
             ifile.input_format = INPUT_UC8;
@@ -109,8 +110,10 @@ bool ifileHandleOption(int argc, char **argv, int *jptr)
                     argv[j]);
             return false;
         }
-    } else if (!strcmp(argv[j],"--throttle")) {
+    } else if (!strcmp(argv[j],"--ifile-throttle")) {
         ifile.throttle = true;
+    } else if (!strcmp(argv[j],"--ifile-enable-bg-tasks")) {
+        Modes.force_background_tasks = true;
     } else {
         return false;
     }
