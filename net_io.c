@@ -1862,8 +1862,15 @@ char *generateAircraftJson(const char *url_path, int *len) {
         if ((p + 10) >= end) { // +10 to leave some space for the final line
             // overran the buffer
             int used = line_start - buf;
+            char *newbuf;
             buflen *= 2;
-            buf = (char *) realloc(buf, buflen);
+            newbuf = (char *) realloc(buf, buflen);
+            if (!newbuf) {
+                free(buf);
+                *len = 0;
+                return NULL;
+            }
+            buf = newbuf;
             p = buf+used;
             end = buf + buflen;
             goto retry;
