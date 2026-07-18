@@ -171,8 +171,8 @@ function createBaseLayers() {
                 // re-build the source to force a refresh of the nexrad tiles
                 var now = new Date().getTime();
                 nexrad.setSource(new ol.source.XYZ({
-                        url : 'http://mesonet{1-3}.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png?_=' + now,
-                        attributions: 'NEXRAD courtesy of <a href="http://mesonet.agron.iastate.edu/">IEM</a>'
+                        url : 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png?_=' + now,
+                        attributions: 'NEXRAD courtesy of <a href="https://mesonet.agron.iastate.edu/">IEM</a>'
                 }));
         };
 
