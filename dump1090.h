@@ -328,6 +328,7 @@ struct _Modes {                             // Internal state
     char           aneterr[ANET_ERR_LEN];
     struct net_service *services;    // Active services
     struct client *clients;          // Our clients
+    int client_count;                // Number of active clients
 
     struct net_service *beast_verbatim_service;        // Beast-format output service, verbatim mode
     struct net_service *beast_verbatim_local_service;  // Beast-format output service, verbatim+local mode
@@ -369,6 +370,7 @@ struct _Modes {                             // Internal state
     int   net_sndbuf_size;           // TCP output buffer size (64Kb * 2^n)
     int   net_verbatim;              // if true, Beast output connections default to verbatim mode
     int   forward_mlat;              // allow forwarding of mlat messages to output ports
+    int   max_clients;               // maximum number of simultaneous network clients (0 = unlimited)
     int   quiet;                     // Suppress stdout
     uint32_t show_only;              // Only show messages from this ICAO
     int   interactive;               // Interactive mode

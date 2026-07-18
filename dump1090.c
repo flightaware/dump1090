@@ -401,6 +401,8 @@ static void showHelp(void)
 "--net-verbatim           Make output connections default to verbatim mode\n"
 "                           (forward all messages without correction)\n"
 "--forward-mlat           Allow forwarding of received mlat results\n"
+"--max-clients <n>        Maximum number of simultaneous network clients\n"
+"                           (default: 0 = unlimited)\n"
 "\n"
 // ------ 80 char limit ----------------------------------------------------------|
 "      Stats and json output\n"
@@ -696,6 +698,8 @@ int main(int argc, char **argv) {
             Modes.net_verbatim = 1;
         } else if (!strcmp(argv[j],"--forward-mlat")) {
             Modes.forward_mlat = 1;
+        } else if (!strcmp(argv[j],"--max-clients") && more) {
+            Modes.max_clients = atoi(argv[++j]);
         } else if (!strcmp(argv[j],"--onlyaddr")) {
             Modes.onlyaddr = 1;
         } else if (!strcmp(argv[j],"--metric")) {
