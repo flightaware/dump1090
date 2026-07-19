@@ -118,7 +118,10 @@ void demodulate2400(struct mag_buf *mag)
     int bestscore, bestphase;
 
     // maximum lookahead we use
-    assert(mag->overlap >= 19 + 1 + 269);
+    if (mag->overlap < 19 + 1 + 269) {
+        fprintf(stderr, "insufficient overlap for signal power measurement\n");
+        return;
+    }
 
     uint16_t *m = mag->data;
     uint32_t mlen = mag->validLength - mag->overlap;
