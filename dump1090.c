@@ -122,7 +122,7 @@ static void modesInitConfig(void) {
 
     Modes.net_heartbeat_interval = MODES_NET_HEARTBEAT_INTERVAL;
     Modes.net_output_flush_size = 1300;
-    Modes.net_output_flush_interval = 500;
+    Modes.net_output_flush_interval = 90;
 
     // adaptive
     Modes.adaptive_min_gain_db = 0;
