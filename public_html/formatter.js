@@ -45,6 +45,26 @@ function format_track_long(track) {
 	return Math.round(track) + DEGREES + NBSP + "(" + TrackDirections[trackDir] + ")";
 }
 
+// Return altitude text without HTML
+function format_altitude_text(alt, displayUnits) {
+	if (alt === null) {
+		return "";
+	} else if (alt === "ground") {
+		return "ground";
+	}
+	return Math.round(convert_altitude(alt, displayUnits)).toLocaleString() + NBSP;
+}
+
+// Return vertical rate triangle character (no HTML)
+function format_vert_rate_triangle(vr) {
+	if (vr > 128) {
+		return UP_TRIANGLE;
+	} else if (vr < -128) {
+		return DOWN_TRIANGLE;
+	}
+	return NBSP;
+}
+
 // alt in feet
 function format_altitude_brief(alt, vr, displayUnits) {
 	var alt_text;

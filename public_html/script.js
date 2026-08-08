@@ -156,8 +156,12 @@ function processReceiverUpdate(data, receiver_source) {
 
                         // set flag image if available
                         if (ShowFlags && plane.icaorange.flag_image !== null) {
-                                $('img', plane.tr.cells[1]).attr('src', FlagPath + plane.icaorange.flag_image);
-                                $('img', plane.tr.cells[1]).attr('title', plane.icaorange.country);
+                                if (/^[a-zA-Z0-9_-]+\.png$/.test(plane.icaorange.flag_image)) {
+                                        $('img', plane.tr.cells[1]).attr('src', FlagPath + plane.icaorange.flag_image);
+                                        $('img', plane.tr.cells[1]).attr('title', plane.icaorange.country);
+                                } else {
+                                        $('img', plane.tr.cells[1]).css('display', 'none');
+                                }
                         } else {
                                 $('img', plane.tr.cells[1]).css('display', 'none');
                         }
@@ -1733,7 +1737,16 @@ function refreshTableInfo() {
                         tableplane.tr.cells[3].textContent = (tableplane.registration !== null ? tableplane.registration : "");
                         tableplane.tr.cells[4].textContent = (tableplane.icaotype !== null ? tableplane.icaotype : "");
                         tableplane.tr.cells[5].textContent = (tableplane.squawk !== null ? tableplane.squawk : "");
-                        tableplane.tr.cells[6].innerHTML = format_altitude_brief(tableplane.altitude, tableplane.vert_rate, DisplayUnits);
+                        {
+                                var cell = tableplane.tr.cells[6];
+                                cell.textContent = '';
+                                var altText = format_altitude_text(tableplane.altitude, DisplayUnits);
+                                cell.appendChild(document.createTextNode(altText));
+                                var vrSpan = document.createElement('span');
+                                vrSpan.className = 'verticalRateTriangle';
+                                vrSpan.textContent = format_vert_rate_triangle(tableplane.vert_rate);
+                                cell.appendChild(vrSpan);
+                        }
                         tableplane.tr.cells[7].textContent = format_speed_brief(tableplane.gs, DisplayUnits);
                         tableplane.tr.cells[8].textContent = format_vert_rate_brief(tableplane.vert_rate, DisplayUnits);
                         tableplane.tr.cells[9].textContent = format_distance_brief(tableplane.sitedist, DisplayUnits);
@@ -2577,7 +2590,7 @@ function hideBanner() {
 // Helper function to restrict the range of the inputs
 function restrictUrlRequest(c) {
     let v = parseFloat(c);
-    if (v < 0) {
+    if (!isFinite(v) || v < 0) {
         v = 0;
     } else if (v > 5) {
         v = 5;
