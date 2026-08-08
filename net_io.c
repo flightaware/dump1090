@@ -1729,6 +1729,70 @@ static const char *hazard_enum_string(hazard_t hazard)
     }
 }
 
+char *generateRangeOutlineJson(const char *url_path, int *len) {
+    uint64_t now = mstime();
+    int buflen = 32768;
+    char *buf = (char *) malloc(buflen), *p = buf, *end = buf+buflen;
+
+    MODES_NOTUSED(url_path);
+
+    p = safe_snprintf(p, end,
+                       "{ \"now\" : %.1f,\n"
+                       "  \"range_outline\" : [",
+                       now / 1000.0);
+
+    // Output array of ranges for each degree (0-359)
+    for (int i = 0; i < RANGE_OUTLINE_DEGREES; i++) {
+        if (i > 0)
+            p = safe_snprintf(p, end, ",");
+
+        // Output range in meters (or 0 if no data)
+        if (Modes.range_outline_updated[i] != 0 &&
+            (now - Modes.range_outline_updated[i]) <= Modes.range_outline_retention_ms) {
+            p = safe_snprintf(p, end, "%.0f", Modes.range_outline_max[i]);
+        } else {
+            p = safe_snprintf(p, end, "0");
+        }
+    }
+
+    p = safe_snprintf(p, end, "],\n  \"range_outline_timestamps\" : [");
+
+    // Output array of timestamps for each degree (0-359)
+    for (int i = 0; i < RANGE_OUTLINE_DEGREES; i++) {
+        if (i > 0)
+            p = safe_snprintf(p, end, ",");
+
+        // Output timestamp in seconds (or 0 if no data)
+        if (Modes.range_outline_updated[i] != 0 &&
+            (now - Modes.range_outline_updated[i]) <= Modes.range_outline_retention_ms) {
+            p = safe_snprintf(p, end, "%.1f", Modes.range_outline_updated[i] / 1000.0);
+        } else {
+            p = safe_snprintf(p, end, "0");
+        }
+    }
+
+    p = safe_snprintf(p, end, "],\n  \"range_outline_altitudes\" : [");
+
+    // Output array of altitudes for each degree (0-359)
+    for (int i = 0; i < RANGE_OUTLINE_DEGREES; i++) {
+        if (i > 0)
+            p = safe_snprintf(p, end, ",");
+
+        // Output altitude in feet (or null if no data or invalid altitude)
+        if (Modes.range_outline_updated[i] != 0 &&
+            (now - Modes.range_outline_updated[i]) <= Modes.range_outline_retention_ms &&
+            Modes.range_outline_altitude[i] != INVALID_ALTITUDE) {
+            p = safe_snprintf(p, end, "%d", Modes.range_outline_altitude[i]);
+        } else {
+            p = safe_snprintf(p, end, "null");
+        }
+    }
+
+    p = safe_snprintf(p, end, "]\n}\n");
+    *len = p-buf;
+    return buf;
+}
+
 char *generateAircraftJson(const char *url_path, int *len) {
     uint64_t now = mstime();
     struct aircraft *a;

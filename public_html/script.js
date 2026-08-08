@@ -7,6 +7,10 @@ var StaticFeatures = new ol.Collection();
 var SiteCircleFeatures = new ol.Collection();
 var PlaneIconFeatures = new ol.Collection();
 var PlaneTrailFeatures = new ol.Collection();
+var RangeOutlineFeature = null;
+var RangeOutlineLayer = null;
+var ShowRangeOutline = false;
+var RangeOutlineData = null;
 var Planes        = {};
 var PlanesOrdered = [];
 var PlaneFilter   = {};
@@ -213,6 +217,11 @@ function fetchData() {
                         $("#update_error_detail").text("AJAX call failed (" + status + (error ? (": " + error) : "") + "). Maybe dump1090 is no longer running?");
                         $("#update_error").css('display','block');
                 });
+        }
+
+        // Fetch range outline data along with aircraft data
+        if (ShowRangeOutline) {
+                fetchRangeOutline();
         }
         // Fetch UAT if enabled
         if (UAT_Enabled) {
@@ -747,6 +756,9 @@ function end_load_history() {
         window.setInterval(fetchData, RefreshInterval);
         window.setInterval(reaper, 60000);
 
+        // Initialize range outline
+        initRangeOutline();
+
         // And kick off one refresh immediately.
         fetchData();
 
@@ -1100,6 +1112,19 @@ function initialize_map() {
 		toggleLayer('#sitepos_checkbox', 'site_pos');
 		toggleLayer('#actrail_checkbox', 'ac_trail');
 		toggleLayer('#acpositions_checkbox', 'ac_positions');
+
+		// Set up range outline checkbox
+		if (ShowRangeOutline) {
+			$('#range_outline_checkbox').addClass('settingsCheckboxChecked');
+		}
+		$('#range_outline_checkbox').on('click', function() {
+			toggleRangeOutline();
+			if (ShowRangeOutline) {
+				$('#range_outline_checkbox').addClass('settingsCheckboxChecked');
+			} else {
+				$('#range_outline_checkbox').removeClass('settingsCheckboxChecked');
+			}
+		});
 	});
 
 	// Add home marker if requested
@@ -1120,6 +1145,7 @@ function initialize_map() {
                 StaticFeatures.push(feature);
 
 		$('#range_ring_column').show();
+		$('#range_outline_column').show();
 
                 setRangeRings();
 
@@ -2843,4 +2869,187 @@ function toggleTISBAircraft(switchFilter) {
 		$('#tisb_datasource_checkbox').addClass('sourceCheckboxChecked');
 	}
 	localStorage.setItem('sourceTISBFilter', sourceTISBFilter);
+}
+
+// ============================================================================
+// Range Outline Functions
+// ============================================================================
+
+// Fetch range outline data from the server
+function fetchRangeOutline() {
+	$.ajax({
+		url: 'data/range_outline.json',
+		timeout: 5000,
+		cache: false,
+		dataType: 'json'
+	}).done(function(data) {
+		RangeOutlineData = data;
+		if (ShowRangeOutline && SitePosition) {
+			updateRangeOutline();
+		}
+	}).fail(function(jqXHR, textStatus, errorThrown) {
+		// Silently fail - range outline is optional
+	});
+}
+
+// Convert range outline data to map polygon and update display
+function updateRangeOutline() {
+	if (!RangeOutlineData || !SitePosition) {
+		return;
+	}
+
+	if (!ShowRangeOutline) {
+		// Clear all features when hiding
+		if (RangeOutlineLayer) {
+			RangeOutlineLayer.getSource().clear();
+		}
+		return;
+	}
+
+	var ranges = RangeOutlineData.range_outline;
+	var timestamps = RangeOutlineData.range_outline_timestamps;
+	var altitudes = RangeOutlineData.range_outline_altitudes;
+	if (!ranges || ranges.length !== 360 || !timestamps || timestamps.length !== 360 || !altitudes || altitudes.length !== 360) {
+		return;
+	}
+
+	// Build coordinates for each bearing
+	var points = [];
+	var hasData = false;
+	for (var bearing = 0; bearing < 360; bearing++) {
+		var range = ranges[bearing];
+		var timestamp = timestamps[bearing];
+
+		// Backend sends 0 for ranges outside retention window
+		var isValid = range > 0 && timestamp > 0;
+
+		if (isValid) {
+			hasData = true;
+		}
+
+		// Convert bearing and range to lat/lon
+		var effectiveRange = isValid ? range : 1;
+		var point = destinationPoint(SitePosition[1], SitePosition[0], bearing, effectiveRange);
+		points.push({
+			coord: ol.proj.fromLonLat([point.lon, point.lat]),
+			altitude: altitudes[bearing],
+			isValid: isValid
+		});
+	}
+
+	if (!hasData) {
+		if (RangeOutlineLayer) {
+			RangeOutlineLayer.getSource().clear();
+		}
+		return;
+	}
+
+	// Create or get the layer
+	if (!RangeOutlineLayer) {
+		var source = new ol.source.Vector();
+		RangeOutlineLayer = new ol.layer.Vector({
+			source: source,
+			zIndex: 99  // Below site circles but above base layers
+		});
+		OLMap.addLayer(RangeOutlineLayer);
+	}
+
+	// Clear existing features
+	RangeOutlineLayer.getSource().clear();
+
+	// Create 360 individual line segments with altitude-based gradient coloring
+	// Always draw all segments to create a complete circle
+	for (var bearing = 0; bearing < 360; bearing++) {
+		var nextBearing = (bearing + 1) % 360;  // Wrap around at 359
+
+		var p1 = points[bearing];
+		var p2 = points[nextBearing];
+
+		// Create a line segment from bearing to bearing+1
+		var lineCoords = [p1.coord, p2.coord];
+		var lineGeom = new ol.geom.LineString(lineCoords);
+		var lineFeature = new ol.Feature(lineGeom);
+
+		// Calculate color based on altitude
+		// If we have valid altitudes, interpolate the color
+		// Otherwise use a default color
+		var color;
+		if (p1.isValid && p2.isValid && p1.altitude !== null && p2.altitude !== null) {
+			// Both points valid with altitude - use midpoint altitude for the segment color
+			var midAltitude = (p1.altitude + p2.altitude) / 2;
+			var colorArr = PlaneObject.prototype.getAltitudeColor(midAltitude);
+			color = PlaneObject.prototype.hslRepr(colorArr);
+		} else if (p1.isValid && p1.altitude !== null) {
+			// Only p1 has valid data and altitude
+			var colorArr = PlaneObject.prototype.getAltitudeColor(p1.altitude);
+			color = PlaneObject.prototype.hslRepr(colorArr);
+		} else if (p2.isValid && p2.altitude !== null) {
+			// Only p2 has valid data and altitude
+			var colorArr = PlaneObject.prototype.getAltitudeColor(p2.altitude);
+			color = PlaneObject.prototype.hslRepr(colorArr);
+		} else {
+			// No altitude data, use default color
+			color = 'rgba(0, 128, 255, 0.8)';
+		}
+
+		lineFeature.setStyle(new ol.style.Style({
+			stroke: new ol.style.Stroke({
+				color: color,
+				width: 2
+			})
+		}));
+
+		RangeOutlineLayer.getSource().addFeature(lineFeature);
+	}
+
+	// Ensure layer is visible when ShowRangeOutline is true
+	RangeOutlineLayer.setVisible(true);
+}
+
+// Calculate destination point given start point, bearing and distance
+// Uses Haversine formula
+function destinationPoint(lat, lon, bearing, distance) {
+	var R = 6371000; // Earth radius in meters
+	var bearingRad = bearing * Math.PI / 180;
+	var latRad = lat * Math.PI / 180;
+	var lonRad = lon * Math.PI / 180;
+
+	var latRad2 = Math.asin(Math.sin(latRad) * Math.cos(distance / R) +
+	                        Math.cos(latRad) * Math.sin(distance / R) * Math.cos(bearingRad));
+
+	var lonRad2 = lonRad + Math.atan2(Math.sin(bearingRad) * Math.sin(distance / R) * Math.cos(latRad),
+	                                   Math.cos(distance / R) - Math.sin(latRad) * Math.sin(latRad2));
+
+	return {
+		lat: latRad2 * 180 / Math.PI,
+		lon: lonRad2 * 180 / Math.PI
+	};
+}
+
+// Toggle range outline visibility
+function toggleRangeOutline() {
+	ShowRangeOutline = !ShowRangeOutline;
+	localStorage.setItem('ShowRangeOutline', ShowRangeOutline);
+
+	if (ShowRangeOutline) {
+		// Fetch data which will call updateRangeOutline when done
+		fetchRangeOutline();
+	} else {
+		// Hide and clear the layer
+		if (RangeOutlineLayer) {
+			RangeOutlineLayer.setVisible(false);
+			RangeOutlineLayer.getSource().clear();
+		}
+	}
+}
+
+// Initialize range outline from localStorage
+function initRangeOutline() {
+	var saved = localStorage.getItem('ShowRangeOutline');
+	if (saved === 'true') {
+		ShowRangeOutline = true;
+		fetchRangeOutline();
+		// Update checkbox to match loaded state
+		$('#range_outline_checkbox').addClass('settingsCheckboxChecked');
+	}
 }

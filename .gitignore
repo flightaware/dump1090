@@ -21,3 +21,6 @@ debian/.debhelper
 debian/dump1090-fa*
 debian/debhelper-build-stamp
 debian/files
+
+# Runtime generated JSON data files
+public_html/data/
