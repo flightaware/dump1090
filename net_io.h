@@ -62,6 +62,8 @@ struct client {
     int    modeac_requested;             // 1 if this Beast output connection has asked for A/C
     int    verbatim_requested;           // 1 if this Beast output connection has asked for verbatim mode
     int    local_requested;              // 1 if this Beast output connection has asked for local-only mode
+    int    sys_time_requested;           // 1 if this Beast output connection has asked for message timestamps
+                                         //   to be from the system clock in milliseconds since epoch
 };
 
 // Common writer state for all output sockets of one type

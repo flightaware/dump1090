@@ -272,6 +272,7 @@ void modesInitNet(void) {
     // we maintain three output services for the different option setting combinations we support
     // and switch clients between them if they request a change in mode
     Modes.beast_cooked_service = serviceInit("Beast TCP output (cooked mode)", &Modes.beast_cooked_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
+    Modes.beast_sys_time_service = serviceInit("Beast TCP output (cooked mode, system timestamp)", &Modes.beast_sys_time_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
     Modes.beast_verbatim_service = serviceInit("Beast TCP output (verbatim mode)", &Modes.beast_verbatim_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
     Modes.beast_verbatim_local_service = serviceInit("Beast TCP output (verbatim+local mode)", &Modes.beast_verbatim_local_out, send_beast_heartbeat, READ_MODE_BEAST_COMMAND, NULL, handleBeastCommand);
 
@@ -418,6 +419,23 @@ static void modesSendBeastVerbatimLocalOutput(struct modesMessage *mm) {
 
     // Do verbatim output for all messages
     writeBeastMessage(&Modes.beast_verbatim_local_out, mm->timestampMsg, mm->signalLevel, mm->verbatim, mm->msgbits / 8);
+}
+
+static void modesSendBeastSysTimeOutput(struct modesMessage *mm, struct aircraft *a) {
+    // Don't forward mlat messages, unless --forward-mlat is set
+    if (mm->source == SOURCE_MLAT && !Modes.forward_mlat)
+        return;
+
+    // Filter some messages from cooked output
+    // Don't forward 2-bit-corrected messages
+    if (mm->correctedbits >= 2)
+        return;
+
+    // Don't forward unreliable messages
+    if ((a && !a->reliable) && !mm->reliable)
+        return;
+
+    writeBeastMessage(&Modes.beast_sys_time_out, mm->sysTimestampMsg, mm->signalLevel, mm->msg, mm->msgbits / 8);
 }
 
 static void modesSendBeastCookedOutput(struct modesMessage *mm, struct aircraft *a) {
@@ -1019,6 +1037,7 @@ void modesQueueOutput(struct modesMessage *mm, struct aircraft *a) {
     modesSendRawOutput(mm, a);
     modesSendBeastVerbatimOutput(mm);
     modesSendBeastVerbatimLocalOutput(mm);
+    modesSendBeastSysTimeOutput(mm, a);
     modesSendBeastCookedOutput(mm, a);
     writeFATSVEvent(mm, a);
 }
@@ -1181,6 +1200,8 @@ static void handleOptionsChange(struct client *c) {
         moveNetClient(c, Modes.beast_verbatim_local_service);
     else if (c->verbatim_requested)
         moveNetClient(c, Modes.beast_verbatim_service);
+    else if (c->sys_time_requested)
+        moveNetClient(c, Modes.beast_sys_time_service);
     else
         moveNetClient(c, Modes.beast_cooked_service);
 }
@@ -1218,6 +1239,14 @@ static int handleBeastCommand(struct client *c, char *p) {
         break;
     case 'L':
         c->local_requested = 1;
+        handleOptionsChange(c);
+        break;
+    case 't':
+        c->sys_time_requested = 0;
+        handleOptionsChange(c);
+        break;
+    case 'T':
+        c->sys_time_requested = 1;
         handleOptionsChange(c);
         break;
     }

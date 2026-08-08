@@ -331,11 +331,13 @@ struct _Modes {                             // Internal state
 
     struct net_service *beast_verbatim_service;        // Beast-format output service, verbatim mode
     struct net_service *beast_verbatim_local_service;  // Beast-format output service, verbatim+local mode
+    struct net_service *beast_sys_time_service;        // Beast-format output service, "cooked" mode, system timestamp
     struct net_service *beast_cooked_service;          // Beast-format output service, "cooked" mode
 
     struct net_writer raw_out;                   // AVR-format output
     struct net_writer beast_verbatim_out;        // Beast-format output, verbatim mode
     struct net_writer beast_verbatim_local_out;  // Beast-format output, verbatim+local mode
+    struct net_writer beast_sys_time_out;        // Beast-format output, "cooked" mode, system timestamp
     struct net_writer beast_cooked_out;          // Beast-format output, "cooked" mode
     struct net_writer sbs_out;                   // SBS-format output
     struct net_writer stratux_out;               // Stratux-format output
