@@ -722,10 +722,18 @@
 										Tracking Information
 									</div>
 								</div>
-								<div class="infoBlockSection">
-									<div class="infoRowLine">
-										<div class="infoHeading infoRowFluid fourColumnSection1">
-											<span title="Data source for the reported aircraft data (e.g., ADS-B, MLAT, Other Mode S)">Source</span>:
+							<div class="infoBlockSection">
+								<div id="selected_emergency_row" class="infoRowLine hidden">
+									<div class="infoHeading infoRowFluid fourColumnSection1">
+										<span title="Emergency/priority status reported by the aircraft via ADS-B.">Emergency</span>:
+									</div>
+									<div class="infoData infoRowFluid fourColumnSection2">
+										<span id="selected_emergency"></span>
+									</div>
+								</div>
+								<div class="infoRowLine">
+									<div class="infoHeading infoRowFluid fourColumnSection1">
+										<span title="Data source for the reported aircraft data (e.g., ADS-B, MLAT, Other Mode S)">Source</span>:
 										</div>
 										<div class="infoData infoRowFluid fourColumnSection2">
 											<span id="selected_source">n/a</span>
