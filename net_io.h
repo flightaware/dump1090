@@ -87,7 +87,10 @@ struct net_service *makeFaCmdInputService(void);
 void sendBeastSettings(struct client *c, const char *settings);
 
 void modesInitNet(void);
+void modesPrepareSBSOutput(struct modesMessage *mm, struct aircraft *a, char *p);
 void modesQueueOutput(struct modesMessage *mm, struct aircraft *a);
+float ieee754_binary32_le_to_float(uint8_t *data);
+void handle_radarcape_position(float lat, float lon, float alt);
 void modesNetPeriodicWork(void);
 
 // TODO: move these somewhere else
