@@ -930,6 +930,8 @@ function initialize_map() {
                 })
         });
 
+        var metarLayer = createMetarLayer();
+
         layers.push(new ol.layer.Group({
                 title: 'Overlays',
                 layers: [
@@ -950,6 +952,8 @@ function initialize_map() {
                                         features: PlaneTrailFeatures,
                                 })
                         }),
+
+                        metarLayer,
 
                         iconsLayer
                 ]
@@ -1042,12 +1046,15 @@ function initialize_map() {
                         }
                 }
         });
-    
+
         OLMap.getView().on('change:resolution', function(event) {
                 ZoomLvl = localStorage['ZoomLvl']  = OLMap.getView().getZoom();
                 for (var plane in Planes) {
                         Planes[plane].updateMarker(false);
                 };
+                if (metarLayer.getVisible()) {
+                        metarLayer.getSource().refresh();
+                }
         });
 
         OLMap.on(['click', 'dblclick'], function(evt) {
@@ -1097,6 +1104,7 @@ function initialize_map() {
     // handle the layer settings pane checkboxes
 	OLMap.once('postrender', function(e) {
 		toggleLayer('#nexrad_checkbox', 'nexrad');
+		toggleLayer('#metar_checkbox', 'metar');
 		toggleLayer('#sitepos_checkbox', 'site_pos');
 		toggleLayer('#actrail_checkbox', 'ac_trail');
 		toggleLayer('#acpositions_checkbox', 'ac_positions');
