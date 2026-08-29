@@ -3,7 +3,15 @@ PROGNAME=dump1090
 DUMP1090_VERSION ?= unknown
 
 CFLAGS ?= -O3 -g
-DUMP1090_CFLAGS := -std=c11 -fno-common -Wall -Wmissing-declarations -Werror -Wformat-signedness -W
+DUMP1090_CFLAGS := -std=c11 -fno-common -Wall -Wmissing-declarations -Werror -W
+
+# -Wformat-signedness is a GCC extension. clang does not implement it and
+# rejects it via -Wunknown-warning-option, which -Werror above turns into a
+# hard build failure. Probe for it so GCC builds keep the warning.
+HAVE_FORMAT_SIGNEDNESS := $(shell $(CC) -Werror -Wformat-signedness -x c -c /dev/null -o /dev/null 2>/dev/null && echo yes)
+ifeq ($(HAVE_FORMAT_SIGNEDNESS),yes)
+  DUMP1090_CFLAGS += -Wformat-signedness
+endif
 DUMP1090_CPPFLAGS := -I. -D_POSIX_C_SOURCE=200112L -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
 
 LIBS = -lpthread -lm
