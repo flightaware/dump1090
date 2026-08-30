@@ -33,6 +33,7 @@ Examples:
 | lat | -90 to 90 | Center the map at this latitude (must be used together with `lon`) |
 | lon | -180 to 180 | Center the map at this longitude (must be used together with `lat`) |
 | baseLayer | layer name | Select the active base map layer by name (see layer names below) |
+| cartoApiKey | API key string | CARTO API key appended to the CARTO base layer tile requests (overrides `CartoAPIKey` in config.js) |
 | displayUnits | nautical/imperial/metric | Set the display units |
 | rangeRings | show/hide | Show or hide range rings |
 | ringCount | integer | Number of range rings |
@@ -47,10 +48,10 @@ Examples:
 | esri_satellite | ESRI Satellite imagery |
 | esri_topo | ESRI Topographic |
 | esri_street | ESRI Street |
-| carto_dark_all | CARTO Dark (with labels) |
-| carto_dark_nolabels | CARTO Dark (no labels) |
-| carto_light_all | CARTO Light (with labels) |
-| carto_light_nolabels | CARTO Light (no labels) |
+| carto_dark_all | CARTO Dark (with labels) (requires `cartoApiKey`) |
+| carto_dark_nolabels | CARTO Dark (no labels) (requires `cartoApiKey`) |
+| carto_light_all | CARTO Light (with labels) (requires `cartoApiKey`) |
+| carto_light_nolabels | CARTO Light (no labels) (requires `cartoApiKey`) |
 | bing_aerial | Bing Aerial (requires Bing API key in config.js) |
 | bing_roads | Bing Roads (requires Bing API key in config.js) |
 | VFR_Sectional | FAA VFR Sectional Chart (requires FAALayers enabled) |

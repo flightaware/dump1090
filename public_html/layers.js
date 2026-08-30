@@ -23,6 +23,20 @@ function createBaseLayers() {
         var us = [];
         var europe = [];
 
+        // CARTO basemaps now require an API key. Prefer the "cartoApiKey" URL
+        // parameter, falling back to CartoAPIKey from config.js. The key is
+        // baked into the tile URLs so it is used whenever a CARTO base layer
+        // is selected.
+        var cartoKey = new URLSearchParams(window.location.search).get('cartoApiKey')
+                || (typeof CartoAPIKey !== 'undefined' ? CartoAPIKey : null);
+        function cartoUrl(style) {
+                var url = "https://{a-z}.basemaps.cartocdn.com/" + style + "/{z}/{x}/{y}.png";
+                if (cartoKey) {
+                        url += "?key=" + encodeURIComponent(cartoKey);
+                }
+                return url;
+        }
+
         world.push(new ol.layer.Tile({
                 source: new ol.source.OSM(),
                 name: 'osm',
@@ -62,7 +76,7 @@ function createBaseLayers() {
 
         world.push(new ol.layer.Tile({
                 source: new ol.source.OSM({
-                        "url" : "https://{a-z}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+                        "url" : cartoUrl('dark_all'),
                         "attributions" : 'Courtesy of <a href="https://carto.com">CARTO.com</a>'
                                + ' using data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.',
                 }),
@@ -73,7 +87,7 @@ function createBaseLayers() {
 
         world.push(new ol.layer.Tile({
                 source: new ol.source.OSM({
-                        "url" : "https://{a-z}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png",
+                        "url" : cartoUrl('dark_nolabels'),
                         "attributions" : 'Courtesy of <a href="https://carto.com">CARTO.com</a>'
                                + ' using data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.',
                 }),
@@ -84,7 +98,7 @@ function createBaseLayers() {
 
         world.push(new ol.layer.Tile({
                 source: new ol.source.OSM({
-                        "url" : "https://{a-z}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+                        "url" : cartoUrl('light_all'),
                         "attributions" : 'Courtesy of <a href="https://carto.com">CARTO.com</a>'
                                + ' using data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.',
                 }),
@@ -95,7 +109,7 @@ function createBaseLayers() {
 
         world.push(new ol.layer.Tile({
                 source: new ol.source.OSM({
-                        "url" : "https://{a-z}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png",
+                        "url" : cartoUrl('light_nolabels'),
                         "attributions" : 'Courtesy of <a href="https://carto.com">CARTO.com</a>'
                                + ' using data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.',
                 }),
