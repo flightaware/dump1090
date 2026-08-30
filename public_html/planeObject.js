@@ -451,6 +451,15 @@ PlaneObject.prototype.getAltitudeColor = function(altitude) {
         return [h, s, l];
 }
 
+PlaneObject.prototype.getLabelText = function() {
+        if (this.flight === null) return null;
+        var text = this.flight.trim();
+        if (AircraftLabelDetails && this.icaotype) {
+                text += '\n' + this.icaotype.trim();
+        }
+        return text;
+};
+
 PlaneObject.prototype.updateIcon = function() {
         var scaleFactor = Math.max(0.2, Math.min(1.2, 0.15 * Math.pow(1.25, ZoomLvl))).toFixed(1);
 
@@ -472,7 +481,7 @@ PlaneObject.prototype.updateIcon = function() {
         //var transparentBorderWidth = (32 / baseMarker.scale / scaleFactor).toFixed(1);
 
         var svgKey = col + '!' + outline + '!' + baseMarker.svg + '!' + add_stroke + "!" + scaleFactor;
-        var styleKey = opacity + '!' + rotation + '!' + AircraftLabels;
+        var styleKey = opacity + '!' + rotation + '!' + AircraftLabels + '!' + AircraftLabelDetails;
 
         // New icon or marker change
         if (this.markerStyle === null || this.markerIcon === null || this.markerSvgKey != svgKey) {
@@ -492,11 +501,12 @@ PlaneObject.prototype.updateIcon = function() {
 
                 this.markerIcon = icon;
 
-                if (AircraftLabels && this.flight != null) {
+                var labelText = AircraftLabels ? this.getLabelText() : null;
+                if (labelText !== null) {
                         this.markerStyle = new ol.style.Style({
                                 image: this.markerIcon,
                                 text: new ol.style.Text({
-                                        text: this.flight.trim(),
+                                        text: labelText,
                                         fill: new ol.style.Fill({color: 'white'}),
                                         backgroundFill: new ol.style.Stroke({color: 'rgba(0, 47, 93, 0.8'}),
                                         textAlign: 'center',
@@ -532,11 +542,12 @@ PlaneObject.prototype.updateIcon = function() {
                         this.staticIcon.setOpacity(opacity);
                 }
 
-                if (AircraftLabels && this.flight != null) {
+                var labelText = AircraftLabels ? this.getLabelText() : null;
+                if (labelText !== null) {
                         this.markerStyle = new ol.style.Style({
                                 image: this.markerIcon,
                                 text: new ol.style.Text({
-                                        text: this.flight.trim(),
+                                        text: labelText,
                                         fill: new ol.style.Fill({color: 'white'}),
                                         backgroundFill: new ol.style.Stroke({color: 'rgba(0, 47, 93, 0.8)'}),
                                         textAlign: 'center',

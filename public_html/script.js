@@ -63,6 +63,7 @@ var altitude_slider = null;
 var speed_slider = null;
 
 var AircraftLabels = false;
+var AircraftLabelDetails = false;
 
 // piaware vs flightfeeder
 var isFlightFeeder = false;
@@ -400,6 +401,10 @@ function initialize() {
                 toggleAircraftLabels(true);
         });
 
+        $('#aircraft_label_details_checkbox').on('click', function() {
+                toggleAircraftLabelDetails(true);
+        });
+
         $('#altitude_checkbox').on('click', function() {
         	toggleAltitudeChart(true);
         });
@@ -475,6 +480,7 @@ function initialize() {
         toggleAllPlanes(false);
         toggleGroupByDataType(false);
         toggleAircraftLabels(false);
+        toggleAircraftLabelDetails(false);
         toggleAllColumns(false);
         toggleADSBAircraft(false);
         toggleUATAircraft(false);
@@ -777,7 +783,13 @@ function applyUrlQueryStrings() {
         'rangeRings',
         'ringCount',
         'ringBaseDistance',
-        'ringInterval'
+        'ringInterval',
+        'baseLayer',
+        'zoom',
+        'lat',
+        'lon',
+        'aircraftLabels',
+        'aircraftLabelDetails'
     ]
 
     var needReset = false;
@@ -855,6 +867,44 @@ function applyUrlQueryStrings() {
     }
     if (params.get('ringInterval')) {
         setRingInterval(params.get('ringInterval'));
+    }
+    if (params.get('aircraftLabels') === 'show') {
+        localStorage.setItem('showAircraftLabels', 'selected');
+        toggleAircraftLabels(false);
+    }
+    if (params.get('aircraftLabels') === 'hide') {
+        localStorage.setItem('showAircraftLabels', 'deselected');
+        toggleAircraftLabels(false);
+    }
+    if (params.get('aircraftLabelDetails') === 'show') {
+        localStorage.setItem('aircraftLabelDetails', 'selected');
+        toggleAircraftLabelDetails(false);
+    }
+    if (params.get('aircraftLabelDetails') === 'hide') {
+        localStorage.setItem('aircraftLabelDetails', 'deselected');
+        toggleAircraftLabelDetails(false);
+    }
+    if (params.get('baseLayer')) {
+        setBaseLayer(params.get('baseLayer'));
+    }
+    if (params.get('zoom')) {
+        var z = parseFloat(params.get('zoom'));
+        if (!isNaN(z) && z >= 1 && z <= 20) {
+            ZoomLvl = z;
+            localStorage['ZoomLvl'] = ZoomLvl;
+            OLMap.getView().setZoom(ZoomLvl);
+        }
+    }
+    if (params.get('lat') !== null && params.get('lon') !== null) {
+        var lat = parseFloat(params.get('lat'));
+        var lon = parseFloat(params.get('lon'));
+        if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+            CenterLat = lat;
+            CenterLon = lon;
+            localStorage['CenterLat'] = CenterLat;
+            localStorage['CenterLon'] = CenterLon;
+            OLMap.getView().setCenter(ol.proj.fromLonLat([CenterLon, CenterLat]));
+        }
     }
 }
 
@@ -2002,6 +2052,27 @@ function toggleAircraftLabels(switchToggle) {
         localStorage.setItem('showAircraftLabels', showAircraftLabels);
 }
 
+function toggleAircraftLabelDetails(switchToggle) {
+	if (typeof localStorage['aircraftLabelDetails'] === 'undefined') {
+		localStorage.setItem('aircraftLabelDetails', 'deselected');
+	}
+
+	var aircraftLabelDetails = localStorage.getItem('aircraftLabelDetails');
+	if (switchToggle === true) {
+		aircraftLabelDetails = (aircraftLabelDetails === 'deselected') ? 'selected' : 'deselected';
+	}
+
+	if (aircraftLabelDetails === 'deselected') {
+		AircraftLabelDetails = false;
+		$('#aircraft_label_details_checkbox').removeClass('settingsCheckboxChecked');
+	} else {
+		AircraftLabelDetails = true;
+		$('#aircraft_label_details_checkbox').addClass('settingsCheckboxChecked');
+	}
+
+	localStorage.setItem('aircraftLabelDetails', aircraftLabelDetails);
+}
+
 function toggleAllPlanes(switchToggle) {
 	if (typeof localStorage['allPlanesSelection'] === 'undefined') {
 		localStorage.setItem('allPlanesSelection','deselected');
@@ -2574,7 +2645,14 @@ function hideBanner() {
     updateMapSize();
 }
 
-// Helper function to restrict the range of the inputs
+function setBaseLayer(name) {
+    ol.control.LayerSwitcher.forEachRecursive(layerGroup, function(lyr) {
+        if (lyr.get('type') === 'base') {
+            lyr.setVisible(lyr.get('name') === name);
+        }
+    });
+}
+
 function restrictUrlRequest(c) {
     let v = parseFloat(c);
     if (v < 0) {
