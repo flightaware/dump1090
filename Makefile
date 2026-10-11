@@ -218,7 +218,7 @@ starch-benchmark: cpu.o dsp/helpers/tables.o $(STARCH_OBJS) $(STARCH_BENCHMARK_O
 	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS)
 
 clean:
-	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o cpu_features/src/*.o dsp/generated/*.o dsp/helpers/*.o dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
+	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o dsp/generated/*.o dsp/helpers/*.o dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
 
 test: cprtests starch-benchmark
 	./cprtests
