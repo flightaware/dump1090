@@ -59,6 +59,8 @@ static void view1090InitConfig(void) {
     Modes.check_crc               = 1;
     Modes.fix_df                  = 1;
     Modes.interactive_display_ttl = MODES_INTERACTIVE_DISPLAY_TTL;
+    // Default TTL is 60s; width must match so the Ti column pads correctly for values >= 10
+    Modes.interactive_display_size = 2;
     Modes.interactive             = 1;
     Modes.maxRange                = 1852 * 300; // 300NM default max range
 }

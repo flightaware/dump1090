@@ -114,6 +114,8 @@ static void modesInitConfig(void) {
     Modes.freq                    = MODES_DEFAULT_FREQ;
     Modes.fix_df                  = 1;
     Modes.interactive_display_ttl = MODES_INTERACTIVE_DISPLAY_TTL;
+    // Default TTL is 60s; width must match so the Ti column pads correctly for values >= 10
+    Modes.interactive_display_size = 2;
     Modes.json_interval           = 1000;
     Modes.json_stats_interval     = 60000;
     Modes.json_location_accuracy  = 1;
@@ -708,6 +710,7 @@ int main(int argc, char **argv) {
             Modes.interactive = 1;
         } else if (!strcmp(argv[j],"--interactive-ttl") && more) {
             Modes.interactive_display_ttl = (uint64_t)(1000 * atof(argv[++j]));
+            Modes.interactive_display_size = strlen(argv[j]);
         } else if (!strcmp(argv[j],"--interactive-show-distance")) {
             Modes.interactive_show_distance = 1;
         } else if (!strcmp(argv[j], "--interactive-distance-units") && more) {
