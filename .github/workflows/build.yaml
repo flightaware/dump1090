@@ -9,13 +9,20 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+          - ubuntu-26.04
+          - ubuntu-26.04-arm
         compiler:
-          - gcc-10
-          - gcc-12
-          - gcc-14
-          - clang-20
+          - gcc-11     # oldest packaged
+          - gcc-15     # default gcc
+          - gcc-16     # newest packaged
+          - clang-21   # default clang
+        include:
+          # 24.04 with default gcc (gcc-13) only
+          - image: ubuntu-24.04
+            compiler: gcc
+          - image: ubuntu-24.04-arm
+            compiler: gcc
+
     runs-on: ${{ matrix.image }}
     env:
       CC: ${{ matrix.compiler }}
