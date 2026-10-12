@@ -331,7 +331,11 @@ void interactiveShowData(void) {
             int modeC = modeAToModeC(modeA);
             if (modeC != INVALID_ALTITUDE) {
                 strMode[3] = 'C';
+
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wformat-truncation"
                 snprintf(strFl, sizeof(strFl), "%5d ", convert_altitude(modeC * 100));
+# pragma GCC diagnostic pop
             }
             valid++;
 
