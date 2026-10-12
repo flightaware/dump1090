@@ -1,6 +1,7 @@
 dump1090-fa (11.2~alpha) UNRELEASED; urgency=medium
 
   * in development
+  * dump1090/view1090: fix age column in interactive mode (#322)
 
  -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 12 Oct 2026 09:58:28 +0800
 
