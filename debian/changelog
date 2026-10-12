@@ -1,3 +1,9 @@
+dump1090-fa (11.2~alpha) UNRELEASED; urgency=medium
+
+  * in development
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 12 Oct 2026 09:58:28 +0800
+
 dump1090-fa (11.1) stable; urgency=medium
 
   * generate-wisdom: don't try to benchmark removed _aligned variants
