@@ -355,6 +355,36 @@ div#loader {
     background-color: #ffff00;
 }
 
+.emergency_general {
+    font-weight: bold;
+    background-color: #ffff00;
+}
+
+.emergency_lifeguard {
+    font-weight: bold;
+    background-color: #ff8c00;
+}
+
+.emergency_minfuel {
+    font-weight: bold;
+    background-color: #ffa500;
+}
+
+.emergency_nordo {
+    font-weight: bold;
+    background-color: #00ffff;
+}
+
+.emergency_unlawful {
+    font-weight: bold;
+    background-color: #ff5555;
+}
+
+.emergency_downed {
+    font-weight: bold;
+    background-color: #ff0000;
+}
+
 .selected {
     background-color: #dddddd;
 }

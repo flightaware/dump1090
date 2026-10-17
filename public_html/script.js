@@ -27,6 +27,15 @@ var SpecialSquawks = {
         '7700' : { cssClass: 'squawk7700', markerColor: 'rgb(255, 255, 0)', text: 'General Emergency' }
 };
 
+var EmergencyStatus = {
+        'general':   { cssClass: 'emergency_general',   markerColor: 'rgb(255, 255, 0)',   text: 'General Emergency' },
+        'lifeguard': { cssClass: 'emergency_lifeguard', markerColor: 'rgb(255, 140, 0)',   text: 'Medical Emergency (Lifeguard)' },
+        'minfuel':   { cssClass: 'emergency_minfuel',   markerColor: 'rgb(255, 165, 0)',   text: 'Minimum Fuel' },
+        'nordo':     { cssClass: 'emergency_nordo',     markerColor: 'rgb(0, 255, 255)',   text: 'No Communications' },
+        'unlawful':  { cssClass: 'emergency_unlawful',  markerColor: 'rgb(255, 85, 85)',   text: 'Unlawful Interference' },
+        'downed':    { cssClass: 'emergency_downed',    markerColor: 'rgb(255, 0, 0)',     text: 'Downed Aircraft' }
+};
+
 // Get current map settings
 var CenterLat, CenterLon, ZoomLvl, MapType, SiteCirclesCount, SiteCirclesBaseDistance, SiteCirclesInterval;
 
@@ -1382,6 +1391,13 @@ function refreshSelected() {
                 $('#selected_squawk').text(selected.squawk);
         }
 
+        if (selected.emergency && selected.emergency !== 'none' && EmergencyStatus[selected.emergency]) {
+                $('#selected_emergency_row').removeClass('hidden');
+                $('#selected_emergency').text(EmergencyStatus[selected.emergency].text);
+        } else {
+                $('#selected_emergency_row').addClass('hidden');
+        }
+
         $('#selected_speed').text(format_speed_long(selected.gs, DisplayUnits));
         $('#selected_ias').text(format_speed_long(selected.ias, DisplayUnits));
         $('#selected_tas').text(format_speed_long(selected.tas, DisplayUnits));
@@ -1714,6 +1730,11 @@ function refreshTableInfo() {
 
                         if (tableplane.squawk in SpecialSquawks) {
                                 classes = classes + " " + SpecialSquawks[tableplane.squawk].cssClass;
+                                show_squawk_warning = true;
+                        }
+
+                        if (tableplane.emergency && tableplane.emergency !== 'none' && EmergencyStatus[tableplane.emergency]) {
+                                classes = classes + " " + EmergencyStatus[tableplane.emergency].cssClass;
                                 show_squawk_warning = true;
                         }
 
