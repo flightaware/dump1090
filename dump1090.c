@@ -119,11 +119,7 @@ static void modesInitConfig(void) {
     Modes.json_location_accuracy  = 1;
     Modes.maxRange                = 1852 * 300; // 300NM default max range
     Modes.mode_ac_auto            = 1;
- #ifdef DEMOD_2400X
-    Modes.mode_ac_auto            = 0;
- #else
-    Modes.mode_ac_auto            = 1;
- #endif
+
     Modes.net_heartbeat_interval = MODES_NET_HEARTBEAT_INTERVAL;
     Modes.net_output_flush_size = 1300;
     Modes.net_output_flush_interval = 500;

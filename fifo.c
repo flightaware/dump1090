@@ -38,11 +38,13 @@ static bool fifo_halted;                   // true if queue has been halted
 
 static unsigned overlap_length;     // desired overlap size in samples (size of overlap_buffer)
 static uint16_t *overlap_buffer;    // buffer used to save overlapping data
+static unsigned datatype_iq;     // 0 is power samples, 1 = IQ samples
+
 
 // Create the queue structures. Not threadsafe.
-bool fifo_create(unsigned buffer_count, unsigned buffer_size, unsigned datatype_iq, unsigned overlap)
+bool fifo_create(unsigned buffer_count, unsigned buffer_size, unsigned dtype_iq, unsigned overlap)
 {
-    unsigned esize = datatype_iq?2:1;
+    unsigned esize = dtype_iq?2:1;
     if (!(overlap_buffer = calloc(overlap, sizeof(overlap_buffer[0])*esize)))
         goto nomem;
 
@@ -61,7 +63,7 @@ bool fifo_create(unsigned buffer_count, unsigned buffer_size, unsigned datatype_
 
         newbuf->totalLength = buffer_size;
         newbuf->next = fifo_freelist;
-        newbuf->datatype_iq = datatype_iq;
+        datatype_iq = dtype_iq;
         fifo_freelist = newbuf;
     }
 
@@ -178,7 +180,7 @@ void fifo_enqueue(struct mag_buf *buf)
     assert(buf->validLength >= overlap_length);
 
     pthread_mutex_lock(&fifo_mutex);
-    unsigned esize = buf->datatype_iq?2:1;
+    unsigned esize = datatype_iq?2:1;
 
     if (fifo_halted) {
         // Shutting down, just return the buffer to the freelist.

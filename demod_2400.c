@@ -536,10 +536,46 @@ static void draw_modeac(uint16_t *m, unsigned modeac, unsigned f1_clock, unsigne
 //
 // one 2.4MHz sample = 25 cycles
 
+#ifdef DEMOD_2400X
+
+// Convert the IQ FIFO buffer (interleaved 12-bit I/Q = SC16Q11 layout) into
+// magnitudes for the stock demodulators. Returns NULL if out of memory.
+static uint16_t *getMagnitude(struct mag_buf *mag)
+{
+    static uint16_t *mptr = NULL;
+    static unsigned msize = 0;
+
+    if (mag->totalLength > msize) {
+
+        uint16_t *nptr;
+        if ((nptr = realloc(mptr, mag->totalLength * sizeof(*nptr))) == NULL) {
+        
+            free(mptr);
+            mptr = NULL;
+            msize = 0;
+            return NULL;
+        }
+        msize = mag->totalLength;
+        mptr = nptr;
+    }
+
+    // whole buffer, including the leading overlap the demodulator looks back into
+    starch_magnitude_sc16q11((const sc16_t *) mag->data, mptr, mag->validLength);
+
+    return mptr;
+}
+#endif
+
+
 void demodulate2400AC(struct mag_buf *mag)
 {
     struct modesMessage mm;
+#ifdef DEMOD_2400X
+    uint16_t *m;
+    if ((m = getMagnitude(mag)) == NULL) return;
+#else
     uint16_t *m = mag->data;
+#endif
     uint32_t mlen = mag->validLength - mag->overlap;
     unsigned f1_sample;
 
