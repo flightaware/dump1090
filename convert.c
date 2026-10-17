@@ -19,6 +19,61 @@
 
 #include "dump1090.h"
 
+#ifdef DEMOD_2400X
+
+//
+// DEMOD_2400X build: every converter outputs interleaved signed I,Q at
+// 12-bit scale (-2048..+2047) into the FIFO buffer (stored as uint16_t),
+// instead of magnitudes. The names match the stock converters so that
+// init_converter() below is the same for both builds.
+//
+// The iqdata_conv_* kernels accept NULL for the level/power outputs.
+//
+
+static void convert_uc8(void *iq_data,
+                        uint16_t *mag_data,
+                        unsigned nsamples,
+                        struct converter_state *state,
+                        double *out_mean_level,
+                        double *out_mean_power)
+{
+    MODES_NOTUSED(state);
+
+    const uc8_t *in = (const uc8_t *) iq_data;
+
+    starch_iqdata_conv_uc8(in, mag_data, nsamples, out_mean_level, out_mean_power);
+}
+
+static void convert_sc16(void *iq_data,
+                         uint16_t *mag_data,
+                         unsigned nsamples,
+                         struct converter_state *state,
+                         double *out_mean_level,
+                         double *out_mean_power)
+{
+    MODES_NOTUSED(state);
+
+    const sc16_t *in = (const sc16_t *) iq_data;
+
+    starch_iqdata_conv_sc16(in, mag_data, nsamples, out_mean_level, out_mean_power);
+}
+
+static void convert_sc16q11(void *iq_data,
+                            uint16_t *mag_data,
+                            unsigned nsamples,
+                            struct converter_state *state,
+                            double *out_mean_level,
+                            double *out_mean_power)
+{
+    MODES_NOTUSED(state);
+
+    const sc16_t *in = (const sc16_t *) iq_data;
+
+    starch_iqdata_conv_sc16q11(in, mag_data, nsamples, out_mean_level, out_mean_power);
+}
+
+#else /* !DEMOD_2400X */
+
 static void convert_uc8(void *iq_data,
                         uint16_t *mag_data,
                         unsigned nsamples,
@@ -73,6 +128,8 @@ static void convert_sc16q11(void *iq_data,
     }
 }
 
+#endif /* DEMOD_2400X */
+
 iq_convert_fn init_converter(input_format_t format,
                              double sample_rate,
                              int filter_dc,
@@ -103,3 +160,4 @@ void cleanup_converter(struct converter_state *state)
 {
     MODES_NOTUSED(state);
 }
+

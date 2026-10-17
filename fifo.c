@@ -40,9 +40,10 @@ static unsigned overlap_length;     // desired overlap size in samples (size of 
 static uint16_t *overlap_buffer;    // buffer used to save overlapping data
 
 // Create the queue structures. Not threadsafe.
-bool fifo_create(unsigned buffer_count, unsigned buffer_size, unsigned overlap)
+bool fifo_create(unsigned buffer_count, unsigned buffer_size, unsigned datatype_iq, unsigned overlap)
 {
-    if (!(overlap_buffer = calloc(overlap, sizeof(overlap_buffer[0]))))
+    unsigned esize = datatype_iq?2:1;
+    if (!(overlap_buffer = calloc(overlap, sizeof(overlap_buffer[0])*esize)))
         goto nomem;
 
     overlap_length = overlap;
@@ -53,13 +54,14 @@ bool fifo_create(unsigned buffer_count, unsigned buffer_size, unsigned overlap)
             goto nomem;
         }
 
-        if (!(newbuf->data = calloc(buffer_size, sizeof(newbuf->data[0])))) {
+        if (!(newbuf->data = calloc(buffer_size, sizeof(newbuf->data[0])*esize))) {
             free(newbuf);
             goto nomem;
         }
 
         newbuf->totalLength = buffer_size;
         newbuf->next = fifo_freelist;
+        newbuf->datatype_iq = datatype_iq;
         fifo_freelist = newbuf;
     }
 
@@ -176,6 +178,7 @@ void fifo_enqueue(struct mag_buf *buf)
     assert(buf->validLength >= overlap_length);
 
     pthread_mutex_lock(&fifo_mutex);
+    unsigned esize = buf->datatype_iq?2:1;
 
     if (fifo_halted) {
         // Shutting down, just return the buffer to the freelist.
@@ -187,13 +190,13 @@ void fifo_enqueue(struct mag_buf *buf)
     // Populate the overlap region
     if (buf->flags & MAGBUF_DISCONTINUOUS) {
         // This buffer is discontinuous to the previous, so the overlap region is not valid; zero it out
-        memset(buf->data, 0, overlap_length * sizeof(buf->data[0]));
+        memset(buf->data, 0, overlap_length * esize * sizeof(buf->data[0]));
     } else {
-        memcpy(buf->data, overlap_buffer, overlap_length * sizeof(buf->data[0]));
+        memcpy(buf->data, overlap_buffer, overlap_length * esize * sizeof(buf->data[0]));
     }
 
     // Save the tail of the buffer for next time
-    memcpy(overlap_buffer, &buf->data[buf->validLength - overlap_length], overlap_length * sizeof(overlap_buffer[0]));
+    memcpy(overlap_buffer, &buf->data[(buf->validLength - overlap_length) * esize], overlap_length * esize * sizeof(overlap_buffer[0]));
 
     // enqueue and tell the main thread
     buf->next = NULL;

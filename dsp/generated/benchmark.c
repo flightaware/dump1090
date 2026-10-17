@@ -867,6 +867,9 @@ static void starch_benchmark_usage(const char *argv0)
       fprintf(stderr,
               "\nFunctions: "
               "count_above_u16 "
+              "iqdata_conv_sc16 "
+              "iqdata_conv_sc16q11 "
+              "iqdata_conv_uc8 "
               "magnitude_power_uc8 "
               "magnitude_sc16 "
               "magnitude_sc16q11 "
@@ -962,6 +965,24 @@ int main(int argc, char **argv)
             starch_benchmark_all_count_above_u16();
             continue;
         }
+        if (!strcmp(argv[i], "iqdata_conv_sc16")) {
+            specific = 1;
+            fprintf(stderr, "=== iqdata_conv_sc16 ===\n");
+            fprintf(stderr, "  (no benchmark support defined)\n");
+            continue;
+        }
+        if (!strcmp(argv[i], "iqdata_conv_sc16q11")) {
+            specific = 1;
+            fprintf(stderr, "=== iqdata_conv_sc16q11 ===\n");
+            fprintf(stderr, "  (no benchmark support defined)\n");
+            continue;
+        }
+        if (!strcmp(argv[i], "iqdata_conv_uc8")) {
+            specific = 1;
+            fprintf(stderr, "=== iqdata_conv_uc8 ===\n");
+            fprintf(stderr, "  (no benchmark support defined)\n");
+            continue;
+        }
         if (!strcmp(argv[i], "magnitude_power_uc8")) {
             specific = 1;
             starch_benchmark_all_magnitude_power_uc8();
@@ -994,6 +1015,12 @@ int main(int argc, char **argv)
 
     if (!specific) {
         starch_benchmark_all_count_above_u16();
+        fprintf(stderr, "=== iqdata_conv_sc16 ===\n");
+        fprintf(stderr, "  (no benchmark support defined)\n");
+        fprintf(stderr, "=== iqdata_conv_sc16q11 ===\n");
+        fprintf(stderr, "  (no benchmark support defined)\n");
+        fprintf(stderr, "=== iqdata_conv_uc8 ===\n");
+        fprintf(stderr, "  (no benchmark support defined)\n");
         starch_benchmark_all_magnitude_power_uc8();
         starch_benchmark_all_magnitude_sc16();
         starch_benchmark_all_magnitude_sc16q11();

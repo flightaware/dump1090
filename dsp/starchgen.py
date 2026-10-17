@@ -33,7 +33,16 @@ gen.add_function(
 gen.add_function(
     name = 'count_above_u16',
     argtypes = ['const uint16_t *', 'unsigned', 'uint16_t', 'unsigned *'])
-
+gen.add_function(
+   name = 'iqdata_conv_uc8',
+   argtypes = ['const uc8_t *', 'uint16_t *', 'unsigned', 'double *', 'double *'])
+gen.add_function(
+    name = 'iqdata_conv_sc16',
+    argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned', 'double *', 'double *'])
+gen.add_function(
+    name = 'iqdata_conv_sc16q11',
+    argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned', 'double *', 'double *'])
+       
 gen.add_flavor(
     name = 'generic',
     description = 'Generic build, default compiler options',

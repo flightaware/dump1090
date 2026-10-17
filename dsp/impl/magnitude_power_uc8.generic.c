@@ -83,3 +83,38 @@ void STARCH_IMPL(magnitude_power_uc8, lookup_unroll_4) (const uc8_t * restrict i
     *out_level = sum_level / 65536.0 / len;
     *out_power = sum_power / 65536.0 / 65536.0 / len;
 }
+
+/* UC8 (8-bit offset binary, centre 127.5) -> 12-bit signed interleaved I,Q,
+ * -2040..+2040, plus mean level and power normalised to 12-bit full scale */
+
+void STARCH_IMPL(iqdata_conv_uc8, arith) (const uc8_t * restrict in, uint16_t * restrict out, unsigned len, double *out_level, double *out_power)
+{
+    // 8-bit offset binary (centre 127.5) -> 12-bit signed, -2040..+2040, interleaved I,Q
+    for (unsigned n = 0; n < len; ++n) {
+        out[2 * n]     = (int16_t) ((2 * in[n].I - 255) * 8);
+        out[2 * n + 1] = (int16_t) ((2 * in[n].Q - 255) * 8);
+    }
+ 
+    // Same normalisation as the stock stats: magnitude scaled so full scale (2048) = 1.0
+    double sum_level = 0;
+    uint64_t sum_power = 0;
+
+    for (unsigned n = 0; n < len; ++n) {
+        int32_t I = (2 * in[n].I - 255) * 8;
+        int32_t Q = (2 * in[n].Q - 255) * 8;
+
+        out[2 * n]     = (int16_t) I;
+        out[2 * n + 1] = (int16_t) Q;
+
+        uint32_t magsq = (uint32_t) (I * I + Q * Q);
+        sum_power += magsq;
+        sum_level += sqrtf((float) magsq);
+    }
+
+    if (out_level != NULL)
+       *out_level = sum_level / 2048.0 / len;
+
+    if (out_power != NULL)
+       *out_power = (double) sum_power / 2048.0 / 2048.0 / len;
+}
+
