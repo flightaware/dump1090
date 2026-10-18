@@ -34,6 +34,8 @@
 #define PEAMBLE_THRES 80
 #define DATA_THRES    150
 #endif
+#define DATA2_THRES   ((4*DATA_THRES)/5)
+
 
 // Static data
 struct staticdata_t {
@@ -224,7 +226,7 @@ static int demodFrame(struct candidate *c, const uint16_t *udata, int nt)
     int bits = modesMessageLenByType(c->msg[0] >> 3);
 
     if (bits == MODES_LONG_MSG_BITS &&
-        decodeShortAdbsData(c->pos + 12 * SHORT_FRAME, udata, nt, c->msg + MODES_SHORT_MSG_BYTES) < DATA_THRES)
+        decodeShortAdbsData(c->pos + 12 * SHORT_FRAME, udata, nt, c->msg + MODES_SHORT_MSG_BYTES) < DATA2_THRES)
         return 0;
 
     return bits;

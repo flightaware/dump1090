@@ -30,12 +30,6 @@ static inline __attribute__((always_inline)) int32_t hsum_s32x4_avx2(const __m12
     return _mm_cvtsi128_si32(s);
 }
 
-// Horizontal add
-static inline __attribute__((always_inline)) uint32_t hsum_u32x4_avx2(const __m128i v)
-{
-    return (uint32_t) hsum_s32x4_avx2(v);
-}
-
 // Load 8 interleaved I/Q samples and deinterleave them (like NEON's vld2q_s16)
 static inline __attribute__((always_inline)) iq16x8x2_avx2_t load2_s16_avx2(const int16_t *in)
 {
@@ -73,119 +67,257 @@ static inline __attribute__((always_inline)) unsigned getpow_avx2(const __m128i 
 }
 
 
+// Exact floor(sqrt(x)) for x < 2^31, same steps as demod_isqrt()
+static inline __attribute__((always_inline))
+__m256i isqrt_u32x8_avx2(const __m256i x)
+{
+    // sqrt is correctly rounded, so after adding 2^-6 truncation is exact or one too large
+    const __m256 f = _mm256_add_ps(_mm256_sqrt_ps(_mm256_cvtepi32_ps(x)), _mm256_set1_ps(1.0f / 64));
+    const __m256i q = _mm256_cvttps_epi32(f);
+    // q * q > x (unsigned, q * q may reach 2^31): q - 1 unless max(q * q, x) == x
+    const __m256i qq = _mm256_mullo_epi32(q, q);
+    const __m256i ok = _mm256_cmpeq_epi32(_mm256_max_epu32(qq, x), x);
+    return _mm256_sub_epi32(_mm256_sub_epi32(q, _mm256_set1_epi32(1)), ok);
+}
+
+// Power (or magnitude) of 8 filter outputs, as getpow_avx2()
+static inline __attribute__((always_inline))
+__m128i getpow8_avx2(__m256i si, __m256i sq, int shift)
+{
+    const __m256i round = _mm256_set1_epi32(16);
+    si = _mm256_srai_epi32(_mm256_add_epi32(si, round), 5);   // (x+16)>>5
+    sq = _mm256_srai_epi32(_mm256_add_epi32(sq, round), 5);
+    __m256i pwr = _mm256_add_epi32(_mm256_mullo_epi32(si, si), _mm256_mullo_epi32(sq, sq));
+
+#ifdef USE_MAGNITUDE
+    (void)shift;
+    pwr = isqrt_u32x8_avx2(pwr);
+#else
+    pwr = _mm256_srl_epi32(pwr, _mm_cvtsi32_si128(shift));    // Set gain
+    pwr = _mm256_min_epu32(pwr, _mm256_set1_epi32(65535));
+#endif
+
+    return _mm_packus_epi32(_mm256_castsi256_si128(pwr), _mm256_extracti128_si256(pwr, 1));
+}
+
+// 16-bit pairs (v[k], v[k+1]) for 8 consecutive windows, from v[0..15] = lo, hi
+#define PAIRS_AVX2(lo, hi, k)                                                                   \
+    _mm256_inserti128_si256(                                                                    \
+        _mm256_castsi128_si256(_mm_unpacklo_epi16(_mm_alignr_epi8(hi, lo, 2 * (k)),             \
+                                                  _mm_alignr_epi8(hi, lo, 2 * (k) + 2))),       \
+        _mm_unpackhi_epi16(_mm_alignr_epi8(hi, lo, 2 * (k)), _mm_alignr_epi8(hi, lo, 2 * (k) + 2)), 1)
+
 // Upsample
 int STARCH_IMPL(upsample12, avx2) (const int16_t * restrict in, int len, int shift, uint16_t * restrict oo)
 {
    if (len < 8) return 0;
 
-   __m128i c0 = _mm_loadl_epi64((const __m128i *) upsample_coeffs[0]);  // 8 x int8
-   __m128i c1 = _mm_loadl_epi64((const __m128i *) upsample_coeffs[1]);  // 8 x int8
-   __m128i c2 = _mm_loadl_epi64((const __m128i *) upsample_coeffs[2]);  // 8 x int8
-   __m128i c3 = _mm_loadl_epi64((const __m128i *) upsample_coeffs[3]);  // 8 x int8
-   __m128i c4 = _mm_loadl_epi64((const __m128i *) upsample_coeffs[4]);  // 8 x int8
-
-   iq16x8x2_avx2_t iq = load2_s16_avx2(in);
-
    int nt = NU_SAMP(len); // Total samples
    int stride = NU_STRIDE(nt); // Stride
    int stride6 = 6*stride;
    int bpos = 0;
+   int nw = len - 7; // Windows, 5 outputs each
+   int n = 0;
 
-   in += 16;
-   len -= 8;
-   while (1) {
+   // Coefficient pairs (c[2j], c[2j+1]) for madd, two taps at a time
+   __m256i cp[5][4];
+   for (int c = 0; c < 5; c++)
+       for (int j = 0; j < 4; j++)
+           cp[c][j] = _mm256_set1_epi32((int32_t) ((uint16_t) upsample_coeffs[c][2 * j] |
+                                                   ((uint32_t) (uint16_t) upsample_coeffs[c][2 * j + 1] << 16)));
 
-        // Rearrage output
-        oo[bpos] = getpow_avx2(c0, iq, shift);
-        if ((bpos += stride) >= stride6) bpos -= stride6-1;
+   // 8 windows at a time; reads samples n .. n+15
+   for (; n + 9 <= nw; n += 8) {
+       const iq16x8x2_avx2_t a = load2_s16_avx2(in + 2 * n);      // samples n .. n+7
+       const iq16x8x2_avx2_t b = load2_s16_avx2(in + 2 * n + 16); // samples n+8 .. n+15
 
-        oo[bpos] = getpow_avx2(c1, iq, shift);
-        if ((bpos += stride) >= stride6) bpos -= stride6-1;
+       const __m256i pi0 = PAIRS_AVX2(a.val[0], b.val[0], 0), pq0 = PAIRS_AVX2(a.val[1], b.val[1], 0);
+       const __m256i pi2 = PAIRS_AVX2(a.val[0], b.val[0], 2), pq2 = PAIRS_AVX2(a.val[1], b.val[1], 2);
+       const __m256i pi4 = PAIRS_AVX2(a.val[0], b.val[0], 4), pq4 = PAIRS_AVX2(a.val[1], b.val[1], 4);
+       const __m256i pi6 = PAIRS_AVX2(a.val[0], b.val[0], 6), pq6 = PAIRS_AVX2(a.val[1], b.val[1], 6);
 
-        oo[bpos] = getpow_avx2(c2, iq, shift);
-        if ((bpos += stride) >= stride6) bpos -= stride6-1;
+       uint16_t t[5][8];
+       for (int c = 0; c < 5; c++) {
+           const __m256i si = _mm256_add_epi32(_mm256_add_epi32(_mm256_madd_epi16(pi0, cp[c][0]), _mm256_madd_epi16(pi2, cp[c][1])),
+                                               _mm256_add_epi32(_mm256_madd_epi16(pi4, cp[c][2]), _mm256_madd_epi16(pi6, cp[c][3])));
+           const __m256i sq = _mm256_add_epi32(_mm256_add_epi32(_mm256_madd_epi16(pq0, cp[c][0]), _mm256_madd_epi16(pq2, cp[c][1])),
+                                               _mm256_add_epi32(_mm256_madd_epi16(pq4, cp[c][2]), _mm256_madd_epi16(pq6, cp[c][3])));
+           _mm_storeu_si128((__m128i *) t[c], getpow8_avx2(si, sq, shift));
+       }
 
-        oo[bpos] = getpow_avx2(c3, iq, shift);
-        if ((bpos += stride) >= stride6) bpos -= stride6-1;
+       // Rearrange output
+       for (int w = 0; w < 8; w++) {
+           for (int c = 0; c < 5; c++) {
+               oo[bpos] = t[c][w];
+               if ((bpos += stride) >= stride6) bpos -= stride6-1;
+           }
+       }
+   }
 
-        oo[bpos] = getpow_avx2(c4, iq, shift);
-        if ((bpos += stride) >= stride6) bpos -= stride6-1;
+   // Remainder
+   __m128i cv[5];
+   for (int c = 0; c < 5; c++)
+       cv[c] = _mm_loadl_epi64((const __m128i *) upsample_coeffs[c]);  // 8 x int8
 
-        if (len == 0) break;
-        len--;
-
-        // Shift
-        iq.val[0] = _mm_insert_epi16(_mm_srli_si128(iq.val[0], 2), in[0], 7);
-        iq.val[1] = _mm_insert_epi16(_mm_srli_si128(iq.val[1], 2), in[1], 7);
-        in += 2;
+   for (; n < nw; n++) {
+       const iq16x8x2_avx2_t iq = load2_s16_avx2(in + 2 * n);
+       for (int c = 0; c < 5; c++) {
+           oo[bpos] = getpow_avx2(cv[c], iq, shift);
+           if ((bpos += stride) >= stride6) bpos -= stride6-1;
+       }
    }
 
    return nt;
 }
 
 
+// Exact floor(n / d) for d > 0, n < 2^28 and n / d < 256 (the preamble metric range)
+static inline __attribute__((always_inline))
+__m256i div_u32x8_avx2(const __m256i n, const __m256i d)
+{
+    // Values are < 2^31, so the signed conversions and compares are fine
+    // Correctly rounded quotient: truncation is at most one too large
+    const __m256i q = _mm256_cvttps_epi32(_mm256_div_ps(_mm256_cvtepi32_ps(n), _mm256_cvtepi32_ps(d)));
+    return _mm256_add_epi32(q, _mm256_cmpgt_epi32(_mm256_mullo_epi32(q, d), n));
+}
+
+// Scalar preamble metric at p[0]
+static inline __attribute__((always_inline))
+uint8_t preamble_metric1(const uint16_t * restrict p)
+{
+#ifdef PREAMBLE_MIN_PULSE
+    uint32_t minp = MIN(MIN(p[0], p[2]), MIN(p[7], p[9]));
+#endif
+#ifdef PREAMBLE_SUM_PULSE
+    uint32_t minp = p[0] + p[2] + p[7] + p[9];
+#endif
+    uint32_t gap = p[1] + p[3] + p[4] + p[5] + p[6] + p[8] +
+                   p[10] + p[11] + p[12] + p[13] + p[14] + p[15];
+
+    return (256 * PREAMBLE_KK * minp) / (PREAMBLE_KK * minp + gap + 1);
+}
+
+#define PREAMBLE_BLOCK 64 // Positions per phase per block, multiple of 8
+
+// Load 8 x uint16 and widen to 8 x uint32
+static inline __attribute__((always_inline))
+__m256i load_u16x8_u32_avx2(const uint16_t * restrict p)
+{
+    return _mm256_cvtepu16_epi32(_mm_loadu_si128((const __m128i *) p));
+}
+
+// Widened sum of 4 consecutive samples, p[0..3] .. p[7..10]
+static inline __attribute__((always_inline))
+__m256i sum4_u16x8_avx2(const uint16_t * restrict p)
+{
+    return _mm256_add_epi32(_mm256_add_epi32(load_u16x8_u32_avx2(p + 0), load_u16x8_u32_avx2(p + 1)),
+                            _mm256_add_epi32(load_u16x8_u32_avx2(p + 2), load_u16x8_u32_avx2(p + 3)));
+}
+
+// Preamble metrics for 8*n8 consecutive positions of one phase
+static inline __attribute__((always_inline))
+void preamble_metric_block_avx2(const uint16_t * restrict p, int n8, uint8_t * restrict out)
+{
+    // Preamble detection
+    // P G P G, G G G P, G P G G, G G G G
+    // gap = p[1] + p[8] + p[10] + p[15] + s4[3] + s4[11], s4[x] = p[x] + .. + p[x+3]
+    // s4[11] for these 8 positions is s4[3] for the next 8
+
+    const __m256i one = _mm256_set1_epi32(1);
+    __m256i s4a = sum4_u16x8_avx2(p + 3);
+
+    for (int k = 0; k < 8 * n8; k += 8, p += 8) {
+        const __m256i s4b = sum4_u16x8_avx2(p + 11);
+
+        __m256i gap = _mm256_add_epi32(_mm256_add_epi32(load_u16x8_u32_avx2(p + 1), load_u16x8_u32_avx2(p + 8)),
+                                       _mm256_add_epi32(load_u16x8_u32_avx2(p + 10), load_u16x8_u32_avx2(p + 15)));
+        gap = _mm256_add_epi32(_mm256_add_epi32(gap, one), _mm256_add_epi32(s4a, s4b));
+        s4a = s4b;
+
+        // Metric = (256 * KK * minp) / (KK * minp + gap + 1)
+#ifdef PREAMBLE_MIN_PULSE
+        const __m128i m16 = _mm_min_epu16(_mm_min_epu16(_mm_loadu_si128((const __m128i *) (p + 0)),
+                                                        _mm_loadu_si128((const __m128i *) (p + 2))),
+                                          _mm_min_epu16(_mm_loadu_si128((const __m128i *) (p + 7)),
+                                                        _mm_loadu_si128((const __m128i *) (p + 9))));
+        const __m256i minp = _mm256_cvtepu16_epi32(m16);
+#endif
+#ifdef PREAMBLE_SUM_PULSE
+        const __m256i minp = _mm256_add_epi32(_mm256_add_epi32(load_u16x8_u32_avx2(p + 0), load_u16x8_u32_avx2(p + 2)),
+                                              _mm256_add_epi32(load_u16x8_u32_avx2(p + 7), load_u16x8_u32_avx2(p + 9)));
+#endif
+        const __m256i q = div_u32x8_avx2(_mm256_mullo_epi32(minp, _mm256_set1_epi32(256 * PREAMBLE_KK)),
+                                         _mm256_add_epi32(gap, _mm256_mullo_epi32(minp, _mm256_set1_epi32(PREAMBLE_KK))));
+
+        // Metric < 256
+        const __m128i q16 = _mm_packus_epi32(_mm256_castsi256_si128(q), _mm256_extracti128_si256(q, 1));
+        _mm_storel_epi64((__m128i *) (out + k), _mm_packus_epi16(q16, q16));
+    }
+}
+
 // Locate preamble
 int STARCH_IMPL(locate_preamble, avx2) (const uint16_t * restrict pp, int nt, uint8_t * restrict mm)
 {
    int stride = NU_STRIDE(nt); // Stride
-   const int16_t mask_g[] = { 0,-1, 0,-1,-1,-1,-1, 0,-1, 0,-1,-1,-1,-1,-1,-1 };
+   int count[6];               // Number of positions to evaluate in each phase
+   int cmin = 0x7fffffff;
 
-   const __m128i gm1 = _mm_loadu_si128((const __m128i *) (mask_g + 0));
-   const __m128i gm2 = _mm_loadu_si128((const __m128i *) (mask_g + 8));
-   const __m128i zero = _mm_setzero_si128();
-
-   for (int j = 0; j < 6; j++) { // Look at each phase in turn
-
-       const uint16_t * restrict p = &pp[j*stride];
+   for (int j = 0; j < 6; j++) {
        int plen = (nt + 5 - j) / 6; // Length of each phase
-
-       plen -= 2 * LONG_FRAME; // No point in searching at end
-       if (plen < 16) continue;
-
-       __m128i p1 = _mm_loadu_si128((const __m128i *) (p + 0));
-       __m128i p2 = _mm_loadu_si128((const __m128i *) (p + 8));
-
-       plen -= 16;
-       p += 16;
-       uint8_t * restrict mp = &mm[j];
-
-       while (1) {
-
-          // Preamble detection
-          // P G P G, G G G P, G P G G, G G G G
-
-          // Extract gaps and sum together (widened to 32-bit, values are unsigned)
-          __m128i g1 = _mm_and_si128(p1, gm1);
-          __m128i g2 = _mm_and_si128(p2, gm2);
-          __m128i gs = _mm_add_epi32(_mm_add_epi32(_mm_unpacklo_epi16(g1, zero), _mm_unpackhi_epi16(g1, zero)),
-                                     _mm_add_epi32(_mm_unpacklo_epi16(g2, zero), _mm_unpackhi_epi16(g2, zero)));
-          uint32_t gap = hsum_u32x4_avx2(gs);
-
-          // Extract pulses: low 4 lanes of px = p[0], p[9], p[2], p[7]
-          __m128i dm1 = _mm_andnot_si128(gm1, p1);
-          __m128i dm2 = _mm_andnot_si128(gm2, p2);
-
-          __m128i px = _mm_or_si128(_mm_or_si128(dm1, _mm_srli_si128(dm1, 8)), dm2);
-
-#ifdef PREAMBLE_MIN_PULSE
-          __m128i m = _mm_min_epu16(px, _mm_srli_si128(px, 4));
-          m = _mm_min_epu16(m, _mm_srli_si128(m, 2));
-          unsigned minp = (unsigned) _mm_extract_epi16(m, 0);
-#endif
-#ifdef PREAMBLE_SUM_PULSE
-          uint32_t minp = hsum_u32x4_avx2(_mm_cvtepu16_epi32(px));
-#endif
-          // Metric
-          *mp = (256 * PREAMBLE_KK * minp) / (PREAMBLE_KK * minp + gap + 1);
-          mp += 6;
-
-          if (plen == 0) break;
-          plen--;
-
-          unsigned nv = *p++;
-          p1 = _mm_alignr_epi8(p2, p1, 2);
-          p2 = _mm_insert_epi16(_mm_srli_si128(p2, 2), (int) nv, 7);
-       }
+       plen -= 2 * LONG_FRAME;      // No point in searching at end
+       count[j] = plen - 15;
+       cmin = MIN(cmin, count[j]);
    }
+
+   // 3-way interleave of 16-bit elements a, b, c: o0 = a0 b0 c0 a1 b1 c1 a2 b2,
+   // o1 = c2 a3 b3 c3 a4 b4 c4 a5, o2 = b5 c5 a6 b6 c6 a7 b7 c7
+   const __m128i s0a = _mm_setr_epi8( 0,  1, -1, -1, -1, -1,  2,  3, -1, -1, -1, -1,  4,  5, -1, -1);
+   const __m128i s0b = _mm_setr_epi8(-1, -1,  0,  1, -1, -1, -1, -1,  2,  3, -1, -1, -1, -1,  4,  5);
+   const __m128i s0c = _mm_setr_epi8(-1, -1, -1, -1,  0,  1, -1, -1, -1, -1,  2,  3, -1, -1, -1, -1);
+   const __m128i s1a = _mm_setr_epi8(-1, -1,  6,  7, -1, -1, -1, -1,  8,  9, -1, -1, -1, -1, 10, 11);
+   const __m128i s1b = _mm_setr_epi8(-1, -1, -1, -1,  6,  7, -1, -1, -1, -1,  8,  9, -1, -1, -1, -1);
+   const __m128i s1c = _mm_setr_epi8( 4,  5, -1, -1, -1, -1,  6,  7, -1, -1, -1, -1,  8,  9, -1, -1);
+   const __m128i s2a = _mm_setr_epi8(-1, -1, -1, -1, 12, 13, -1, -1, -1, -1, 14, 15, -1, -1, -1, -1);
+   const __m128i s2b = _mm_setr_epi8(10, 11, -1, -1, -1, -1, 12, 13, -1, -1, -1, -1, 14, 15, -1, -1);
+   const __m128i s2c = _mm_setr_epi8(-1, -1, 10, 11, -1, -1, -1, -1, 12, 13, -1, -1, -1, -1, 14, 15);
+
+   // All phases together, a block at a time, so the outputs can be interleaved on store
+   int i = 0;
+   while (i + 8 <= cmin) {
+       const int n8 = MIN((cmin - i) / 8, PREAMBLE_BLOCK / 8);
+       uint8_t t[6][PREAMBLE_BLOCK];
+
+       for (int j = 0; j < 6; j++)
+           preamble_metric_block_avx2(&pp[j*stride + i], n8, t[j]);
+
+       // mm[6*(i+k) + j] = t[j][k]: interleave phases in pairs, then 3-way as 16-bit
+       uint8_t * restrict mp = &mm[6*i];
+       for (int k = 0; k < 8 * n8; k += 8, mp += 48) {
+           const __m128i a = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *) (t[0] + k)),
+                                               _mm_loadl_epi64((const __m128i *) (t[1] + k)));
+           const __m128i b = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *) (t[2] + k)),
+                                               _mm_loadl_epi64((const __m128i *) (t[3] + k)));
+           const __m128i c = _mm_unpacklo_epi8(_mm_loadl_epi64((const __m128i *) (t[4] + k)),
+                                               _mm_loadl_epi64((const __m128i *) (t[5] + k)));
+
+           const __m128i o0 = _mm_or_si128(_mm_or_si128(_mm_shuffle_epi8(a, s0a), _mm_shuffle_epi8(b, s0b)),
+                                           _mm_shuffle_epi8(c, s0c));
+           const __m128i o1 = _mm_or_si128(_mm_or_si128(_mm_shuffle_epi8(a, s1a), _mm_shuffle_epi8(b, s1b)),
+                                           _mm_shuffle_epi8(c, s1c));
+           const __m128i o2 = _mm_or_si128(_mm_or_si128(_mm_shuffle_epi8(a, s2a), _mm_shuffle_epi8(b, s2b)),
+                                           _mm_shuffle_epi8(c, s2c));
+
+           _mm_storeu_si128((__m128i *) (mp +  0), o0);
+           _mm_storeu_si128((__m128i *) (mp + 16), o1);
+           _mm_storeu_si128((__m128i *) (mp + 32), o2);
+       }
+       i += 8 * n8;
+   }
+
+   // Remainder
+   for (int j = 0; j < 6; j++)
+       for (int k = i; k < count[j]; k++)
+           mm[6*k + j] = preamble_metric1(&pp[j*stride + k]);
+
    return METRIC_SIZE(nt);
 }
