@@ -15,6 +15,7 @@
 #include <immintrin.h>
 
 #include "dsp/helpers/demod2400x_dsp.h"
+#include "dsp/helpers/demod2400x_coeffs.h"
 
 // Two vectors of 8 x int16: val[0] = I, val[1] = Q (same layout as NEON's int16x8x2_t)
 typedef struct {

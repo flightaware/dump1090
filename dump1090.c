@@ -902,7 +902,11 @@ int main(int argc, char **argv) {
                 // Process one buffer
 
                 start_cpu_timing(&start_time);
+#ifdef DEMOD_2400X
+                demodulate2400x(buf);
+#else
                 demodulate2400(buf);
+#endif
                 if (Modes.mode_ac) {
                     demodulate2400AC(buf);
                 }

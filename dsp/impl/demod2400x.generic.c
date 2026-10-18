@@ -9,6 +9,7 @@
 // option) any later version.
 
 #include "dsp/helpers/demod2400x_dsp.h"
+#include "dsp/helpers/demod2400x_coeffs.h"
 
 // Get power
 static inline unsigned getpow_generic(

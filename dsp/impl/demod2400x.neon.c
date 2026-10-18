@@ -15,6 +15,7 @@
 #include <arm_neon.h>
 
 #include "dsp/helpers/demod2400x_dsp.h"
+#include "dsp/helpers/demod2400x_coeffs.h"
 
 // Horizontal add
 static inline __attribute__((always_inline))
