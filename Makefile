@@ -5,7 +5,7 @@ DUMP1090_VERSION ?= unknown
 CFLAGS ?= -O3 -g
 DUMP1090_CFLAGS := -std=c11 -fno-common -Wall -Wmissing-declarations -Wformat-signedness -W
 DUMP1090_CPPFLAGS := -I. -D_POSIX_C_SOURCE=200112L -DMODES_DUMP1090_VERSION=\"$(DUMP1090_VERSION)\" -DMODES_DUMP1090_VARIANT=\"dump1090-fa\"
-DUMP1090_CPPFLAGS += -DDEMOD_2400X
+DUMP1090_CPPFLAGS += -DDEMOD_2400X -DUSE_MAGNITUDE
  
 LIBS = -lpthread -lm
 SDR_OBJ = cpu.o sdr.o fifo.o sdr_ifile.o dsp/helpers/tables.o

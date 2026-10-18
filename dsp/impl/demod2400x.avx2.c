@@ -61,8 +61,13 @@ static inline __attribute__((always_inline)) unsigned getpow_avx2(const __m128i 
 
     uint32_t pwr = (uint32_t)(resi*resi) + (uint32_t)(resq*resq);
 
+#ifdef USE_MAGNITUDE
+    (void)shift;
+    pwr = demod_isqrt(pwr);
+#else
     pwr >>= shift; // Set gain
     if (pwr > 65535) pwr = 65535;
+#endif
 
     return pwr;
 }

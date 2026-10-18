@@ -42,8 +42,13 @@ static inline unsigned getpow_generic(
     sq = (sq+16)>>5;
     uint32_t pwr = (uint32_t)(si*si) + (uint32_t)(sq*sq);
 
+#ifdef USE_MAGNITUDE
+    (void)shift;
+    pwr = demod_isqrt(pwr);
+#else
     pwr >>= shift; // Set gain
     if (pwr > 65535) pwr = 65535;
+#endif
 
     return pwr;
 }

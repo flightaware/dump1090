@@ -62,8 +62,13 @@ static inline __attribute__((always_inline)) unsigned getpow_neon(const int8x8_t
     uint32x2_t sqr = vreinterpret_u32_s32(vmul_s32(res, res)); // [resi^2, resq^2]
     uint32_t pwr = vget_lane_u32(sqr, 0) + vget_lane_u32(sqr, 1);
 
+#ifdef USE_MAGNITUDE
+    (void)shift;
+    pwr = demod_isqrt(pwr);
+#else
     pwr >>= shift; // Set gain
     if (pwr > 65535) pwr = 65535;
+#endif
 
     return pwr;
 }

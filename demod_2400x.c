@@ -23,6 +23,18 @@
 
 #include "dsp/helpers/demod2400x_dsp.h"
 
+// The metric index is this many 12 MHz samples (3 input samples, the FIR delay)
+// before the true start of the preamble
+#define UPSAMPLE_DELAY 15
+
+#ifdef USE_MAGNITUDE
+#define PEAMBLE_THRES 50
+#define DATA_THRES    80
+#else
+#define PEAMBLE_THRES 80
+#define DATA_THRES    150
+#endif
+
 // Static data
 struct staticdata_t {
 
@@ -49,13 +61,6 @@ struct candidate {
     unsigned quality;                   // data quality of the first 56 bits (0..256)
     uint8_t msg[MODES_LONG_MSG_BYTES];  // demodulated frame
 };
-
-// The metric index is this many 12 MHz samples (3 input samples, the FIR delay)
-// before the true start of the preamble
-#define UPSAMPLE_DELAY 15
-
-#define PEAMBLE_THRES 80
-#define DATA_THRES (128+40)
 
 
 // Allocate holding buffers
@@ -329,19 +334,16 @@ static double searchFrames(const struct mag_buf *mag, struct staticdata_t *st, i
 }
 
 
-#define AVG_SHIFT 12
 // Remove DC from 'dlen' new I/Q samples, 'in' -> 'out' (both interleaved I,Q).
 // Returns the gain shift for upsample12.
-static int removeDcOffset(const int16_t * restrict in,
+#define AVG_SHIFT 12
+static void removeDcOffset(const int16_t * restrict in,
                           int16_t * restrict out,
                           struct staticdata_t * restrict stdata,
                           int dlen)
 {
     int32_t off_i = stdata->offset_i;
     int32_t off_q = stdata->offset_q;
-    uint64_t pow = 0;
-
-    if (dlen <= 0) return 0;
 
     for (int i = 0; i < dlen; i++) {
 
@@ -363,26 +365,26 @@ static int removeDcOffset(const int16_t * restrict in,
         out[0] = (int16_t) ii;
         out[1] = (int16_t) qq;
 
-        // Accumulate power
-        pow += (uint32_t)(ii*ii) + (uint32_t)(qq*qq);
-
         in += 2;
         out += 2;
     }
 
     stdata->offset_i = off_i;
     stdata->offset_q = off_q;
-
-    // Calculate a shift to try and scale the power so it fits in a uint16_t
-    uint32_t mean = (uint32_t) (pow / (unsigned) dlen);
-    if (mean == 0) mean = 1;
-    int shift = 31 - __builtin_clz(mean);
-    shift += 4;                 // check: puts the mean at ~16 >> 8, see notes
-    if (shift < 0) shift = 0;
-
-    return shift;
 }
 
+#ifndef USE_MAGNITUDE
+#define DEMOD_SHIFT_ADJ 3
+static int powerShift(double mean_power)      // mean_power: fraction of 12-bit full scale
+{
+    if (!(mean_power > 0))
+        return 0;
+    int e;
+    frexp(mean_power, &e);                    // mean_power = m * 2^e, 0.5 <= m < 1
+    int shift = (e - 1) + 22 + DEMOD_SHIFT_ADJ;           // 2048^2 = 2^22
+    return shift < 0 ? 0 : shift;
+}
+#endif
 
 // Demodulate 2400
 //#define CHECK_USAMP
@@ -411,8 +413,14 @@ void demodulate2400x(struct mag_buf *mag)
    }
 
    // Remove DC offset from the new samples only
-   int pshift = removeDcOffset((const int16_t *) &mag->data[2 * overlap],
-                               stdata.idata + 2 * overlap, &stdata, (int) newlen);
+   removeDcOffset((const int16_t *) &mag->data[2 * overlap],
+                   stdata.idata + 2 * overlap, &stdata, (int) newlen);
+                   
+#ifdef USE_MAGNITUDE
+   int pshift = 0;                              // magnitude needs no gain shift
+#else
+   int pshift = powerShift(mag->mean_power);
+#endif
    stdata.prev_mlen = newlen;
 
    // Upsample the whole buffer
