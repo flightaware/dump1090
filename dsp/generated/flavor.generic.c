@@ -9,6 +9,7 @@
 #define STARCH_IMPL(_function,_impl) starch_ ## _function ## _ ## _impl ## _ ## generic
 
 #include "../impl/count_above_u16.generic.c"
+#include "../impl/demod2400x.generic.c"
 #include "../impl/magnitude_power_uc8.generic.c"
 #include "../impl/magnitude_sc16.generic.c"
 #include "../impl/magnitude_sc16q11.generic.c"

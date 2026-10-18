@@ -23,3 +23,13 @@ mean_power_u16                           u64_generic                            
 count_above_u16                          neon_armv7a_neon_vfpv4                    # 35 ns/call
 count_above_u16                          generic_generic                           # 178 ns/call
 
+
+# DEMOD_2400X kernels: provisional order (hand-written NEON first).
+# Replace with real timings: ./starch-benchmark -i 5 -o wisdom.local upsample12 locate_preamble
+upsample12                               neon_armv7a_neon_vfpv4
+upsample12                               generic_armv7a_neon_vfpv4
+upsample12                               generic_generic
+
+locate_preamble                          neon_armv7a_neon_vfpv4
+locate_preamble                          generic_armv7a_neon_vfpv4
+locate_preamble                          generic_generic

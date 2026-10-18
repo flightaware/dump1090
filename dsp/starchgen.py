@@ -42,7 +42,15 @@ gen.add_function(
 gen.add_function(
     name = 'iqdata_conv_sc16q11',
     argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned', 'double *', 'double *'])
-       
+gen.add_function(
+   name = 'upsample12',
+   argtypes = ['const int16_t *', 'int', 'int', 'uint16_t *'],
+   returntype = 'int')
+gen.add_function(
+   name = 'locate_preamble',
+   argtypes = ['const uint16_t *', 'int', 'uint8_t *'],
+   returntype = 'int')       
+
 gen.add_flavor(
     name = 'generic',
     description = 'Generic build, default compiler options',
@@ -86,6 +94,7 @@ gen.add_mix(
 
 gen.scan_impls('dsp/impl/*.generic.c')
 gen.scan_impls('dsp/impl/*.neon.c', flavors=[armv7a_neon_vfpv4, armv8_neon_simd])
+gen.scan_impls('dsp/impl/*.avx2.c', flavors=['x86_avx2'])
 gen.scan_benchmarks('dsp/impl/*.benchmark.c')
 
 gen.generate()

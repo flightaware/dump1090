@@ -10,6 +10,8 @@
 
 #include "../impl/count_above_u16.generic.c"
 #include "../impl/count_above_u16.neon.c"
+#include "../impl/demod2400x.generic.c"
+#include "../impl/demod2400x.neon.c"
 #include "../impl/magnitude_power_uc8.generic.c"
 #include "../impl/magnitude_power_uc8.neon.c"
 #include "../impl/magnitude_sc16.generic.c"

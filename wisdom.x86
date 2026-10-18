@@ -23,3 +23,12 @@ mean_power_u16                           u32_generic                            
 count_above_u16                          generic_x86_avx2                          # 20 ns/call
 count_above_u16                          generic_generic                           # 30 ns/call
 
+
+# DEMOD_2400X kernels, measured with starch-benchmark -i 5 (x86-64 with AVX2)
+upsample12                               avx2_x86_avx2                             # 1877779 ns/call
+upsample12                               generic_generic                           # 3290448 ns/call
+upsample12                               generic_x86_avx2                          # 3709713 ns/call
+
+locate_preamble                          generic_x86_avx2                          # 2140715 ns/call
+locate_preamble                          generic_generic                           # 2293071 ns/call
+locate_preamble                          avx2_x86_avx2                             # 2808931 ns/call

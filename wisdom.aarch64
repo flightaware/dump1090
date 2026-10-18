@@ -19,3 +19,13 @@ magnitude_uc8                            lookup_unroll_4_generic                
 mean_power_u16                           u32_armv8_neon_simd                       # 45663 ns/call
 mean_power_u16                           u64_generic                               # 990367 ns/call
 
+
+# DEMOD_2400X kernels: provisional order (hand-written NEON first).
+# Replace with real timings: ./starch-benchmark -i 5 -o wisdom.local upsample12 locate_preamble
+upsample12                               neon_armv8_neon_simd
+upsample12                               generic_armv8_neon_simd
+upsample12                               generic_generic
+
+locate_preamble                          neon_armv8_neon_simd
+locate_preamble                          generic_armv8_neon_simd
+locate_preamble                          generic_generic

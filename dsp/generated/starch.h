@@ -183,6 +183,36 @@ extern starch_iqdata_conv_sc16q11_regentry starch_iqdata_conv_sc16q11_registry[]
 starch_iqdata_conv_sc16q11_regentry * starch_iqdata_conv_sc16q11_select();
 void starch_iqdata_conv_sc16q11_set_wisdom( const char * const * received_wisdom );
 
+typedef int (* starch_upsample12_ptr) ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
+extern starch_upsample12_ptr starch_upsample12;
+
+typedef struct {
+    int rank;
+    const char *name;
+    const char *flavor;
+    starch_upsample12_ptr callable;
+    int (*flavor_supported)();
+} starch_upsample12_regentry;
+
+extern starch_upsample12_regentry starch_upsample12_registry[];
+starch_upsample12_regentry * starch_upsample12_select();
+void starch_upsample12_set_wisdom( const char * const * received_wisdom );
+
+typedef int (* starch_locate_preamble_ptr) ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
+extern starch_locate_preamble_ptr starch_locate_preamble;
+
+typedef struct {
+    int rank;
+    const char *name;
+    const char *flavor;
+    starch_locate_preamble_ptr callable;
+    int (*flavor_supported)();
+} starch_locate_preamble_regentry;
+
+extern starch_locate_preamble_regentry starch_locate_preamble_registry[];
+starch_locate_preamble_regentry * starch_locate_preamble_select();
+void starch_locate_preamble_set_wisdom( const char * const * received_wisdom );
+
 
 /* flavors and prototypes */
 
@@ -192,6 +222,8 @@ void starch_magnitude_power_uc8_twopass_armv7a_neon_vfpv4 ( const uc8_t * arg0, 
 void starch_magnitude_power_uc8_lookup_armv7a_neon_vfpv4 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_magnitude_power_uc8_lookup_unroll_4_armv7a_neon_vfpv4 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_iqdata_conv_uc8_arith_armv7a_neon_vfpv4 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
+int starch_upsample12_generic_armv7a_neon_vfpv4 ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
+int starch_locate_preamble_generic_armv7a_neon_vfpv4 ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
 void starch_magnitude_sc16_exact_u32_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_sc16_exact_float_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_iqdata_conv_sc16_arith_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
@@ -213,6 +245,8 @@ void starch_count_above_u16_neon_armv7a_neon_vfpv4 ( const uint16_t * arg0, unsi
 void starch_magnitude_power_uc8_neon_vrsqrte_armv7a_neon_vfpv4 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_magnitude_sc16_neon_vrsqrte_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_sc16q11_neon_vrsqrte_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
+int starch_upsample12_neon_armv7a_neon_vfpv4 ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
+int starch_locate_preamble_neon_armv7a_neon_vfpv4 ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
 #endif /* STARCH_FLAVOR_ARMV7A_NEON_VFPV4 */
 
 int starch_read_wisdom (const char * path);
@@ -223,6 +257,8 @@ void starch_magnitude_power_uc8_twopass_armv8_neon_simd ( const uc8_t * arg0, ui
 void starch_magnitude_power_uc8_lookup_armv8_neon_simd ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_magnitude_power_uc8_lookup_unroll_4_armv8_neon_simd ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_iqdata_conv_uc8_arith_armv8_neon_simd ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
+int starch_upsample12_generic_armv8_neon_simd ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
+int starch_locate_preamble_generic_armv8_neon_simd ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
 void starch_magnitude_sc16_exact_u32_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_sc16_exact_float_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_iqdata_conv_sc16_arith_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
@@ -244,6 +280,8 @@ void starch_count_above_u16_neon_armv8_neon_simd ( const uint16_t * arg0, unsign
 void starch_magnitude_power_uc8_neon_vrsqrte_armv8_neon_simd ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_magnitude_sc16_neon_vrsqrte_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_sc16q11_neon_vrsqrte_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
+int starch_upsample12_neon_armv8_neon_simd ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
+int starch_locate_preamble_neon_armv8_neon_simd ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
 #endif /* STARCH_FLAVOR_ARMV8_NEON_SIMD */
 
 int starch_read_wisdom (const char * path);
@@ -253,6 +291,8 @@ void starch_magnitude_power_uc8_twopass_generic ( const uc8_t * arg0, uint16_t *
 void starch_magnitude_power_uc8_lookup_generic ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_magnitude_power_uc8_lookup_unroll_4_generic ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_iqdata_conv_uc8_arith_generic ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
+int starch_upsample12_generic_generic ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
+int starch_locate_preamble_generic_generic ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
 void starch_magnitude_sc16_exact_u32_generic ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_sc16_exact_float_generic ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_iqdata_conv_sc16_arith_generic ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
@@ -278,6 +318,8 @@ void starch_magnitude_power_uc8_twopass_x86_avx2 ( const uc8_t * arg0, uint16_t 
 void starch_magnitude_power_uc8_lookup_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_magnitude_power_uc8_lookup_unroll_4_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_iqdata_conv_uc8_arith_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
+int starch_upsample12_generic_x86_avx2 ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
+int starch_locate_preamble_generic_x86_avx2 ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
 void starch_magnitude_sc16_exact_u32_x86_avx2 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_sc16_exact_float_x86_avx2 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_iqdata_conv_sc16_arith_x86_avx2 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
@@ -293,6 +335,8 @@ void starch_count_above_u16_generic_x86_avx2 ( const uint16_t * arg0, unsigned a
 void starch_magnitude_uc8_lookup_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_uc8_lookup_unroll_4_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_uc8_exact_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2 );
+int starch_upsample12_avx2_x86_avx2 ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
+int starch_locate_preamble_avx2_x86_avx2 ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
 #endif /* STARCH_FLAVOR_X86_AVX2 */
 
 int starch_read_wisdom (const char * path);
