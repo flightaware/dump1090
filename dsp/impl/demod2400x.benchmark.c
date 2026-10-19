@@ -18,6 +18,12 @@
 #define DEMOD2400X_BENCH_LEN   131072   // one FIFO buffer of I/Q samples
 #define DEMOD2400X_BENCH_SHIFT 8
 
+// All implementations write to the same output buffer in turn. The verify
+// functions refill it with this pattern after checking, so values left by the
+// previous implementation can't hide ones that were never written; the
+// reference starts from the same pattern, so untouched padding still matches.
+#define DEMOD2400X_BENCH_POISON 0xA5
+
 // Size of the upsample12 output (and locate_preamble input) for 'len' I/Q samples
 static size_t demod2400x_upsample_size(int len)
 {
@@ -53,8 +59,10 @@ void STARCH_BENCHMARK(upsample12) (void)
     int16_t *in = demod2400x_make_iq(len);
     uint16_t *out = calloc(demod2400x_upsample_size(len), sizeof(*out));
 
-    if (in && out)
+    if (in && out) {
+        memset(out, DEMOD2400X_BENCH_POISON, demod2400x_upsample_size(len) * sizeof(*out));
         STARCH_BENCHMARK_RUN( upsample12, in, len, DEMOD2400X_BENCH_SHIFT, out );
+    }
 
     free(in);
     free(out);
@@ -63,10 +71,11 @@ void STARCH_BENCHMARK(upsample12) (void)
 bool STARCH_BENCHMARK_VERIFY(upsample12) (const int16_t *in, int len, int shift, uint16_t *out)
 {
     size_t size = demod2400x_upsample_size(len);
-    uint16_t *ref = calloc(size, sizeof(*ref));
+    uint16_t *ref = malloc(size * sizeof(*ref));
     if (!ref)
         return false;
 
+    memset(ref, DEMOD2400X_BENCH_POISON, size * sizeof(*ref));
     starch_upsample12_generic_generic(in, len, shift, ref);
 
     bool okay = true;
@@ -78,6 +87,7 @@ bool STARCH_BENCHMARK_VERIFY(upsample12) (const int16_t *in, int len, int shift,
         }
     }
 
+    memset(out, DEMOD2400X_BENCH_POISON, size * sizeof(*out));
     free(ref);
     return okay;
 }
@@ -92,8 +102,10 @@ void STARCH_BENCHMARK(locate_preamble) (void)
 
     if (iq && pp) {
         int nt = starch_upsample12_generic_generic(iq, len, DEMOD2400X_BENCH_SHIFT, pp);
-        if ((mm = calloc((size_t) nt, 1)))
+        if ((mm = malloc((size_t) nt))) {
+            memset(mm, DEMOD2400X_BENCH_POISON, (size_t) nt);
             STARCH_BENCHMARK_RUN( locate_preamble, pp, nt, mm );
+        }
     }
 
     free(iq);
@@ -103,10 +115,11 @@ void STARCH_BENCHMARK(locate_preamble) (void)
 
 bool STARCH_BENCHMARK_VERIFY(locate_preamble) (const uint16_t *pp, int nt, uint8_t *mm)
 {
-    uint8_t *ref = calloc((size_t) nt, 1);
+    uint8_t *ref = malloc((size_t) nt);
     if (!ref)
         return false;
 
+    memset(ref, DEMOD2400X_BENCH_POISON, (size_t) nt);
     starch_locate_preamble_generic_generic(pp, nt, ref);
 
     bool okay = true;
@@ -118,6 +131,7 @@ bool STARCH_BENCHMARK_VERIFY(locate_preamble) (const uint16_t *pp, int nt, uint8
         }
     }
 
+    memset(mm, DEMOD2400X_BENCH_POISON, (size_t) nt);
     free(ref);
     return okay;
 }

@@ -69,9 +69,9 @@ uint32x4_t isqrt_u32x4_neon(const uint32x4_t x)
     const uint32x4_t q = vcvtq_u32_f32(vaddq_f32(vsqrtq_f32(f), vdupq_n_f32(1.0f / 64)));
     return vaddq_u32(q, vcgtq_u32(vmulq_u32(q, q), x));
 #else
-    // Reciprocal square root estimate + two Newton steps: within one either way
+    // Reciprocal square root estimate + one Newton step: within one either way
+    // (worst error 0.57 for x < 2^31)
     float32x4_t r = vrsqrteq_f32(f);
-    r = vmulq_f32(vrsqrtsq_f32(vmulq_f32(f, r), r), r);
     r = vmulq_f32(vrsqrtsq_f32(vmulq_f32(f, r), r), r);
     uint32x4_t q = vcvtq_u32_f32(vmulq_f32(f, r));       // x = 0 gives NaN, converted to 0
     q = vaddq_u32(q, vcgtq_u32(vmulq_u32(q, q), x));     // too large: -1
