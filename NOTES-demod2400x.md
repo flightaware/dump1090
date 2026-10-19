@@ -6,8 +6,9 @@ RTL-SDR capture decoded on a Raspberry Pi 5 unless stated otherwise.
 
 ## Test data
 
-* **SDRplay recording**: 2.4 MHz SC16 I/Q, 17.8 s of signal. Used for the
-  early development and speed work.
+* **SDRplay RSP1B recording**: 2.4 MHz SC16 I/Q, 17.8 s of signal. Used for
+  the early development and speed work. The stock demodulator crashes on
+  RSP1B input; that is a separate issue, not fixed on this branch.
 * **RTL-SDR recording**: 60 s at 2.4 MHz, UC8, from the live receiver: a
   Raspberry Pi 4 with the FlightAware Pro Stick Plus (blue, internal LNA and
   SAW filter) at gain 49.6 dB, outdoor antenna on a 3 m pole, 12 m of
