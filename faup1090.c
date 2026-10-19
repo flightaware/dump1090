@@ -75,7 +75,7 @@ static void faupInitConfig(void) {
     Modes.net_heartbeat_interval  = MODES_NET_HEARTBEAT_INTERVAL;
     Modes.maxRange                = 1852 * 360; // 360NM default max range; this also disables receiver-relative positions
     Modes.quiet                   = 1;
-    Modes.net_output_flush_size   = MODES_OUT_FLUSH_SIZE;
+    Modes.net_output_flush_size   = MODES_OUT_FLUSH_SIZE_MAX;
     Modes.net_output_flush_interval = 200; // milliseconds
     Modes.faup_rate_multiplier    = FAUP_DEFAULT_RATE_MULTIPLIER;
 }
