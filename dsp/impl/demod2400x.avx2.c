@@ -72,13 +72,18 @@ static inline __attribute__((always_inline)) unsigned getpow_avx2(const __m128i 
 static inline __attribute__((always_inline))
 __m256i isqrt_u32x8_avx2(const __m256i x)
 {
-    // sqrt is correctly rounded, so after adding 2^-6 truncation is exact or one too large
+    // -ffast-math lets the compiler use a reciprocal sqrt estimate, so truncation
+    // is within one either way: correct in both directions
     const __m256 f = _mm256_add_ps(_mm256_sqrt_ps(_mm256_cvtepi32_ps(x)), _mm256_set1_ps(1.0f / 64));
-    const __m256i q = _mm256_cvttps_epi32(f);
+    __m256i q = _mm256_cvttps_epi32(f);
     // q * q > x (unsigned, q * q may reach 2^31): q - 1 unless max(q * q, x) == x
     const __m256i qq = _mm256_mullo_epi32(q, q);
     const __m256i ok = _mm256_cmpeq_epi32(_mm256_max_epu32(qq, x), x);
-    return _mm256_sub_epi32(_mm256_sub_epi32(q, _mm256_set1_epi32(1)), ok);
+    q = _mm256_sub_epi32(_mm256_sub_epi32(q, _mm256_set1_epi32(1)), ok);
+    // (q + 1)^2 <= x (unsigned, < 2^32): q + 1
+    const __m256i q1 = _mm256_add_epi32(q, _mm256_set1_epi32(1));
+    const __m256i q1q1 = _mm256_mullo_epi32(q1, q1);
+    return _mm256_sub_epi32(q, _mm256_cmpeq_epi32(_mm256_max_epu32(q1q1, x), x));
 }
 
 // Power (or magnitude) of 8 filter outputs, as getpow_avx2()
@@ -177,9 +182,14 @@ static inline __attribute__((always_inline))
 __m256i div_u32x8_avx2(const __m256i n, const __m256i d)
 {
     // Values are < 2^31, so the signed conversions and compares are fine
-    // Correctly rounded quotient: truncation is at most one too large
+    // -ffast-math lets the compiler use a reciprocal estimate for the divide, so
+    // truncation is within one either way: correct in both directions
     const __m256i q = _mm256_cvttps_epi32(_mm256_div_ps(_mm256_cvtepi32_ps(n), _mm256_cvtepi32_ps(d)));
-    return _mm256_add_epi32(q, _mm256_cmpgt_epi32(_mm256_mullo_epi32(q, d), n));
+    const __m256i qd = _mm256_mullo_epi32(q, d);
+    // q + 1, -1 if q * d > n (too large), -1 if (q + 1) * d > n (not too small)
+    return _mm256_add_epi32(_mm256_add_epi32(q, _mm256_set1_epi32(1)),
+                            _mm256_add_epi32(_mm256_cmpgt_epi32(qd, n),
+                                             _mm256_cmpgt_epi32(_mm256_add_epi32(qd, d), n)));
 }
 
 // Scalar preamble metric at p[0], 0 if below thres

@@ -36,13 +36,16 @@ static const int8_t upsample_coeffs[5][8] = {
 };
 
 // Exact floor(sqrt(x)) for x < 2^31, for USE_MAGNITUDE.
-// sqrtf is correctly rounded, so after adding 2^-6 the truncated value is the exact
-// result or one more, fixed with an integer check. Exact, so generic, NEON and AVX2
+// After adding 2^-6 the truncated sqrtf is the exact result or within one of it
+// (sqrtf may be an estimate under -ffast-math), fixed with integer checks. Exact,
+// so generic, NEON and AVX2
 // (which use the same steps in vector form) give bit-identical results.
 static inline __attribute__((always_inline))  uint32_t demod_isqrt(uint32_t x)
 {
     uint32_t q = (uint32_t) (__builtin_sqrtf((float) x) + 1.0f / 64);
-    return q - (q * q > x);
+    // Correct in both directions: under -ffast-math the sqrt may be an estimate
+    q -= (q * q > x);
+    return q + ((q + 1) * (q + 1) <= x);
 }
 
 // Square root used by getpow() in USE_MAGNITUDE mode. Override on the command line
