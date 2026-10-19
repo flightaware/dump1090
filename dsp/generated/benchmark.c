@@ -525,12 +525,12 @@ static void starch_benchmark_run_iqdata_conv_uc8( const uc8_t * arg0, uint16_t *
 
 /* prototypes for benchmark helpers provided by user code */
 void starch_locate_preamble_benchmark (void);
-bool starch_locate_preamble_benchmark_verify ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
+bool starch_locate_preamble_benchmark_verify ( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 );
 
 /* prototype the benchmarking function so that we can build with -Wmissing-declarations */
 void starch_locate_preamble_benchmark(void);
 
-static void starch_benchmark_one_locate_preamble( starch_locate_preamble_regentry * _entry, const uint16_t * arg0, int arg1, uint8_t * arg2 )
+static void starch_benchmark_one_locate_preamble( starch_locate_preamble_regentry * _entry, const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 )
 {
     fprintf(stderr, "  %-40s  ", _entry->name);
 
@@ -557,10 +557,10 @@ static void starch_benchmark_one_locate_preamble( starch_locate_preamble_regentr
 
     /* initial warmup */
     for (unsigned _loop = 0; _loop < starch_benchmark_warmup_loops; ++_loop)
-        _entry->callable ( arg0, arg1, arg2 );
+        _entry->callable ( arg0, arg1, arg2, arg3 );
 
     /* verify correctness of the output */
-    if (! starch_locate_preamble_benchmark_verify ( arg0, arg1, arg2 )) {
+    if (! starch_locate_preamble_benchmark_verify ( arg0, arg1, arg2, arg3 )) {
         fprintf(stderr, "skipped (verification failed)\n");
         starch_benchmark_validation_failed = true;
         return;
@@ -578,7 +578,7 @@ static void starch_benchmark_one_locate_preamble( starch_locate_preamble_regentr
         _loops *= 2;
         starch_benchmark_get_time(&_start);
         for (uint64_t _loop = 0; _loop < _loops; ++_loop)
-            _entry->callable ( arg0, arg1, arg2 );
+            _entry->callable ( arg0, arg1, arg2, arg3 );
         starch_benchmark_get_time(&_end);
         _elapsed = starch_benchmark_elapsed(&_start, &_end);
     }
@@ -592,7 +592,7 @@ static void starch_benchmark_one_locate_preamble( starch_locate_preamble_regentr
     for (unsigned _iter = 0; _iter < starch_benchmark_iterations; ++_iter) {
         starch_benchmark_get_time(&_start);
         for (uint64_t _loop = 0; _loop < _loops; ++_loop)
-            _entry->callable ( arg0, arg1, arg2 );
+            _entry->callable ( arg0, arg1, arg2, arg3 );
         starch_benchmark_get_time(&_end);
         uint64_t _elapsed_one = starch_benchmark_elapsed(&_start, &_end);
         if (_elapsed_one < _elapsed_min)
@@ -629,10 +629,10 @@ static void starch_benchmark_one_locate_preamble( starch_locate_preamble_regentr
     ++starch_benchmark_result_count;
 }
 
-static void starch_benchmark_run_locate_preamble( const uint16_t * arg0, int arg1, uint8_t * arg2 )
+static void starch_benchmark_run_locate_preamble( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 )
 {
     for (starch_locate_preamble_regentry *_entry = starch_locate_preamble_registry; _entry->name; ++_entry) {
-        starch_benchmark_one_locate_preamble( _entry, arg0, arg1, arg2 );
+        starch_benchmark_one_locate_preamble( _entry, arg0, arg1, arg2, arg3 );
     }
 }
 

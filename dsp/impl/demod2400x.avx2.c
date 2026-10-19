@@ -182,9 +182,9 @@ __m256i div_u32x8_avx2(const __m256i n, const __m256i d)
     return _mm256_add_epi32(q, _mm256_cmpgt_epi32(_mm256_mullo_epi32(q, d), n));
 }
 
-// Scalar preamble metric at p[0]
+// Scalar preamble metric at p[0], 0 if below thres
 static inline __attribute__((always_inline))
-uint8_t preamble_metric1(const uint16_t * restrict p)
+uint8_t preamble_metric1(const uint16_t * restrict p, unsigned thres)
 {
 #ifdef PREAMBLE_MIN_PULSE
     uint32_t minp = MIN(MIN(p[0], p[2]), MIN(p[7], p[9]));
@@ -195,7 +195,9 @@ uint8_t preamble_metric1(const uint16_t * restrict p)
     uint32_t gap = p[1] + p[3] + p[4] + p[5] + p[6] + p[8] +
                    p[10] + p[11] + p[12] + p[13] + p[14] + p[15];
 
-    return (256 * PREAMBLE_KK * minp) / (PREAMBLE_KK * minp + gap + 1);
+    uint32_t n = 256 * PREAMBLE_KK * minp;
+    uint32_t d = PREAMBLE_KK * minp + gap + 1;
+    return n < thres * d ? 0 : n / d;
 }
 
 #define PREAMBLE_BLOCK 64 // Positions per phase per block, multiple of 8
@@ -217,7 +219,7 @@ __m256i sum4_u16x8_avx2(const uint16_t * restrict p)
 
 // Preamble metrics for 8*n8 consecutive positions of one phase
 static inline __attribute__((always_inline))
-void preamble_metric_block_avx2(const uint16_t * restrict p, int n8, uint8_t * restrict out)
+void preamble_metric_block_avx2(const uint16_t * restrict p, int n8, unsigned thres, uint8_t * restrict out)
 {
     // Preamble detection
     // P G P G, G G G P, G P G G, G G G G
@@ -225,6 +227,7 @@ void preamble_metric_block_avx2(const uint16_t * restrict p, int n8, uint8_t * r
     // s4[11] for these 8 positions is s4[3] for the next 8
 
     const __m256i one = _mm256_set1_epi32(1);
+    const __m256i vthres = _mm256_set1_epi32((int) thres);
     __m256i s4a = sum4_u16x8_avx2(p + 3);
 
     for (int k = 0; k < 8 * n8; k += 8, p += 8) {
@@ -247,8 +250,17 @@ void preamble_metric_block_avx2(const uint16_t * restrict p, int n8, uint8_t * r
         const __m256i minp = _mm256_add_epi32(_mm256_add_epi32(load_u16x8_u32_avx2(p + 0), load_u16x8_u32_avx2(p + 2)),
                                               _mm256_add_epi32(load_u16x8_u32_avx2(p + 7), load_u16x8_u32_avx2(p + 9)));
 #endif
-        const __m256i q = div_u32x8_avx2(_mm256_mullo_epi32(minp, _mm256_set1_epi32(256 * PREAMBLE_KK)),
-                                         _mm256_add_epi32(gap, _mm256_mullo_epi32(minp, _mm256_set1_epi32(PREAMBLE_KK))));
+        const __m256i n = _mm256_mullo_epi32(minp, _mm256_set1_epi32(256 * PREAMBLE_KK));
+        const __m256i d = _mm256_add_epi32(gap, _mm256_mullo_epi32(minp, _mm256_set1_epi32(PREAMBLE_KK)));
+
+        // Most positions are noise below the threshold: skip the divide when all 8 are
+        // (values < 2^31, so the signed compare is fine)
+        const __m256i below = _mm256_cmpgt_epi32(_mm256_mullo_epi32(d, vthres), n);
+        if (_mm256_movemask_epi8(below) == -1) {
+            _mm_storel_epi64((__m128i *) (out + k), _mm_setzero_si128());
+            continue;
+        }
+        const __m256i q = _mm256_andnot_si256(below, div_u32x8_avx2(n, d));
 
         // Metric < 256
         const __m128i q16 = _mm_packus_epi32(_mm256_castsi256_si128(q), _mm256_extracti128_si256(q, 1));
@@ -257,7 +269,7 @@ void preamble_metric_block_avx2(const uint16_t * restrict p, int n8, uint8_t * r
 }
 
 // Locate preamble
-int STARCH_IMPL(locate_preamble, avx2) (const uint16_t * restrict pp, int nt, uint8_t * restrict mm)
+int STARCH_IMPL(locate_preamble, avx2) (const uint16_t * restrict pp, int nt, unsigned thres, uint8_t * restrict mm)
 {
    int stride = NU_STRIDE(nt); // Stride
    int count[6];               // Number of positions to evaluate in each phase
@@ -289,7 +301,7 @@ int STARCH_IMPL(locate_preamble, avx2) (const uint16_t * restrict pp, int nt, ui
        uint8_t t[6][PREAMBLE_BLOCK];
 
        for (int j = 0; j < 6; j++)
-           preamble_metric_block_avx2(&pp[j*stride + i], n8, t[j]);
+           preamble_metric_block_avx2(&pp[j*stride + i], n8, thres, t[j]);
 
        // mm[6*(i+k) + j] = t[j][k]: interleave phases in pairs, then 3-way as 16-bit
        uint8_t * restrict mp = &mm[6*i];
@@ -318,7 +330,7 @@ int STARCH_IMPL(locate_preamble, avx2) (const uint16_t * restrict pp, int nt, ui
    // Remainder
    for (int j = 0; j < 6; j++)
        for (int k = i; k < count[j]; k++)
-           mm[6*k + j] = preamble_metric1(&pp[j*stride + k]);
+           mm[6*k + j] = preamble_metric1(&pp[j*stride + k], thres);
 
    return METRIC_SIZE(nt);
 }

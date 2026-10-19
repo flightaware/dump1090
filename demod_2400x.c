@@ -402,7 +402,7 @@ void demodulate2400x(struct mag_buf *mag)
 #endif
 
    // Locate possible preambles
-   int mlen = starch_locate_preamble(stdata.udata, ulen, stdata.metric);
+   int mlen = starch_locate_preamble(stdata.udata, ulen, PEAMBLE_THRES, stdata.metric);   // metric < PEAMBLE_THRES is 0
 #ifdef CHECK_METRIC
    checkMetric(stdata.metric, mlen);
 #endif

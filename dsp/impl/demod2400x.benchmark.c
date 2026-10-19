@@ -104,8 +104,10 @@ void STARCH_BENCHMARK(locate_preamble) (void)
     if (iq && pp) {
         int nt = starch_upsample12_generic_generic(iq, len, DEMOD2400X_BENCH_SHIFT, pp);
         if ((mm = malloc((size_t) nt))) {
+            // thres 0 gives every metric; 50 zeroes most of them (noise) without dividing
             memset(mm, DEMOD2400X_BENCH_POISON, (size_t) nt);
-            STARCH_BENCHMARK_RUN( locate_preamble, pp, nt, mm );
+            STARCH_BENCHMARK_RUN( locate_preamble, pp, nt, 0, mm );
+            STARCH_BENCHMARK_RUN( locate_preamble, pp, nt, 50, mm );
         }
     }
 
@@ -114,14 +116,14 @@ void STARCH_BENCHMARK(locate_preamble) (void)
     free(mm);
 }
 
-bool STARCH_BENCHMARK_VERIFY(locate_preamble) (const uint16_t *pp, int nt, uint8_t *mm)
+bool STARCH_BENCHMARK_VERIFY(locate_preamble) (const uint16_t *pp, int nt, unsigned thres, uint8_t *mm)
 {
     uint8_t *ref = malloc((size_t) nt);
     if (!ref)
         return false;
 
     memset(ref, DEMOD2400X_BENCH_POISON, (size_t) nt);
-    starch_locate_preamble_generic_generic(pp, nt, ref);
+    starch_locate_preamble_generic_generic(pp, nt, thres, ref);
 
     bool okay = true;
     for (int k = 0; k < nt; ++k) {

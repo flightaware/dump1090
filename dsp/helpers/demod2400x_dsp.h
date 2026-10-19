@@ -28,6 +28,10 @@
 #define METRIC_SIZE(t) ((t)-6*15-12*LONG_FRAME)
 
 #define PREAMBLE_KK 2
+
+// locate_preamble() sets metrics below its 'thres' argument to 0. That is exact
+// without dividing (floor(n / d) >= t <=> n >= t * d), and the peak search can't
+// tell the difference as long as thres <= its own threshold.
 #define PREAMBLE_MIN_PULSE
 
 #endif

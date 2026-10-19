@@ -48,7 +48,7 @@ gen.add_function(
    returntype = 'int')
 gen.add_function(
    name = 'locate_preamble',
-   argtypes = ['const uint16_t *', 'int', 'uint8_t *'],
+   argtypes = ['const uint16_t *', 'int', 'unsigned', 'uint8_t *'],
    returntype = 'int')       
 
 gen.add_flavor(

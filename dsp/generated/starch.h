@@ -198,7 +198,7 @@ extern starch_upsample12_regentry starch_upsample12_registry[];
 starch_upsample12_regentry * starch_upsample12_select();
 void starch_upsample12_set_wisdom( const char * const * received_wisdom );
 
-typedef int (* starch_locate_preamble_ptr) ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
+typedef int (* starch_locate_preamble_ptr) ( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 );
 extern starch_locate_preamble_ptr starch_locate_preamble;
 
 typedef struct {
@@ -222,7 +222,7 @@ void starch_magnitude_power_uc8_twopass_armv7a_neon_vfpv4 ( const uc8_t * arg0, 
 void starch_magnitude_power_uc8_lookup_armv7a_neon_vfpv4 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_magnitude_power_uc8_lookup_unroll_4_armv7a_neon_vfpv4 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 int starch_upsample12_generic_armv7a_neon_vfpv4 ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
-int starch_locate_preamble_generic_armv7a_neon_vfpv4 ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
+int starch_locate_preamble_generic_armv7a_neon_vfpv4 ( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 );
 void starch_iqdata_conv_uc8_generic_armv7a_neon_vfpv4 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16_generic_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16q11_generic_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
@@ -246,7 +246,7 @@ void starch_magnitude_power_uc8_neon_vrsqrte_armv7a_neon_vfpv4 ( const uc8_t * a
 void starch_magnitude_sc16_neon_vrsqrte_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_sc16q11_neon_vrsqrte_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 int starch_upsample12_neon_armv7a_neon_vfpv4 ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
-int starch_locate_preamble_neon_armv7a_neon_vfpv4 ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
+int starch_locate_preamble_neon_armv7a_neon_vfpv4 ( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 );
 void starch_iqdata_conv_uc8_neon_armv7a_neon_vfpv4 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16_neon_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16q11_neon_armv7a_neon_vfpv4 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
@@ -260,7 +260,7 @@ void starch_magnitude_power_uc8_twopass_armv8_neon_simd ( const uc8_t * arg0, ui
 void starch_magnitude_power_uc8_lookup_armv8_neon_simd ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_magnitude_power_uc8_lookup_unroll_4_armv8_neon_simd ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 int starch_upsample12_generic_armv8_neon_simd ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
-int starch_locate_preamble_generic_armv8_neon_simd ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
+int starch_locate_preamble_generic_armv8_neon_simd ( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 );
 void starch_iqdata_conv_uc8_generic_armv8_neon_simd ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16_generic_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16q11_generic_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
@@ -284,7 +284,7 @@ void starch_magnitude_power_uc8_neon_vrsqrte_armv8_neon_simd ( const uc8_t * arg
 void starch_magnitude_sc16_neon_vrsqrte_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_sc16q11_neon_vrsqrte_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2 );
 int starch_upsample12_neon_armv8_neon_simd ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
-int starch_locate_preamble_neon_armv8_neon_simd ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
+int starch_locate_preamble_neon_armv8_neon_simd ( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 );
 void starch_iqdata_conv_uc8_neon_armv8_neon_simd ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16_neon_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16q11_neon_armv8_neon_simd ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
@@ -297,7 +297,7 @@ void starch_magnitude_power_uc8_twopass_generic ( const uc8_t * arg0, uint16_t *
 void starch_magnitude_power_uc8_lookup_generic ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_magnitude_power_uc8_lookup_unroll_4_generic ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 int starch_upsample12_generic_generic ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
-int starch_locate_preamble_generic_generic ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
+int starch_locate_preamble_generic_generic ( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 );
 void starch_iqdata_conv_uc8_generic_generic ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16_generic_generic ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16q11_generic_generic ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
@@ -324,7 +324,7 @@ void starch_magnitude_power_uc8_twopass_x86_avx2 ( const uc8_t * arg0, uint16_t 
 void starch_magnitude_power_uc8_lookup_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 void starch_magnitude_power_uc8_lookup_unroll_4_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, double * arg3, double * arg4 );
 int starch_upsample12_generic_x86_avx2 ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
-int starch_locate_preamble_generic_x86_avx2 ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
+int starch_locate_preamble_generic_x86_avx2 ( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 );
 void starch_iqdata_conv_uc8_generic_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16_generic_x86_avx2 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16q11_generic_x86_avx2 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
@@ -342,7 +342,7 @@ void starch_magnitude_uc8_lookup_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1,
 void starch_magnitude_uc8_lookup_unroll_4_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2 );
 void starch_magnitude_uc8_exact_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2 );
 int starch_upsample12_avx2_x86_avx2 ( const int16_t * arg0, int arg1, int arg2, uint16_t * arg3 );
-int starch_locate_preamble_avx2_x86_avx2 ( const uint16_t * arg0, int arg1, uint8_t * arg2 );
+int starch_locate_preamble_avx2_x86_avx2 ( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 );
 void starch_iqdata_conv_uc8_avx2_x86_avx2 ( const uc8_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16_avx2_x86_avx2 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );
 void starch_iqdata_conv_sc16q11_avx2_x86_avx2 ( const sc16_t * arg0, uint16_t * arg1, unsigned arg2, const int32_t * arg3, int32_t * arg4, double * arg5, double * arg6 );

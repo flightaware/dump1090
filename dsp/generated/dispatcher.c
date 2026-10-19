@@ -344,13 +344,13 @@ starch_locate_preamble_regentry * starch_locate_preamble_select() {
     return NULL;
 }
 
-static int starch_locate_preamble_dispatch ( const uint16_t * arg0, int arg1, uint8_t * arg2 ) {
+static int starch_locate_preamble_dispatch ( const uint16_t * arg0, int arg1, unsigned arg2, uint8_t * arg3 ) {
     starch_locate_preamble_regentry *entry = starch_locate_preamble_select();
     if (!entry)
         abort();
 
     starch_locate_preamble = entry->callable;
-    return starch_locate_preamble ( arg0, arg1, arg2 );
+    return starch_locate_preamble ( arg0, arg1, arg2, arg3 );
 }
 
 starch_locate_preamble_ptr starch_locate_preamble = starch_locate_preamble_dispatch;

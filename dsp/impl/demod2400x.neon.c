@@ -246,9 +246,9 @@ uint32x4_t div_u32x4_neon(const uint32x4_t n, const uint32x4_t d)
 #endif
 }
 
-// Scalar preamble metric at p[0]
+// Scalar preamble metric at p[0], 0 if below thres
 static inline __attribute__((always_inline))
-uint8_t preamble_metric1(const uint16_t * restrict p)
+uint8_t preamble_metric1(const uint16_t * restrict p, unsigned thres)
 {
 #ifdef PREAMBLE_MIN_PULSE
     uint32_t minp = MIN(MIN(p[0], p[2]), MIN(p[7], p[9]));
@@ -259,7 +259,9 @@ uint8_t preamble_metric1(const uint16_t * restrict p)
     uint32_t gap = p[1] + p[3] + p[4] + p[5] + p[6] + p[8] +
                    p[10] + p[11] + p[12] + p[13] + p[14] + p[15];
 
-    return (256 * PREAMBLE_KK * minp) / (PREAMBLE_KK * minp + gap + 1);
+    uint32_t n = 256 * PREAMBLE_KK * minp;
+    uint32_t d = PREAMBLE_KK * minp + gap + 1;
+    return n < thres * d ? 0 : n / d;
 }
 
 #define PREAMBLE_BLOCK 64 // Positions per phase per block, multiple of 8
@@ -280,7 +282,7 @@ uint32x4x2_t sum4_u16x8_neon(const uint16_t * restrict p)
 
 // Preamble metrics for 8*n8 consecutive positions of one phase
 static inline __attribute__((always_inline))
-void preamble_metric_block_neon(const uint16_t * restrict p, int n8, uint8_t * restrict out)
+void preamble_metric_block_neon(const uint16_t * restrict p, int n8, unsigned thres, uint8_t * restrict out)
 {
     // Preamble detection
     // P G P G, G G G P, G P G G, G G G G
@@ -288,6 +290,7 @@ void preamble_metric_block_neon(const uint16_t * restrict p, int n8, uint8_t * r
     // s4[11] for these 8 positions is s4[3] for the next 8
 
     const uint32x4_t one = vdupq_n_u32(1);
+    const uint32x4_t vthres = vdupq_n_u32(thres);
     uint32x4x2_t s4a = sum4_u16x8_neon(p + 3);
 
     for (int k = 0; k < 8 * n8; k += 8, p += 8) {
@@ -304,14 +307,14 @@ void preamble_metric_block_neon(const uint16_t * restrict p, int n8, uint8_t * r
         gap_hi = vaddq_u32(vaddq_u32(gap_hi, one), vaddq_u32(s4a.val[1], s4b.val[1]));
         s4a = s4b;
 
-        // Metric = (256 * KK * minp) / (KK * minp + gap + 1)
+        // Metric = n / d = (256 * KK * minp) / (KK * minp + gap + 1), or 0 if below thres
 #ifdef PREAMBLE_MIN_PULSE
         const uint16x8_t m = vminq_u16(vminq_u16(vld1q_u16(p + 0), vld1q_u16(p + 2)),
                                        vminq_u16(vld1q_u16(p + 7), vld1q_u16(p + 9)));
-        const uint32x4_t q_lo = div_u32x4_neon(vmull_n_u16(vget_low_u16(m), 256 * PREAMBLE_KK),
-                                               vmlal_n_u16(gap_lo, vget_low_u16(m), PREAMBLE_KK));
-        const uint32x4_t q_hi = div_u32x4_neon(vmull_n_u16(vget_high_u16(m), 256 * PREAMBLE_KK),
-                                               vmlal_n_u16(gap_hi, vget_high_u16(m), PREAMBLE_KK));
+        const uint32x4_t n_lo = vmull_n_u16(vget_low_u16(m), 256 * PREAMBLE_KK);
+        const uint32x4_t n_hi = vmull_n_u16(vget_high_u16(m), 256 * PREAMBLE_KK);
+        const uint32x4_t d_lo = vmlal_n_u16(gap_lo, vget_low_u16(m), PREAMBLE_KK);
+        const uint32x4_t d_hi = vmlal_n_u16(gap_hi, vget_high_u16(m), PREAMBLE_KK);
 #endif
 #ifdef PREAMBLE_SUM_PULSE
         const uint16x8_t v0 = vld1q_u16(p + 0), v2 = vld1q_u16(p + 2);
@@ -320,11 +323,26 @@ void preamble_metric_block_neon(const uint16_t * restrict p, int n8, uint8_t * r
                                           vaddl_u16(vget_low_u16(v7), vget_low_u16(v9)));
         const uint32x4_t m_hi = vaddq_u32(vaddl_u16(vget_high_u16(v0), vget_high_u16(v2)),
                                           vaddl_u16(vget_high_u16(v7), vget_high_u16(v9)));
-        const uint32x4_t q_lo = div_u32x4_neon(vmulq_n_u32(m_lo, 256 * PREAMBLE_KK),
-                                               vmlaq_n_u32(gap_lo, m_lo, PREAMBLE_KK));
-        const uint32x4_t q_hi = div_u32x4_neon(vmulq_n_u32(m_hi, 256 * PREAMBLE_KK),
-                                               vmlaq_n_u32(gap_hi, m_hi, PREAMBLE_KK));
+        const uint32x4_t n_lo = vmulq_n_u32(m_lo, 256 * PREAMBLE_KK);
+        const uint32x4_t n_hi = vmulq_n_u32(m_hi, 256 * PREAMBLE_KK);
+        const uint32x4_t d_lo = vmlaq_n_u32(gap_lo, m_lo, PREAMBLE_KK);
+        const uint32x4_t d_hi = vmlaq_n_u32(gap_hi, m_hi, PREAMBLE_KK);
 #endif
+
+        // Most positions are noise below the threshold: skip the divide when all 8 are
+        const uint32x4_t ok_lo = vcgeq_u32(n_lo, vmulq_u32(d_lo, vthres));
+        const uint32x4_t ok_hi = vcgeq_u32(n_hi, vmulq_u32(d_hi, vthres));
+        const uint32x4_t any = vorrq_u32(ok_lo, ok_hi);
+#ifdef __aarch64__
+        if (vmaxvq_u32(any) == 0) {
+#else
+        if (vget_lane_u64(vreinterpret_u64_u32(vorr_u32(vget_low_u32(any), vget_high_u32(any))), 0) == 0) {
+#endif
+            vst1_u8(out + k, vdup_n_u8(0));
+            continue;
+        }
+        const uint32x4_t q_lo = vandq_u32(div_u32x4_neon(n_lo, d_lo), ok_lo);
+        const uint32x4_t q_hi = vandq_u32(div_u32x4_neon(n_hi, d_hi), ok_hi);
 
         // Metric < 256
         vst1_u8(out + k, vmovn_u16(vcombine_u16(vmovn_u32(q_lo), vmovn_u32(q_hi))));
@@ -332,7 +350,7 @@ void preamble_metric_block_neon(const uint16_t * restrict p, int n8, uint8_t * r
 }
 
 // Locate preamble
-int STARCH_IMPL(locate_preamble, neon) (const uint16_t * restrict pp, int nt, uint8_t * restrict mm)
+int STARCH_IMPL(locate_preamble, neon) (const uint16_t * restrict pp, int nt, unsigned thres, uint8_t * restrict mm)
 {
    int stride = NU_STRIDE(nt); // Stride
    int count[6];               // Number of positions to evaluate in each phase
@@ -352,7 +370,7 @@ int STARCH_IMPL(locate_preamble, neon) (const uint16_t * restrict pp, int nt, ui
        uint8_t t[6][PREAMBLE_BLOCK];
 
        for (int j = 0; j < 6; j++)
-           preamble_metric_block_neon(&pp[j*stride + i], n8, t[j]);
+           preamble_metric_block_neon(&pp[j*stride + i], n8, thres, t[j]);
 
        // mm[6*(i+k) + j] = t[j][k]: interleave phases in pairs, then 3-way as 16-bit
        uint8_t * restrict mp = &mm[6*i];
@@ -372,7 +390,7 @@ int STARCH_IMPL(locate_preamble, neon) (const uint16_t * restrict pp, int nt, ui
    // Remainder
    for (int j = 0; j < 6; j++)
        for (int k = i; k < count[j]; k++)
-           mm[6*k + j] = preamble_metric1(&pp[j*stride + k]);
+           mm[6*k + j] = preamble_metric1(&pp[j*stride + k], thres);
 
    return METRIC_SIZE(nt);
 }

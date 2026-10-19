@@ -116,7 +116,7 @@ int STARCH_IMPL(upsample12, generic) (const int16_t * restrict in, int len, int 
 
 
 // Locate preamble
-int STARCH_IMPL(locate_preamble, generic) (const uint16_t * restrict pp, int nt, uint8_t * restrict mm)
+int STARCH_IMPL(locate_preamble, generic) (const uint16_t * restrict pp, int nt, unsigned thres, uint8_t * restrict mm)
 {
     int stride = NU_STRIDE(nt);
 
@@ -155,8 +155,9 @@ int STARCH_IMPL(locate_preamble, generic) (const uint16_t * restrict pp, int nt,
                 p[14] +
                 p[15];
 
-            *mp = (256 * PREAMBLE_KK * minp)
-                / (PREAMBLE_KK * minp + gap + 1);
+            uint32_t n = 256 * PREAMBLE_KK * minp;
+            uint32_t d = PREAMBLE_KK * minp + gap + 1;
+            *mp = n < thres * d ? 0 : n / d;           // below threshold: 0, no divide
 
             p++;
             mp += 6;
