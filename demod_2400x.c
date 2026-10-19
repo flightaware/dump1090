@@ -55,6 +55,7 @@ struct staticdata_t {
 struct candidate {
     int pos;                            // metric index = 12 MHz sample index from mag->data[0]
     unsigned quality;                   // data quality of the first 56 bits (0..256)
+    unsigned quality2;                  // data quality of the second 56 bits (0..256)
     uint8_t msg[MODES_LONG_MSG_BYTES];  // demodulated frame
 };
 
@@ -142,23 +143,12 @@ static void checkMetric(const uint8_t *metric, int mlen) {
 #endif
 
 
-// Decode 1 bit
-#define DECODE_BIT(pp, ofs, bt, qq, pw) ({ \
-    int aa = (pp)[2*(ofs)+0]; \
-    int bb = (pp)[2*(ofs)+1]; \
-    int dd = bb - aa; \
-    if (dd < 0) { \
-       dd = -dd; \
-       bt |= (1<<(7-ofs)); \
-    } \
-    qq += dd; \
-    pw += aa+bb; \
-})
-
-
-// Decode 56 bits starting at metric position 'pos'; returns a quality score (0..256)
-static unsigned decodeShortAdbsData(int pos, const uint16_t * restrict udata, int nt, uint8_t * restrict msg) {
-
+// Decode 56 bits starting at metric position 'pos'; returns a quality score (0..256).
+// Each bit is two chips: bit = 1 if the first is larger. Branch-free: on noise the
+// bit values are random, and a branch on them mispredicts half the time.
+static inline __attribute__((always_inline))
+unsigned decodeShortAdbsData(int pos, const uint16_t * restrict udata, int nt, uint8_t * restrict msg)
+{
     int stride = NU_STRIDE(nt);
     int phase = pos % 6;
     int offs  = (pos / 6) + 16; // Start of data
@@ -168,18 +158,17 @@ static unsigned decodeShortAdbsData(int pos, const uint16_t * restrict udata, in
     const uint16_t * restrict p = &udata[phase * stride + offs];
     for (int i = 0; i < SHORT_FRAME / 8; i++) {      // 7 bytes = 56 bits, 16 chips per byte
 
-        unsigned bit = 0;
+        unsigned bits = 0;
+        for (int k = 0; k < 8; k++) {
+            int a = p[2 * k];
+            int b = p[2 * k + 1];
+            int d = b - a;
+            bits = (bits << 1) | ((unsigned) d >> 31);   // 1 if a > b
+            qual += (uint32_t) (d < 0 ? -d : d);
+            pow += (uint32_t) (a + b);
+        }
 
-        DECODE_BIT(p, 0, bit, qual, pow);
-        DECODE_BIT(p, 1, bit, qual, pow);
-        DECODE_BIT(p, 2, bit, qual, pow);
-        DECODE_BIT(p, 3, bit, qual, pow);
-        DECODE_BIT(p, 4, bit, qual, pow);
-        DECODE_BIT(p, 5, bit, qual, pow);
-        DECODE_BIT(p, 6, bit, qual, pow);
-        DECODE_BIT(p, 7, bit, qual, pow);
-
-        msg[i] = bit;
+        msg[i] = (uint8_t) bits;
         p += 16;
     }
     unsigned score = (256 * qual) / (pow + 1);
@@ -188,11 +177,25 @@ static unsigned decodeShortAdbsData(int pos, const uint16_t * restrict udata, in
 
 
 // Is metric position 'p' a preamble peak?
-static inline int isPeak(const uint8_t *metric, int p)
+static inline __attribute__((always_inline)) int isPeak(const uint8_t *metric, int p)
 {
     unsigned m0 = metric[p - 1], m1 = metric[p], m2 = metric[p + 1];
 
     return m1 >= PEAMBLE_THRES && m1 >= m0 && m1 > m2;
+}
+
+
+// Does any of the 8 metric bytes at 'm' reach PEAMBLE_THRES? (exact: bytes below
+// 128 get 128 - THRES added without carrying into the next byte; bytes from 128 up
+// have their top bit set already)
+_Static_assert(PEAMBLE_THRES >= 1 && PEAMBLE_THRES <= 128, "anyAboveThres8() needs 1 <= PEAMBLE_THRES <= 128");
+static inline __attribute__((always_inline)) int anyAboveThres8(const uint8_t *m)
+{
+    const uint64_t ones = 0x0101010101010101ULL;
+    uint64_t x;
+    memcpy(&x, m, sizeof(x));
+    uint64_t y = (x & (0x7f * ones)) + (128 - PEAMBLE_THRES) * ones;
+    return ((x | y) & (0x80 * ones)) != 0;
 }
 
 
@@ -212,17 +215,12 @@ static void bestPhase(int peak, const uint16_t *udata, int nt, struct candidate 
 }
 
 
-// Demodulate the rest of the frame if the DF says it is a long one.
-// Returns the frame length in bits, or 0 if the second half doesn't hold up.
-static int demodFrame(struct candidate *c, const uint16_t *udata, int nt)
+// Demodulate the second 56 bits whatever the DF says: scoreModesMessage() can
+// correct the DF field, including the bit that selects 56 or 112 bits, so the
+// frame length is only known after scoring
+static void demodFrame(struct candidate *c, const uint16_t *udata, int nt)
 {
-    int bits = modesMessageLenByType(c->msg[0] >> 3);
-
-    if (bits == MODES_LONG_MSG_BITS &&
-        decodeShortAdbsData(c->pos + 12 * SHORT_FRAME, udata, nt, c->msg + MODES_SHORT_MSG_BYTES) < DATA2_THRES)
-        return 0;
-
-    return bits;
+    c->quality2 = decodeShortAdbsData(c->pos + 12 * SHORT_FRAME, udata, nt, c->msg + MODES_SHORT_MSG_BYTES);
 }
 
 
@@ -248,8 +246,8 @@ static double signalPower(const int16_t *iq, int pos, int bits, double *energy)
 
 
 // Score, decode and pass one frame on to the rest of dump1090.
-// Returns 1 if it was accepted; *energy gets its signal energy.
-static int emitFrame(const struct mag_buf *mag, const struct candidate *c, int bits,
+// Returns its length in bits if it was accepted, else 0; *energy gets its signal energy.
+static int emitFrame(const struct mag_buf *mag, const struct candidate *c,
                      const int16_t *iq, double *energy)
 {
     static const struct modesMessage zeroMessage;
@@ -275,16 +273,24 @@ static int emitFrame(const struct mag_buf *mag, const struct candidate *c, int b
         Modes.stats_current.demod_rejected_bad++;
         return 0;
     }
+
+    // A long frame without a CRC to check (DF16/20/21/24: address/parity only)
+    // also needs a clean second half
+    if (mm.msgbits == MODES_LONG_MSG_BITS && mm.msgtype != 17 && mm.msgtype != 18 &&
+        c->quality2 < DATA2_THRES) {
+        Modes.stats_current.demod_rejected_bad++;
+        return 0;
+    }
     Modes.stats_current.demod_accepted[mm.correctedbits]++;
 
-    mm.signalLevel = signalPower(iq, c->pos, bits, energy);
+    mm.signalLevel = signalPower(iq, c->pos, mm.msgbits, energy);
     if (mm.signalLevel > Modes.stats_current.peak_signal_power)
         Modes.stats_current.peak_signal_power = mm.signalLevel;
     if (mm.signalLevel > 0.50119)
         Modes.stats_current.strong_signal_count++;      // above -3 dBFS
 
     useModesMessage(&mm);
-    return 1;
+    return mm.msgbits;
 }
 
 
@@ -301,6 +307,12 @@ static double searchFrames(const struct mag_buf *mag, struct staticdata_t *st, i
 
     for (p = MAX(1, st->next_start); p <= last; p++) {
 
+        // Most of the metric is noise below the threshold: skip it 8 at a time
+        while (p + 7 <= last && !anyAboveThres8(st->metric + p))
+            p += 8;
+        if (p > last)
+            break;
+
         if (!isPeak(st->metric, p))
             continue;
         Modes.stats_current.demod_preambles++;
@@ -310,12 +322,11 @@ static double searchFrames(const struct mag_buf *mag, struct staticdata_t *st, i
         if (c.quality < DATA_THRES)
             continue;
 
-        int bits = demodFrame(&c, st->udata, nt);
-        if (!bits)
-            continue;
+        demodFrame(&c, st->udata, nt);
 
         double energy;
-        if (emitFrame(mag, &c, bits, (const int16_t *) mag->data, &energy)) {
+        int bits = emitFrame(mag, &c, (const int16_t *) mag->data, &energy);
+        if (bits) {
             energy_sum += energy;
             // Skip to 8 bits before the end of the frame, as demod_2400.c does
             p = c.pos + bits * 12 - 1;

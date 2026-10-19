@@ -32,3 +32,16 @@ upsample12                               generic_x86_avx2                       
 locate_preamble                          generic_x86_avx2                          # 2140715 ns/call
 locate_preamble                          generic_generic                           # 2293071 ns/call
 locate_preamble                          avx2_x86_avx2                             # 2808931 ns/call
+
+# DEMOD_2400X input conversion: provisional order (hand-written AVX2 first, not timed on x86 hardware)
+iqdata_conv_uc8                          avx2_x86_avx2
+iqdata_conv_uc8                          generic_x86_avx2
+iqdata_conv_uc8                          generic_generic
+
+iqdata_conv_sc16                         avx2_x86_avx2
+iqdata_conv_sc16                         generic_x86_avx2
+iqdata_conv_sc16                         generic_generic
+
+iqdata_conv_sc16q11                      avx2_x86_avx2
+iqdata_conv_sc16q11                      generic_x86_avx2
+iqdata_conv_sc16q11                      generic_generic

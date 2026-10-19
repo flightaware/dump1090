@@ -151,14 +151,14 @@ void starch_iqdata_conv_sc16_set_wisdom (const char * const * received_wisdom)
 starch_iqdata_conv_sc16_regentry starch_iqdata_conv_sc16_registry[] = {
   
 #ifdef STARCH_MIX_AARCH64
-    { 0, "generic_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_sc16_generic_armv8_neon_simd, cpu_supports_armv8_simd },
-    { 1, "neon_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_sc16_neon_armv8_neon_simd, cpu_supports_armv8_simd },
+    { 0, "neon_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_sc16_neon_armv8_neon_simd, cpu_supports_armv8_simd },
+    { 1, "generic_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_sc16_generic_armv8_neon_simd, cpu_supports_armv8_simd },
     { 2, "generic_generic", "generic", starch_iqdata_conv_sc16_generic_generic, NULL },
 #endif /* STARCH_MIX_AARCH64 */
   
 #ifdef STARCH_MIX_ARM
-    { 0, "generic_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_sc16_generic_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
-    { 1, "neon_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_sc16_neon_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
+    { 0, "neon_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_sc16_neon_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
+    { 1, "generic_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_sc16_generic_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
     { 2, "generic_generic", "generic", starch_iqdata_conv_sc16_generic_generic, NULL },
 #endif /* STARCH_MIX_ARM */
   
@@ -167,8 +167,8 @@ starch_iqdata_conv_sc16_regentry starch_iqdata_conv_sc16_registry[] = {
 #endif /* STARCH_MIX_GENERIC */
   
 #ifdef STARCH_MIX_X86
-    { 0, "generic_x86_avx2", "x86_avx2", starch_iqdata_conv_sc16_generic_x86_avx2, cpu_supports_avx2 },
-    { 1, "avx2_x86_avx2", "x86_avx2", starch_iqdata_conv_sc16_avx2_x86_avx2, cpu_supports_avx2 },
+    { 0, "avx2_x86_avx2", "x86_avx2", starch_iqdata_conv_sc16_avx2_x86_avx2, cpu_supports_avx2 },
+    { 1, "generic_x86_avx2", "x86_avx2", starch_iqdata_conv_sc16_generic_x86_avx2, cpu_supports_avx2 },
     { 2, "generic_generic", "generic", starch_iqdata_conv_sc16_generic_generic, NULL },
 #endif /* STARCH_MIX_X86 */
     { 0, NULL, NULL, NULL, NULL }
@@ -229,14 +229,14 @@ void starch_iqdata_conv_sc16q11_set_wisdom (const char * const * received_wisdom
 starch_iqdata_conv_sc16q11_regentry starch_iqdata_conv_sc16q11_registry[] = {
   
 #ifdef STARCH_MIX_AARCH64
-    { 0, "generic_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_sc16q11_generic_armv8_neon_simd, cpu_supports_armv8_simd },
-    { 1, "neon_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_sc16q11_neon_armv8_neon_simd, cpu_supports_armv8_simd },
+    { 0, "neon_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_sc16q11_neon_armv8_neon_simd, cpu_supports_armv8_simd },
+    { 1, "generic_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_sc16q11_generic_armv8_neon_simd, cpu_supports_armv8_simd },
     { 2, "generic_generic", "generic", starch_iqdata_conv_sc16q11_generic_generic, NULL },
 #endif /* STARCH_MIX_AARCH64 */
   
 #ifdef STARCH_MIX_ARM
-    { 0, "generic_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_sc16q11_generic_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
-    { 1, "neon_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_sc16q11_neon_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
+    { 0, "neon_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_sc16q11_neon_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
+    { 1, "generic_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_sc16q11_generic_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
     { 2, "generic_generic", "generic", starch_iqdata_conv_sc16q11_generic_generic, NULL },
 #endif /* STARCH_MIX_ARM */
   
@@ -245,8 +245,8 @@ starch_iqdata_conv_sc16q11_regentry starch_iqdata_conv_sc16q11_registry[] = {
 #endif /* STARCH_MIX_GENERIC */
   
 #ifdef STARCH_MIX_X86
-    { 0, "generic_x86_avx2", "x86_avx2", starch_iqdata_conv_sc16q11_generic_x86_avx2, cpu_supports_avx2 },
-    { 1, "avx2_x86_avx2", "x86_avx2", starch_iqdata_conv_sc16q11_avx2_x86_avx2, cpu_supports_avx2 },
+    { 0, "avx2_x86_avx2", "x86_avx2", starch_iqdata_conv_sc16q11_avx2_x86_avx2, cpu_supports_avx2 },
+    { 1, "generic_x86_avx2", "x86_avx2", starch_iqdata_conv_sc16q11_generic_x86_avx2, cpu_supports_avx2 },
     { 2, "generic_generic", "generic", starch_iqdata_conv_sc16q11_generic_generic, NULL },
 #endif /* STARCH_MIX_X86 */
     { 0, NULL, NULL, NULL, NULL }
@@ -307,14 +307,14 @@ void starch_iqdata_conv_uc8_set_wisdom (const char * const * received_wisdom)
 starch_iqdata_conv_uc8_regentry starch_iqdata_conv_uc8_registry[] = {
   
 #ifdef STARCH_MIX_AARCH64
-    { 0, "generic_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_uc8_generic_armv8_neon_simd, cpu_supports_armv8_simd },
-    { 1, "neon_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_uc8_neon_armv8_neon_simd, cpu_supports_armv8_simd },
+    { 0, "neon_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_uc8_neon_armv8_neon_simd, cpu_supports_armv8_simd },
+    { 1, "generic_armv8_neon_simd", "armv8_neon_simd", starch_iqdata_conv_uc8_generic_armv8_neon_simd, cpu_supports_armv8_simd },
     { 2, "generic_generic", "generic", starch_iqdata_conv_uc8_generic_generic, NULL },
 #endif /* STARCH_MIX_AARCH64 */
   
 #ifdef STARCH_MIX_ARM
-    { 0, "generic_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_uc8_generic_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
-    { 1, "neon_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_uc8_neon_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
+    { 0, "neon_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_uc8_neon_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
+    { 1, "generic_armv7a_neon_vfpv4", "armv7a_neon_vfpv4", starch_iqdata_conv_uc8_generic_armv7a_neon_vfpv4, cpu_supports_armv7_neon_vfpv4 },
     { 2, "generic_generic", "generic", starch_iqdata_conv_uc8_generic_generic, NULL },
 #endif /* STARCH_MIX_ARM */
   
@@ -323,8 +323,8 @@ starch_iqdata_conv_uc8_regentry starch_iqdata_conv_uc8_registry[] = {
 #endif /* STARCH_MIX_GENERIC */
   
 #ifdef STARCH_MIX_X86
-    { 0, "generic_x86_avx2", "x86_avx2", starch_iqdata_conv_uc8_generic_x86_avx2, cpu_supports_avx2 },
-    { 1, "avx2_x86_avx2", "x86_avx2", starch_iqdata_conv_uc8_avx2_x86_avx2, cpu_supports_avx2 },
+    { 0, "avx2_x86_avx2", "x86_avx2", starch_iqdata_conv_uc8_avx2_x86_avx2, cpu_supports_avx2 },
+    { 1, "generic_x86_avx2", "x86_avx2", starch_iqdata_conv_uc8_generic_x86_avx2, cpu_supports_avx2 },
     { 2, "generic_generic", "generic", starch_iqdata_conv_uc8_generic_generic, NULL },
 #endif /* STARCH_MIX_X86 */
     { 0, NULL, NULL, NULL, NULL }

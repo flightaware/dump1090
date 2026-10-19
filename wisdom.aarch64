@@ -29,3 +29,16 @@ upsample12                               generic_generic
 locate_preamble                          neon_armv8_neon_simd
 locate_preamble                          generic_armv8_neon_simd
 locate_preamble                          generic_generic
+
+# DEMOD_2400X input conversion, measured with starch-benchmark (Pi 5, Cortex-A76)
+iqdata_conv_uc8                          neon_armv8_neon_simd                      # 217643 ns/call
+iqdata_conv_uc8                          generic_armv8_neon_simd                   # 423520 ns/call
+iqdata_conv_uc8                          generic_generic                           # 771133 ns/call
+
+iqdata_conv_sc16                         neon_armv8_neon_simd                      # 239234 ns/call
+iqdata_conv_sc16                         generic_armv8_neon_simd                   # 392460 ns/call
+iqdata_conv_sc16                         generic_generic                           # 761970 ns/call
+
+iqdata_conv_sc16q11                      neon_armv8_neon_simd                      # 227178 ns/call
+iqdata_conv_sc16q11                      generic_armv8_neon_simd                   # 423654 ns/call
+iqdata_conv_sc16q11                      generic_generic                           # 772901 ns/call

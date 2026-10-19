@@ -33,3 +33,16 @@ upsample12                               generic_generic
 locate_preamble                          neon_armv7a_neon_vfpv4
 locate_preamble                          generic_armv7a_neon_vfpv4
 locate_preamble                          generic_generic
+
+# DEMOD_2400X input conversion, measured with starch-benchmark (32-bit build on a Cortex-A76)
+iqdata_conv_uc8                          neon_armv7a_neon_vfpv4                    # 330265 ns/call
+iqdata_conv_uc8                          generic_armv7a_neon_vfpv4                 # 761068 ns/call
+iqdata_conv_uc8                          generic_generic                           # 937124 ns/call
+
+iqdata_conv_sc16                         neon_armv7a_neon_vfpv4                    # 345799 ns/call
+iqdata_conv_sc16                         generic_armv7a_neon_vfpv4                 # 760711 ns/call
+iqdata_conv_sc16                         generic_generic                           # 891093 ns/call
+
+iqdata_conv_sc16q11                      neon_armv7a_neon_vfpv4                    # 336462 ns/call
+iqdata_conv_sc16q11                      generic_armv7a_neon_vfpv4                 # 760099 ns/call
+iqdata_conv_sc16q11                      generic_generic                           # 1022069 ns/call
