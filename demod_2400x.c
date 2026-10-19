@@ -151,36 +151,13 @@ static void checkMetric(const uint8_t *metric, int mlen) {
 #endif
 
 
-// Decode 56 bits starting at metric position 'pos'; returns a quality score (0..256).
-// Each bit is two chips: bit = 1 if the first is larger. Branch-free: on noise the
-// bit values are random, and a branch on them mispredicts half the time.
+// Decode 56 bits starting at metric position 'pos'; returns a quality score (0..256)
 static inline __attribute__((always_inline))
 unsigned decodeShortAdbsData(int pos, const uint16_t * restrict udata, int nt, uint8_t * restrict msg)
 {
-    int stride = NU_STRIDE(nt);
-    int phase = pos % 6;
-    int offs  = (pos / 6) + 16; // Start of data
-    uint32_t qual = 0;
-    uint32_t pow = 0;
-
-    const uint16_t * restrict p = &udata[phase * stride + offs];
-    for (int i = 0; i < SHORT_FRAME / 8; i++) {      // 7 bytes = 56 bits, 16 chips per byte
-
-        unsigned bits = 0;
-        for (int k = 0; k < 8; k++) {
-            int a = p[2 * k];
-            int b = p[2 * k + 1];
-            int d = b - a;
-            bits = (bits << 1) | ((unsigned) d >> 31);   // 1 if a > b
-            qual += (uint32_t) (d < 0 ? -d : d);
-            pow += (uint32_t) (a + b);
-        }
-
-        msg[i] = (uint8_t) bits;
-        p += 16;
-    }
-    unsigned score = (256 * qual) / (pow + 1);
-    return score;
+    unsigned quality;
+    starch_decode_bits(&udata[(pos % 6) * NU_STRIDE(nt) + pos / 6 + 16], SHORT_FRAME / 8, msg, &quality);
+    return quality;
 }
 
 

@@ -594,3 +594,38 @@ void STARCH_IMPL(iqdata_conv_sc16q11, neon) (const sc16_t * restrict in, uint16_
 {
     IQDATA_CONV_NEON_BODY(sc16q11)
 }
+
+
+// Decode bits from chip pairs (see demod2400x_dsp.h): one byte = 8 pairs per vld2
+void STARCH_IMPL(decode_bits, neon) (const uint16_t * restrict p, unsigned nbytes, uint8_t * restrict msg,
+                                     unsigned * restrict quality)
+{
+    static const uint16_t weights[8] = { 128, 64, 32, 16, 8, 4, 2, 1 };
+    const uint16x8_t w = vld1q_u16(weights);
+    uint32x4_t qual = vdupq_n_u32(0);
+    uint32x4_t pow = vdupq_n_u32(0);
+
+    for (unsigned i = 0; i < nbytes; i++) {
+        const uint16x8x2_t ab = vld2q_u16(p + 16 * i);    // val[0] = first chips, val[1] = second
+        const uint16x8_t bits = vandq_u16(vcgtq_u16(ab.val[0], ab.val[1]), w);
+#ifdef __aarch64__
+        msg[i] = (uint8_t) vaddvq_u16(bits);
+#else
+        uint16x4_t b4 = vadd_u16(vget_low_u16(bits), vget_high_u16(bits));
+        b4 = vpadd_u16(b4, b4);
+        msg[i] = (uint8_t) vget_lane_u16(vpadd_u16(b4, b4), 0);
+#endif
+        qual = vpadalq_u16(qual, vabdq_u16(ab.val[0], ab.val[1]));
+        pow = vpadalq_u16(pow, ab.val[0]);
+        pow = vpadalq_u16(pow, ab.val[1]);
+    }
+
+#ifdef __aarch64__
+    const uint32_t q = vaddvq_u32(qual), s = vaddvq_u32(pow);
+#else
+    const uint32x2_t qs = vpadd_u32(vadd_u32(vget_low_u32(qual), vget_high_u32(qual)),
+                                    vadd_u32(vget_low_u32(pow), vget_high_u32(pow)));
+    const uint32_t q = vget_lane_u32(qs, 0), s = vget_lane_u32(qs, 1);
+#endif
+    *quality = (unsigned) ((256 * (uint64_t) q) / (s + 1));
+}

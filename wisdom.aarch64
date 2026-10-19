@@ -42,3 +42,8 @@ iqdata_conv_sc16                         generic_generic                        
 iqdata_conv_sc16q11                      neon_armv8_neon_simd                      # 227178 ns/call
 iqdata_conv_sc16q11                      generic_armv8_neon_simd                   # 423654 ns/call
 iqdata_conv_sc16q11                      generic_generic                           # 772901 ns/call
+
+# DEMOD_2400X bit decoding, measured with starch-benchmark -i 10 (Pi 5, Cortex-A76), 7 bytes
+decode_bits                              neon_armv8_neon_simd                      # 26 ns/call
+decode_bits                              generic_armv8_neon_simd                   # 82 ns/call
+decode_bits                              generic_generic                           # 82 ns/call

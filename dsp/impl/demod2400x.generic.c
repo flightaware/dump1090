@@ -227,3 +227,30 @@ void STARCH_IMPL(iqdata_conv_sc16q11, generic) (const sc16_t * restrict in, uint
     dc_out[1] = offset[1];
     iqconv_stats(sum_level, sum_power, len, out_level, out_power);
 }
+
+
+// Decode bits from chip pairs (see demod2400x_dsp.h). Branch-free: on noise the bit
+// values are random, and a branch on them mispredicts half the time.
+void STARCH_IMPL(decode_bits, generic) (const uint16_t * restrict p, unsigned nbytes, uint8_t * restrict msg,
+                                     unsigned * restrict quality)
+{
+    uint32_t qual = 0;
+    uint32_t pow = 0;
+
+    for (unsigned i = 0; i < nbytes; i++) {           // 16 chips per byte
+
+        unsigned bits = 0;
+        for (int k = 0; k < 8; k++) {
+            int a = p[2 * k];
+            int b = p[2 * k + 1];
+            int d = b - a;
+            bits = (bits << 1) | ((unsigned) d >> 31);   // 1 if a > b
+            qual += (uint32_t) (d < 0 ? -d : d);
+            pow += (uint32_t) (a + b);
+        }
+
+        msg[i] = (uint8_t) bits;
+        p += 16;
+    }
+    *quality = (unsigned) ((256 * (uint64_t) qual) / (pow + 1));
+}

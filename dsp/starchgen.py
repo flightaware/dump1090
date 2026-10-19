@@ -50,6 +50,9 @@ gen.add_function(
    name = 'locate_preamble',
    argtypes = ['const uint16_t *', 'int', 'unsigned', 'uint8_t *'],
    returntype = 'int')       
+gen.add_function(
+   name = 'decode_bits',
+   argtypes = ['const uint16_t *', 'unsigned', 'uint8_t *', 'unsigned *'])
 
 gen.add_flavor(
     name = 'generic',

@@ -539,3 +539,34 @@ void STARCH_IMPL(iqdata_conv_sc16q11, avx2) (const sc16_t * restrict in, uint16_
 {
     IQDATA_CONV_AVX2_BODY(sc16q11)
 }
+
+
+// Decode bits from chip pairs (see demod2400x_dsp.h): one byte = 8 pairs per 256-bit load,
+// as 32-bit lanes with the first chip in the low half
+void STARCH_IMPL(decode_bits, avx2) (const uint16_t * restrict p, unsigned nbytes, uint8_t * restrict msg,
+                                     unsigned * restrict quality)
+{
+    const __m256i lo16 = _mm256_set1_epi32(0xFFFF);
+    const __m256i reverse = _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0);  // lane 0 -> bit 7
+    __m256i qual = _mm256_setzero_si256();
+    __m256i pow = _mm256_setzero_si256();
+
+    for (unsigned i = 0; i < nbytes; i++) {
+        const __m256i x = _mm256_loadu_si256((const __m256i *) (p + 16 * i));
+        const __m256i a = _mm256_and_si256(x, lo16);      // values < 2^16: signed ops are fine
+        const __m256i b = _mm256_srli_epi32(x, 16);
+        const __m256i gt = _mm256_permutevar8x32_epi32(_mm256_cmpgt_epi32(a, b), reverse);
+        msg[i] = (uint8_t) _mm256_movemask_ps(_mm256_castsi256_ps(gt));
+        qual = _mm256_add_epi32(qual, _mm256_abs_epi32(_mm256_sub_epi32(a, b)));
+        pow = _mm256_add_epi32(pow, _mm256_add_epi32(a, b));
+    }
+
+    // Horizontal sums
+    __m128i q = _mm_add_epi32(_mm256_castsi256_si128(qual), _mm256_extracti128_si256(qual, 1));
+    __m128i s = _mm_add_epi32(_mm256_castsi256_si128(pow), _mm256_extracti128_si256(pow, 1));
+    __m128i qs = _mm_hadd_epi32(q, s);                    // [q01, q23, s01, s23]
+    qs = _mm_hadd_epi32(qs, qs);                          // [q, s, q, s]
+    const uint32_t qsum = (uint32_t) _mm_cvtsi128_si32(qs);
+    const uint32_t ssum = (uint32_t) _mm_extract_epi32(qs, 1);
+    *quality = (unsigned) ((256 * (uint64_t) qsum) / (ssum + 1));
+}

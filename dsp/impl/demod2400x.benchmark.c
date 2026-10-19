@@ -387,3 +387,56 @@ bool STARCH_BENCHMARK_VERIFY(iqdata_conv_sc16q11) (const sc16_t *in, uint16_t *o
     free(ref);
     return okay;
 }
+
+
+// Bit decoding: 7 bytes (one 56-bit half frame, as used) on ordinary data, and the
+// maximum length on upsampled full-range data
+void STARCH_BENCHMARK(decode_bits) (void)
+{
+    const int len = DEMOD2400X_BENCH_LEN;
+    int16_t *in = demod2400x_make_iq(len);
+    int16_t *in_full = demod2400x_make_iq_full(len);
+    uint16_t *pp = calloc(demod2400x_upsample_size(len), sizeof(*pp));
+    uint16_t *pp_full = calloc(demod2400x_upsample_size(len), sizeof(*pp_full));
+    uint8_t msg[DECODE_BITS_MAX_BYTES];
+    unsigned quality;
+
+    if (in && in_full && pp && pp_full) {
+        starch_upsample12_generic_generic(in, len, DEMOD2400X_BENCH_SHIFT, pp);
+        starch_upsample12_generic_generic(in_full, len, DEMOD2400X_BENCH_SHIFT, pp_full);
+        memset(msg, DEMOD2400X_BENCH_POISON, sizeof(msg));
+        STARCH_BENCHMARK_RUN( decode_bits, pp + 1001, 7, msg, &quality );
+        STARCH_BENCHMARK_RUN( decode_bits, pp_full + 3, DECODE_BITS_MAX_BYTES, msg, &quality );
+    }
+
+    free(in);
+    free(in_full);
+    free(pp);
+    free(pp_full);
+}
+
+bool STARCH_BENCHMARK_VERIFY(decode_bits) (const uint16_t *p, unsigned nbytes, uint8_t *msg, unsigned *quality)
+{
+    uint8_t ref[DECODE_BITS_MAX_BYTES];
+    unsigned ref_quality = ~0U;
+
+    memset(ref, DEMOD2400X_BENCH_POISON, sizeof(ref));
+    starch_decode_bits_generic_generic(p, nbytes, ref, &ref_quality);
+
+    bool okay = true;
+    for (unsigned k = 0; k < DECODE_BITS_MAX_BYTES; ++k) {
+        if (msg[k] != ref[k]) {
+            fprintf(stderr, "verification failed: msg[%u]=%02x, expected %02x\n", k, msg[k], ref[k]);
+            okay = false;
+            break;
+        }
+    }
+    if (okay && *quality != ref_quality) {
+        fprintf(stderr, "verification failed: quality=%u, expected %u\n", *quality, ref_quality);
+        okay = false;
+    }
+
+    memset(msg, DEMOD2400X_BENCH_POISON, DECODE_BITS_MAX_BYTES);
+    *quality = ~0U;
+    return okay;
+}

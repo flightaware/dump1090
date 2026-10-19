@@ -45,3 +45,8 @@ iqdata_conv_sc16                         generic_generic                        
 iqdata_conv_sc16q11                      avx2_x86_avx2                             # 93840 ns/call
 iqdata_conv_sc16q11                      generic_x86_avx2                          # 328977 ns/call
 iqdata_conv_sc16q11                      generic_generic                           # 493939 ns/call
+
+# DEMOD_2400X bit decoding: provisional order (hand-written AVX2 first)
+decode_bits                              avx2_x86_avx2
+decode_bits                              generic_x86_avx2
+decode_bits                              generic_generic

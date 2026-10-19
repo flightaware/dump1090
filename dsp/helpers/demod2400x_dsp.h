@@ -27,6 +27,11 @@
 #define NU_STRIDE(t) ((((t)+5)/6+7)&~7)
 #define METRIC_SIZE(t) ((t)-6*15-12*LONG_FRAME)
 
+// decode_bits(p, nbytes, msg, quality): bits from chip pairs p[2k], p[2k+1] (bit = 1 if the
+// first is larger), 8 bits per byte, most significant first; *quality gets
+// 256 * sum |p[2k] - p[2k+1]| / (sum (p[2k] + p[2k+1]) + 1). nbytes <= 2048.
+#define DECODE_BITS_MAX_BYTES 2048
+
 #define PREAMBLE_KK 2
 
 // locate_preamble() sets metrics below its 'thres' argument to 0. That is exact
