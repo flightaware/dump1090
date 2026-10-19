@@ -25,23 +25,23 @@ count_above_u16                          generic_generic                        
 
 
 # DEMOD_2400X kernels, measured with starch-benchmark -i 5 (x86-64 with AVX2)
-upsample12                               avx2_x86_avx2                             # 1877779 ns/call
-upsample12                               generic_generic                           # 3290448 ns/call
-upsample12                               generic_x86_avx2                          # 3709713 ns/call
+upsample12                               avx2_x86_avx2                             # 1434127 ns/call
+upsample12                               generic_x86_avx2                          # 4728847 ns/call
+upsample12                               generic_generic                           # 4868776 ns/call
 
-locate_preamble                          generic_x86_avx2                          # 2140715 ns/call
-locate_preamble                          generic_generic                           # 2293071 ns/call
-locate_preamble                          avx2_x86_avx2                             # 2808931 ns/call
+locate_preamble                          avx2_x86_avx2                             # 375300 ns/call
+locate_preamble                          generic_generic                           # 1879389 ns/call
+locate_preamble                          generic_x86_avx2                          # 1943528 ns/call
 
-# DEMOD_2400X input conversion: provisional order (hand-written AVX2 first, not timed on x86 hardware)
-iqdata_conv_uc8                          avx2_x86_avx2
-iqdata_conv_uc8                          generic_x86_avx2
-iqdata_conv_uc8                          generic_generic
+# DEMOD_2400X input conversion, measured with starch-benchmark -i 5 (x86-64 with AVX2)
+iqdata_conv_uc8                          avx2_x86_avx2                             # 96348 ns/call
+iqdata_conv_uc8                          generic_x86_avx2                          # 326970 ns/call
+iqdata_conv_uc8                          generic_generic                           # 501021 ns/call
 
-iqdata_conv_sc16                         avx2_x86_avx2
-iqdata_conv_sc16                         generic_x86_avx2
-iqdata_conv_sc16                         generic_generic
+iqdata_conv_sc16                         avx2_x86_avx2                             # 96116 ns/call
+iqdata_conv_sc16                         generic_x86_avx2                          # 319438 ns/call
+iqdata_conv_sc16                         generic_generic                           # 490116 ns/call
 
-iqdata_conv_sc16q11                      avx2_x86_avx2
-iqdata_conv_sc16q11                      generic_x86_avx2
-iqdata_conv_sc16q11                      generic_generic
+iqdata_conv_sc16q11                      avx2_x86_avx2                             # 93840 ns/call
+iqdata_conv_sc16q11                      generic_x86_avx2                          # 328977 ns/call
+iqdata_conv_sc16q11                      generic_generic                           # 493939 ns/call
