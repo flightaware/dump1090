@@ -49,6 +49,13 @@ struct staticdata_t {
     unsigned prev_mlen;     // new samples in the previous buffer (0 = no previous buffer)
     int next_start;         // first peak position to search in this buffer (skips the rest of a
                             // frame decoded at the end of the previous buffer)
+
+    // Adaptive gain input, as demod_2400.c: 2.4 MHz magnitudes (0..65535) of this buffer
+    // and the first sample not yet passed to adaptive_update()
+    int asize;
+    uint16_t *abuf;
+    uint16_t *amag;         // abuf, or NULL when adaptive gain is off
+    unsigned adaptive_end;
 };
 
 // One preamble candidate
@@ -91,6 +98,7 @@ static int allocateBuffers(struct staticdata_t *stdata, int totalLength) {
 
    if (allocBuffer(6*stride*sizeof(uint16_t), &stdata->usize, (void **)&stdata->udata) < 0) return -1;
    if (allocBuffer(mt*sizeof(uint8_t), &stdata->msize, (void **)&stdata->metric) < 0) return -1;
+   if (allocBuffer(totalLength*sizeof(uint16_t), &stdata->asize, (void **)&stdata->abuf) < 0) return -1;
 
    return 0;
 }
@@ -234,7 +242,8 @@ static double signalPower(const int16_t *iq, int pos, int bits, double *energy)
 
     for (int k = start; k < start + len; k++) {
         int32_t I = iq[2 * k], Q = iq[2 * k + 1];
-        sum += (uint32_t) (I * I + Q * Q);
+        uint32_t p = (uint32_t) (I * I + Q * Q);
+        sum += p < 2048 * 2048 ? p : 2048 * 2048;    // full scale, as the stock magnitude clamps
     }
 
     *energy = sum / 2048.0 / 2048.0;
@@ -280,7 +289,7 @@ static int fineTiming(int pos, const uint8_t *msg, int bits, const uint16_t *uda
 // Score, decode and pass one frame on to the rest of dump1090.
 // Returns its length in bits if it was accepted, else 0; *energy gets its signal energy.
 static int emitFrame(const struct mag_buf *mag, const struct candidate *c,
-                     const int16_t *iq, const uint16_t *udata, int nt, double *energy)
+                     const int16_t *iq, struct staticdata_t *st, int nt, double *energy)
 {
     static const struct modesMessage zeroMessage;
     struct modesMessage mm;
@@ -312,7 +321,7 @@ static int emitFrame(const struct mag_buf *mag, const struct candidate *c,
     Modes.stats_current.demod_accepted[mm.correctedbits]++;
 
     // Timestamp at the end of bit 56, even for 112-bit frames (Beast / Radarcape convention)
-    int tpos = fineTiming(c->pos, mm.msg, mm.msgbits, udata, nt);
+    int tpos = fineTiming(c->pos, mm.msg, mm.msgbits, st->udata, nt);
     mm.timestampMsg = mag->sampleTimestamp + tpos + UPSAMPLE_DELAY + (8 + 56) * 12;
     mm.sysTimestampMsg = mag->sysTimestamp + receiveclock_ms_elapsed(mag->sampleTimestamp, mm.timestampMsg);
 
@@ -321,6 +330,15 @@ static int emitFrame(const struct mag_buf *mag, const struct candidate *c,
         Modes.stats_current.peak_signal_power = mm.signalLevel;
     if (mm.signalLevel > 0.50119)
         Modes.stats_current.strong_signal_count++;      // above -3 dBFS
+
+    // Adaptive gain: the samples since the last frame, then this frame's (preamble included)
+    if (st->amag) {
+        unsigned j = (unsigned) (c->pos + UPSAMPLE_DELAY) / 5;
+        if (j > st->adaptive_end)
+            adaptive_update(&st->amag[st->adaptive_end], j - st->adaptive_end, NULL);
+        st->adaptive_end = j + (mm.msgbits + 8) * 12 / 5;
+        adaptive_update(&st->amag[j], st->adaptive_end - j, &mm);
+    }
 
     useModesMessage(&mm);
     return mm.msgbits;
@@ -358,7 +376,7 @@ static double searchFrames(const struct mag_buf *mag, struct staticdata_t *st, i
         demodFrame(&c, st->udata, nt);
 
         double energy;
-        int bits = emitFrame(mag, &c, (const int16_t *) mag->data, st->udata, nt, &energy);
+        int bits = emitFrame(mag, &c, (const int16_t *) mag->data, st, nt, &energy);
         if (bits) {
             energy_sum += energy;
             // Skip to 8 bits before the end of the frame, as demod_2400.c does
@@ -440,8 +458,28 @@ void demodulate2400x(struct mag_buf *mag)
    checkMetric(stdata.metric, mlen);
 #endif
 
+   // Magnitudes for adaptive gain, on the stock scale
+   stdata.amag = NULL;
+   if (Modes.adaptive_burst_control || Modes.adaptive_range_control) {
+       stdata.amag = stdata.abuf;
+       starch_magnitude_sc16q11((const sc16_t *) mag->data, stdata.amag, dlen);
+       if (stdata.adaptive_end > newlen || (mag->flags & MAGBUF_DISCONTINUOUS))
+           stdata.adaptive_end = 0;
+   }
+
    // Decode the frames this buffer owns
    double signal_energy = searchFrames(mag, &stdata, mlen, ulen);
+
+   // Adaptive gain: the rest of the new samples; a frame running into the overlap
+   // carries on into the next buffer, as demod_2400.c
+   if (stdata.amag) {
+       if (stdata.adaptive_end < newlen) {
+           adaptive_update(&stdata.amag[stdata.adaptive_end], newlen - stdata.adaptive_end, NULL);
+           stdata.adaptive_end = 0;
+       } else {
+           stdata.adaptive_end -= newlen;
+       }
+   }
 
    // Noise power = everything in the new samples that wasn't a decoded frame
    Modes.stats_current.noise_power_sum += mag->mean_power * newlen - signal_energy;
