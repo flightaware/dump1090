@@ -101,7 +101,9 @@ Demodulation time for the 60 s capture:
 | Raspberry Pi 5 (Cortex-A76) | 2.0 s | 4.3 s |
 | Raspberry Pi 4 (Cortex-A72) | 3.9 s | 10.6 s |
 
-Live on the Pi 4 this is about 31% of one core. These results come from
+The Pi 4 times were measured while the live receiver was also running on
+the same Pi, so both are probably slightly high. Live on the Pi 4 this is
+about 31% of one core. These results come from
 one receiver and a one-minute capture; longer side-by-side runs are in
 progress.
 
