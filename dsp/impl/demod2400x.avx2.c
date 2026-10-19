@@ -51,8 +51,8 @@ static inline __attribute__((always_inline)) unsigned getpow_avx2(const __m128i 
     const __m128i cv = _mm_cvtepi8_epi16(cv8);  // widen coefficients to 16-bit
 
     // madd: multiply 8 pairs and add neighbours -> 4 x int32 partial sums
-    int32_t resi = (hsum_s32x4_avx2(_mm_madd_epi16(iq.val[0], cv)) + 16) >> 5;
-    int32_t resq = (hsum_s32x4_avx2(_mm_madd_epi16(iq.val[1], cv)) + 16) >> 5;
+    int32_t resi = (hsum_s32x4_avx2(_mm_madd_epi16(iq.val[0], cv)) + UPSAMPLE_ROUND) >> UPSAMPLE_SHIFT;
+    int32_t resq = (hsum_s32x4_avx2(_mm_madd_epi16(iq.val[1], cv)) + UPSAMPLE_ROUND) >> UPSAMPLE_SHIFT;
 
     uint32_t pwr = (uint32_t)(resi*resi) + (uint32_t)(resq*resq);
 
@@ -86,13 +86,10 @@ __m256i isqrt_u32x8_avx2(const __m256i x)
     return _mm256_sub_epi32(q, _mm256_cmpeq_epi32(_mm256_max_epu32(q1q1, x), x));
 }
 
-// Power (or magnitude) of 8 filter outputs, as getpow_avx2()
+// Power (or magnitude) of 8 filter outputs already rounded by UPSAMPLE_SHIFT
 static inline __attribute__((always_inline))
-__m128i getpow8_avx2(__m256i si, __m256i sq, int shift)
+__m128i pow8_rounded_avx2(__m256i si, __m256i sq, int shift)
 {
-    const __m256i round = _mm256_set1_epi32(16);
-    si = _mm256_srai_epi32(_mm256_add_epi32(si, round), 5);   // (x+16)>>5
-    sq = _mm256_srai_epi32(_mm256_add_epi32(sq, round), 5);
     __m256i pwr = _mm256_add_epi32(_mm256_mullo_epi32(si, si), _mm256_mullo_epi32(sq, sq));
 
 #ifdef USE_MAGNITUDE
@@ -104,6 +101,36 @@ __m128i getpow8_avx2(__m256i si, __m256i sq, int shift)
 #endif
 
     return _mm_packus_epi32(_mm256_castsi256_si128(pwr), _mm256_extracti128_si256(pwr, 1));
+}
+
+// Power (or magnitude) of 8 filter outputs, as getpow_avx2()
+static inline __attribute__((always_inline))
+__m128i getpow8_avx2(__m256i si, __m256i sq, int shift)
+{
+    const __m256i round = _mm256_set1_epi32(UPSAMPLE_ROUND);
+    return pow8_rounded_avx2(_mm256_srai_epi32(_mm256_add_epi32(si, round), UPSAMPLE_SHIFT),
+                             _mm256_srai_epi32(_mm256_add_epi32(sq, round), UPSAMPLE_SHIFT), shift);
+}
+
+// The same for doubled filter outputs: rounded (2s) >> (UPSAMPLE_SHIFT + 1) == rounded s >> UPSAMPLE_SHIFT
+static inline __attribute__((always_inline))
+__m128i getpow8_x2_avx2(__m256i si2, __m256i sq2, int shift)
+{
+    const __m256i round = _mm256_set1_epi32(2 * UPSAMPLE_ROUND);
+    return pow8_rounded_avx2(_mm256_srai_epi32(_mm256_add_epi32(si2, round), UPSAMPLE_SHIFT + 1),
+                             _mm256_srai_epi32(_mm256_add_epi32(sq2, round), UPSAMPLE_SHIFT + 1), shift);
+}
+
+// 16-bit pairs (a[w], b[w]) of 8 windows as 8 x int32 lanes, windows 0..7 in order, for madd
+static inline __attribute__((always_inline)) __m256i pairs8_avx2(const __m128i a, const __m128i b)
+{
+    return _mm256_inserti128_si256(_mm256_castsi128_si256(_mm_unpacklo_epi16(a, b)), _mm_unpackhi_epi16(a, b), 1);
+}
+
+// Two coefficients as a madd pair
+static inline __attribute__((always_inline)) __m256i coeff_pair_avx2(int16_t c0, int16_t c1)
+{
+    return _mm256_set1_epi32((int32_t) ((uint16_t) c0 | ((uint32_t) (uint16_t) c1 << 16)));
 }
 
 // 16-bit pairs (v[k], v[k+1]) for 8 consecutive windows, from v[0..15] = lo, hi
@@ -132,23 +159,65 @@ int STARCH_IMPL(upsample12, avx2) (const int16_t * restrict in, int len, int shi
            cp[c][j] = _mm256_set1_epi32((int32_t) ((uint16_t) upsample_coeffs[c][2 * j] |
                                                    ((uint32_t) (uint16_t) upsample_coeffs[c][2 * j + 1] << 16)));
 
+   // Mirror-symmetric phases (see demod2400x_coeffs.h): half the multiplies
+   const int mirrored = upsample_coeffs_mirrored();
+   int16_t pc[3][4], mc[3][4];
+   upsample_mirror_coeffs(pc, mc);
+   __m256i pcp[3][2], mcp[3][2];
+   for (int c = 0; c < 3; c++)
+       for (int j = 0; j < 2; j++) {
+           pcp[c][j] = coeff_pair_avx2(pc[c][2 * j], pc[c][2 * j + 1]);
+           mcp[c][j] = coeff_pair_avx2(mc[c][2 * j], mc[c][2 * j + 1]);
+       }
+
    // 8 windows at a time; reads samples n .. n+15
    for (; n + 9 <= nw; n += 8) {
        const iq16x8x2_avx2_t a = load2_s16_avx2(in + 2 * n);      // samples n .. n+7
        const iq16x8x2_avx2_t b = load2_s16_avx2(in + 2 * n + 16); // samples n+8 .. n+15
-
-       const __m256i pi0 = PAIRS_AVX2(a.val[0], b.val[0], 0), pq0 = PAIRS_AVX2(a.val[1], b.val[1], 0);
-       const __m256i pi2 = PAIRS_AVX2(a.val[0], b.val[0], 2), pq2 = PAIRS_AVX2(a.val[1], b.val[1], 2);
-       const __m256i pi4 = PAIRS_AVX2(a.val[0], b.val[0], 4), pq4 = PAIRS_AVX2(a.val[1], b.val[1], 4);
-       const __m256i pi6 = PAIRS_AVX2(a.val[0], b.val[0], 6), pq6 = PAIRS_AVX2(a.val[1], b.val[1], 6);
-
        uint16_t t[5][8];
-       for (int c = 0; c < 5; c++) {
-           const __m256i si = _mm256_add_epi32(_mm256_add_epi32(_mm256_madd_epi16(pi0, cp[c][0]), _mm256_madd_epi16(pi2, cp[c][1])),
-                                               _mm256_add_epi32(_mm256_madd_epi16(pi4, cp[c][2]), _mm256_madd_epi16(pi6, cp[c][3])));
-           const __m256i sq = _mm256_add_epi32(_mm256_add_epi32(_mm256_madd_epi16(pq0, cp[c][0]), _mm256_madd_epi16(pq2, cp[c][1])),
-                                               _mm256_add_epi32(_mm256_madd_epi16(pq4, cp[c][2]), _mm256_madd_epi16(pq6, cp[c][3])));
-           _mm_storeu_si128((__m128i *) t[c], getpow8_avx2(si, sq, shift));
+
+       if (mirrored) {
+           // x[k] = tap k of the 8 windows; u[k] = x[k] + x[7-k], v[k] = x[k] - x[7-k] as madd pairs
+           __m128i xi[8], xq[8];
+           xi[0] = a.val[0];
+           xq[0] = a.val[1];
+#define TAPS_AVX2(k) xi[k] = _mm_alignr_epi8(b.val[0], a.val[0], 2 * (k)); xq[k] = _mm_alignr_epi8(b.val[1], a.val[1], 2 * (k))
+           TAPS_AVX2(1); TAPS_AVX2(2); TAPS_AVX2(3); TAPS_AVX2(4); TAPS_AVX2(5); TAPS_AVX2(6); TAPS_AVX2(7);
+#undef TAPS_AVX2
+           __m256i ui[2], vi[2], uq[2], vq[2];
+           for (int j = 0; j < 2; j++) {
+               const int k = 2 * j;
+               ui[j] = pairs8_avx2(_mm_add_epi16(xi[k], xi[7 - k]), _mm_add_epi16(xi[k + 1], xi[6 - k]));
+               vi[j] = pairs8_avx2(_mm_sub_epi16(xi[k], xi[7 - k]), _mm_sub_epi16(xi[k + 1], xi[6 - k]));
+               uq[j] = pairs8_avx2(_mm_add_epi16(xq[k], xq[7 - k]), _mm_add_epi16(xq[k + 1], xq[6 - k]));
+               vq[j] = pairs8_avx2(_mm_sub_epi16(xq[k], xq[7 - k]), _mm_sub_epi16(xq[k + 1], xq[6 - k]));
+           }
+
+           for (int c = 0; c < 3; c++) {
+               const __m256i pi = _mm256_add_epi32(_mm256_madd_epi16(ui[0], pcp[c][0]), _mm256_madd_epi16(ui[1], pcp[c][1]));
+               const __m256i pq = _mm256_add_epi32(_mm256_madd_epi16(uq[0], pcp[c][0]), _mm256_madd_epi16(uq[1], pcp[c][1]));
+               if (c == 2) {                                       // symmetric: no v terms
+                   _mm_storeu_si128((__m128i *) t[2], getpow8_x2_avx2(pi, pq, shift));
+                   break;
+               }
+               const __m256i mi = _mm256_add_epi32(_mm256_madd_epi16(vi[0], mcp[c][0]), _mm256_madd_epi16(vi[1], mcp[c][1]));
+               const __m256i mq = _mm256_add_epi32(_mm256_madd_epi16(vq[0], mcp[c][0]), _mm256_madd_epi16(vq[1], mcp[c][1]));
+               _mm_storeu_si128((__m128i *) t[c], getpow8_x2_avx2(_mm256_add_epi32(pi, mi), _mm256_add_epi32(pq, mq), shift));
+               _mm_storeu_si128((__m128i *) t[4 - c], getpow8_x2_avx2(_mm256_sub_epi32(pi, mi), _mm256_sub_epi32(pq, mq), shift));
+           }
+       } else {
+           const __m256i pi0 = PAIRS_AVX2(a.val[0], b.val[0], 0), pq0 = PAIRS_AVX2(a.val[1], b.val[1], 0);
+           const __m256i pi2 = PAIRS_AVX2(a.val[0], b.val[0], 2), pq2 = PAIRS_AVX2(a.val[1], b.val[1], 2);
+           const __m256i pi4 = PAIRS_AVX2(a.val[0], b.val[0], 4), pq4 = PAIRS_AVX2(a.val[1], b.val[1], 4);
+           const __m256i pi6 = PAIRS_AVX2(a.val[0], b.val[0], 6), pq6 = PAIRS_AVX2(a.val[1], b.val[1], 6);
+
+           for (int c = 0; c < 5; c++) {
+               const __m256i si = _mm256_add_epi32(_mm256_add_epi32(_mm256_madd_epi16(pi0, cp[c][0]), _mm256_madd_epi16(pi2, cp[c][1])),
+                                                   _mm256_add_epi32(_mm256_madd_epi16(pi4, cp[c][2]), _mm256_madd_epi16(pi6, cp[c][3])));
+               const __m256i sq = _mm256_add_epi32(_mm256_add_epi32(_mm256_madd_epi16(pq0, cp[c][0]), _mm256_madd_epi16(pq2, cp[c][1])),
+                                                   _mm256_add_epi32(_mm256_madd_epi16(pq4, cp[c][2]), _mm256_madd_epi16(pq6, cp[c][3])));
+               _mm_storeu_si128((__m128i *) t[c], getpow8_avx2(si, sq, shift));
+           }
        }
 
        // Rearrange output

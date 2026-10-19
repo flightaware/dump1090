@@ -39,8 +39,8 @@ static inline unsigned getpow_generic(
         + cv[6] * qq[6]
         + cv[7] * qq[7];
 
-    si = (si+16)>>5;
-    sq = (sq+16)>>5;
+    si = (si + UPSAMPLE_ROUND) >> UPSAMPLE_SHIFT;
+    sq = (sq + UPSAMPLE_ROUND) >> UPSAMPLE_SHIFT;
     uint32_t pwr = (uint32_t)(si*si) + (uint32_t)(sq*sq);
 
 #ifdef USE_MAGNITUDE

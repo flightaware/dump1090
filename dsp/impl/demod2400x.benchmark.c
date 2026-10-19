@@ -13,8 +13,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+#include <math.h>
 
 #include "dsp/helpers/demod2400x_dsp.h"
+#include "dsp/helpers/demod2400x_coeffs.h"
 
 #define DEMOD2400X_BENCH_LEN   131072   // one FIFO buffer of I/Q samples
 #define DEMOD2400X_BENCH_SHIFT 8
@@ -53,17 +56,48 @@ static int16_t *demod2400x_make_iq(int len)
     return iq;
 }
 
+// Full-range 12-bit I/Q, to check the upsampler can't overflow: the first half uniform over
+// -2048..2047, the second half worst-case windows where every sample has the sign of its
+// tap in one phase, at full scale (that phase's largest output, 2048 * sum |tap|), cycling
+// through the phases, both signs, and Q equal to or opposite I
+static int16_t *demod2400x_make_iq_full(int len)
+{
+    int16_t *iq = malloc(2 * (size_t) len * sizeof(*iq));
+    if (!iq)
+        return NULL;
+
+    srand(2);
+    int n = 0;
+    for (; n < len / 2; ++n) {
+        iq[2 * n] = (int16_t) ((rand() % 4096) - 2048);
+        iq[2 * n + 1] = (int16_t) ((rand() % 4096) - 2048);
+    }
+    for (int w = 0; n < len; ++n) {
+        int k = n % 8, c = (w / 4) % 5;
+        int sign_i = (w & 1) ? -1 : 1, sign_q = (w & 2) ? -sign_i : sign_i;
+        int t = upsample_coeffs[c][k] < 0 ? -1 : 1;
+        iq[2 * n] = (int16_t) (sign_i * t > 0 ? 2047 : -2048);
+        iq[2 * n + 1] = (int16_t) (sign_q * t > 0 ? 2047 : -2048);
+        if (k == 7)
+            ++w;
+    }
+    return iq;
+}
+
 
 void STARCH_BENCHMARK(upsample12) (void)
 {
     const int len = DEMOD2400X_BENCH_LEN;
     int16_t *in = demod2400x_make_iq(len);
+    int16_t *in_full = demod2400x_make_iq_full(len);
     uint16_t *out = calloc(demod2400x_upsample_size(len), sizeof(*out));
 
-    if (in && out) {
+    if (in && in_full && out) {
         memset(out, DEMOD2400X_BENCH_POISON, demod2400x_upsample_size(len) * sizeof(*out));
         STARCH_BENCHMARK_RUN( upsample12, in, len, DEMOD2400X_BENCH_SHIFT, out );
+        STARCH_BENCHMARK_RUN( upsample12, in_full, len, DEMOD2400X_BENCH_SHIFT, out );
     }
+    free(in_full);
 
     free(in);
     free(out);
@@ -80,6 +114,37 @@ bool STARCH_BENCHMARK_VERIFY(upsample12) (const int16_t *in, int len, int shift,
     starch_upsample12_generic_generic(in, len, shift, ref);
 
     bool okay = true;
+
+#ifdef USE_MAGNITUDE
+    // Check the reference itself in 64-bit arithmetic, so an overflow can't hide
+    // by being the same in every implementation
+    int stride = NU_STRIDE(NU_SAMP(len));
+    for (int n = 0; n + 8 <= len && okay; ++n) {
+        for (int c = 0; c < 5; ++c) {
+            int64_t si = 0, sq = 0;
+            for (int k = 0; k < 8; ++k) {
+                si += (int64_t) upsample_coeffs[c][k] * in[2 * (n + k)];
+                sq += (int64_t) upsample_coeffs[c][k] * in[2 * (n + k) + 1];
+            }
+            si = (si + UPSAMPLE_ROUND) >> UPSAMPLE_SHIFT;
+            sq = (sq + UPSAMPLE_ROUND) >> UPSAMPLE_SHIFT;
+            int64_t pwr = si * si + sq * sq;
+            int64_t mag = (int64_t) sqrt((double) pwr);     // exact floor(sqrt) after the fix-ups
+            while (mag * mag > pwr)
+                --mag;
+            while ((mag + 1) * (mag + 1) <= pwr)
+                ++mag;
+            int o = 5 * n + c;
+            if (ref[(o % 6) * stride + o / 6] != mag) {
+                fprintf(stderr, "reference check failed: window %d phase %d: %u, expected %lld\n",
+                        n, c, ref[(o % 6) * stride + o / 6], (long long) mag);
+                okay = false;
+                break;
+            }
+        }
+    }
+#endif
+
     for (size_t k = 0; k < size; ++k) {
         if (out[k] != ref[k]) {
             fprintf(stderr, "verification failed: out[%zu]=%u, expected %u\n", k, out[k], ref[k]);

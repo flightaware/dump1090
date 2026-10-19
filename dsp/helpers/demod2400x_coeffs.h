@@ -39,6 +39,7 @@
 // samples with flat gain over 0..1.0 MHz, then rounded with a common offset
 // (binary search) so every phase sums to exactly 112.
 // Group delay error between phases <= 0.046 samples up to 0.8 MHz, noise gain 0.94.
+#define UPSAMPLE_ABS_SUM 212    // largest sum of |taps| over the phases (phase 2)
 static const int8_t upsample_coeffs[5][8] = {
     {  -2,   4,  -9, 110,  12,  -5,   3,  -1 }, // phase=0 sum=112
     {  -4,   9, -19,  95,  41, -15,   8,  -3 }, // phase=1 sum=112
@@ -46,6 +47,41 @@ static const int8_t upsample_coeffs[5][8] = {
     {  -3,   8, -15,  41,  95, -19,   9,  -4 }, // phase=3 sum=112
     {  -1,   3,  -5,  12, 110,  -9,   4,  -2 }, // phase=4 sum=112
 };
+
+// Filter outputs are rounded by (x + 2^(UPSAMPLE_SHIFT-1)) >> UPSAMPLE_SHIFT. With 12-bit input
+// (|x| <= 2048) each component is at most 2048 * UPSAMPLE_ABS_SUM >> UPSAMPLE_SHIFT, and the
+// power I^2 + Q^2 must stay below 2^31: signed 32-bit arithmetic and demod_isqrt()'s range.
+#define UPSAMPLE_SHIFT 4
+#define UPSAMPLE_ROUND (1 << (UPSAMPLE_SHIFT - 1))
+#define UPSAMPLE_MAX_COMPONENT ((2048LL * UPSAMPLE_ABS_SUM + UPSAMPLE_ROUND) >> UPSAMPLE_SHIFT)
+_Static_assert(2 * UPSAMPLE_MAX_COMPONENT * UPSAMPLE_MAX_COMPONENT < (1LL << 31),
+               "upsampler power can overflow: raise UPSAMPLE_SHIFT");
+
+// The phases are mirror images: phase 4-c is phase c reversed and phase 2 is symmetric.
+// With u[k] = x[k] + x[7-k] and v[k] = x[k] - x[7-k], k = 0..3:
+//   2 * out[c]   = sum pc[c][k] u[k] + sum mc[c][k] v[k]
+//   2 * out[4-c] = sum pc[c][k] u[k] - sum mc[c][k] v[k]
+// with pc[c][k] = a[c][k] + a[c][7-k] and mc[c][k] = a[c][k] - a[c][7-k], which halves the
+// multiplies. Exact integers (u, v fit in 16 bits), so the result is identical to the direct
+// form; the doubled sums are rounded by UPSAMPLE_SHIFT + 1. Used by the SIMD versions, which
+// fall back to the direct form if the table isn't mirrored.
+static inline int upsample_coeffs_mirrored(void)
+{
+    for (int c = 0; c < 5; c++)
+        for (int k = 0; k < 8; k++)
+            if (upsample_coeffs[c][k] != upsample_coeffs[4 - c][7 - k])
+                return 0;
+    return 1;
+}
+
+static inline void upsample_mirror_coeffs(int16_t pc[3][4], int16_t mc[3][4])
+{
+    for (int c = 0; c < 3; c++)
+        for (int k = 0; k < 4; k++) {
+            pc[c][k] = (int16_t) (upsample_coeffs[c][k] + upsample_coeffs[c][7 - k]);
+            mc[c][k] = (int16_t) (upsample_coeffs[c][k] - upsample_coeffs[c][7 - k]);
+        }
+}
 
 // Exact floor(sqrt(x)) for x < 2^31, for USE_MAGNITUDE.
 // After adding 2^-6 the truncated sqrtf is the exact result or within one of it

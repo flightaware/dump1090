@@ -44,7 +44,7 @@ static inline __attribute__((always_inline)) unsigned getpow_neon(const int8x8_t
     sq = vmlal_s16(sq, vget_high_s16(iq.val[1]), vget_high_s16(cv));
 
     int32x2_t res = hsum2_s32x4_neon(si, sq);                  // [resi, resq]
-    res = vrshr_n_s32(res, 5);                                 // (x+16)>>5 on both
+    res = vrshr_n_s32(res, UPSAMPLE_SHIFT);                    // rounded shift on both
 
     uint32x2_t sqr = vreinterpret_u32_s32(vmul_s32(res, res)); // [resi^2, resq^2]
     uint32_t pwr = vget_lane_u32(sqr, 0) + vget_lane_u32(sqr, 1);
@@ -81,12 +81,10 @@ uint32x4_t isqrt_u32x4_neon(const uint32x4_t x)
 #endif
 }
 
-// Power (or magnitude) of 4 filter outputs, as getpow_neon()
+// Power (or magnitude) of 4 filter outputs already rounded by UPSAMPLE_SHIFT
 static inline __attribute__((always_inline))
-uint16x4_t getpow4_neon(int32x4_t si, int32x4_t sq, int shift)
+uint16x4_t pow4_rounded_neon(int32x4_t si, int32x4_t sq, int shift)
 {
-    si = vrshrq_n_s32(si, 5);                                  // (x+16)>>5
-    sq = vrshrq_n_s32(sq, 5);
     const uint32x4_t pwr = vreinterpretq_u32_s32(vmlaq_s32(vmulq_s32(si, si), sq, sq));
 
 #ifdef USE_MAGNITUDE
@@ -95,6 +93,13 @@ uint16x4_t getpow4_neon(int32x4_t si, int32x4_t sq, int shift)
 #else
     return vqmovn_u32(vshlq_u32(pwr, vdupq_n_s32(-shift)));  // Set gain, saturate to 65535
 #endif
+}
+
+// Power (or magnitude) of 4 filter outputs, as getpow_neon()
+static inline __attribute__((always_inline))
+uint16x4_t getpow4_neon(int32x4_t si, int32x4_t sq, int shift)
+{
+    return pow4_rounded_neon(vrshrq_n_s32(si, UPSAMPLE_SHIFT), vrshrq_n_s32(sq, UPSAMPLE_SHIFT), shift);
 }
 
 // One phase of the upsampler for 8 consecutive windows; s[k] = I/Q at window + k
@@ -122,6 +127,62 @@ uint16x8_t upsample_phase8_neon(const int16x8x2_t * restrict s, const int8_t * r
 
     return vcombine_u16(getpow4_neon(si_lo, sq_lo, shift), getpow4_neon(si_hi, sq_hi, shift));
 }
+
+// Doubled filter outputs -> power (or magnitude) of 4 outputs, as getpow4_neon()
+static inline __attribute__((always_inline))
+uint16x4_t getpow4_x2_neon(int32x4_t si2, int32x4_t sq2, int shift)
+{
+    // rounded (2s) >> (UPSAMPLE_SHIFT + 1) == rounded s >> UPSAMPLE_SHIFT
+    return pow4_rounded_neon(vrshrq_n_s32(si2, UPSAMPLE_SHIFT + 1), vrshrq_n_s32(sq2, UPSAMPLE_SHIFT + 1), shift);
+}
+
+// sum over k = 0..3 of x[k] * c[k], 8 windows -> lo and hi halves
+#define MAC4(x, c, lo, hi)                                                  \
+    do {                                                                    \
+        lo = vmull_lane_s16(vget_low_s16((x)[0]), c, 0);                    \
+        hi = vmull_lane_s16(vget_high_s16((x)[0]), c, 0);                   \
+        lo = vmlal_lane_s16(lo, vget_low_s16((x)[1]), c, 1);                \
+        hi = vmlal_lane_s16(hi, vget_high_s16((x)[1]), c, 1);               \
+        lo = vmlal_lane_s16(lo, vget_low_s16((x)[2]), c, 2);                \
+        hi = vmlal_lane_s16(hi, vget_high_s16((x)[2]), c, 2);               \
+        lo = vmlal_lane_s16(lo, vget_low_s16((x)[3]), c, 3);                \
+        hi = vmlal_lane_s16(hi, vget_high_s16((x)[3]), c, 3);               \
+    } while (0)
+
+// All 5 phases for 8 consecutive windows using the mirror symmetry (see demod2400x_coeffs.h);
+// s[k] = I/Q at window + k, pc/mc from upsample_mirror_coeffs()
+static inline __attribute__((always_inline))
+void upsample_mirror8_neon(const int16x8x2_t * restrict s, const int16x4_t * restrict pc,
+                           const int16x4_t * restrict mc, int shift, uint16x8_t * restrict ph)
+{
+    int16x8_t ui[4], vi[4], uq[4], vq[4];
+    for (int k = 0; k < 4; k++) {
+        ui[k] = vaddq_s16(s[k].val[0], s[7 - k].val[0]);
+        vi[k] = vsubq_s16(s[k].val[0], s[7 - k].val[0]);
+        uq[k] = vaddq_s16(s[k].val[1], s[7 - k].val[1]);
+        vq[k] = vsubq_s16(s[k].val[1], s[7 - k].val[1]);
+    }
+
+    int32x4_t pi_lo, pi_hi, pq_lo, pq_hi, mi_lo, mi_hi, mq_lo, mq_hi;
+
+    // Phases 0 and 4, then 1 and 3
+    for (int c = 0; c < 2; c++) {
+        MAC4(ui, pc[c], pi_lo, pi_hi);
+        MAC4(uq, pc[c], pq_lo, pq_hi);
+        MAC4(vi, mc[c], mi_lo, mi_hi);
+        MAC4(vq, mc[c], mq_lo, mq_hi);
+        ph[c] = vcombine_u16(getpow4_x2_neon(vaddq_s32(pi_lo, mi_lo), vaddq_s32(pq_lo, mq_lo), shift),
+                             getpow4_x2_neon(vaddq_s32(pi_hi, mi_hi), vaddq_s32(pq_hi, mq_hi), shift));
+        ph[4 - c] = vcombine_u16(getpow4_x2_neon(vsubq_s32(pi_lo, mi_lo), vsubq_s32(pq_lo, mq_lo), shift),
+                                 getpow4_x2_neon(vsubq_s32(pi_hi, mi_hi), vsubq_s32(pq_hi, mq_hi), shift));
+    }
+
+    // Phase 2 (symmetric)
+    MAC4(ui, pc[2], pi_lo, pi_hi);
+    MAC4(uq, pc[2], pq_lo, pq_hi);
+    ph[2] = vcombine_u16(getpow4_x2_neon(pi_lo, pq_lo, shift), getpow4_x2_neon(pi_hi, pq_hi, shift));
+}
+#undef MAC4
 
 #ifdef __aarch64__
 // 5-way interleave of 16-bit lanes: bytes from ph[0..3] (tbl4), then ph[4] (tbx1)
@@ -179,6 +240,16 @@ int STARCH_IMPL(upsample12, neon) (const int16_t * restrict in, int len, int shi
    int nw = len - 7; // Windows: 5 outputs each, output o goes to oo[(o % 6) * stride + o / 6]
    int n = 0;
 
+   // Mirror-symmetric phases (see demod2400x_coeffs.h): half the multiplies
+   const int mirrored = upsample_coeffs_mirrored();
+   int16_t pc4[3][4], mc4[3][4];
+   upsample_mirror_coeffs(pc4, mc4);
+   int16x4_t pc[3], mc[3];
+   for (int c = 0; c < 3; c++) {
+       pc[c] = vld1_s16(pc4[c]);
+       mc[c] = vld1_s16(mc4[c]);
+   }
+
    // 8 windows at a time for each phase, a block at a time so the outputs
    // can be put in order then split into the 6 phases with vector loads/stores
    for (; n + UPSAMPLE_BLOCK <= nw; n += UPSAMPLE_BLOCK) {
@@ -191,8 +262,12 @@ int STARCH_IMPL(upsample12, neon) (const int16_t * restrict in, int len, int shi
                s[k] = vld2q_s16(p + 2 * k);
 
            uint16x8_t ph[5];
-           for (int c = 0; c < 5; c++)
-               ph[c] = upsample_phase8_neon(s, upsample_coeffs[c], shift);
+           if (mirrored) {
+               upsample_mirror8_neon(s, pc, mc, shift, ph);
+           } else {
+               for (int c = 0; c < 5; c++)
+                   ph[c] = upsample_phase8_neon(s, upsample_coeffs[c], shift);
+           }
 
            interleave5_u16x8_neon(ph, tmp + 5 * w);
        }
