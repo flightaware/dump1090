@@ -1,6 +1,6 @@
 // Part of dump1090, a Mode S message decoder for RTLSDR devices.
 //
-// demod2400x.generic.c: DEMOD_2400X upsampler and preamble search, plain C.
+// demod2400x.generic.c: DEMOD_2400X input conversion, upsampler and preamble search, plain C.
 // Also built into every SIMD flavour, where the compiler may auto-vectorise it.
 //
 // This file is free software: you may copy, redistribute and/or modify it
@@ -10,6 +10,7 @@
 
 #include "dsp/helpers/demod2400x_dsp.h"
 #include "dsp/helpers/demod2400x_coeffs.h"
+#include "dsp/helpers/demod2400x_iqconv.h"
 
 // Get power
 static inline unsigned getpow_generic(
@@ -163,4 +164,65 @@ int STARCH_IMPL(locate_preamble, generic) (const uint16_t * restrict pp, int nt,
     }
 
     return METRIC_SIZE(nt);
+}
+
+
+// Input conversion: raw samples -> DC-removed 12-bit signed interleaved I,Q in the
+// FIFO buffer, plus mean level and power. The DC filter starts from dc_in[2] (I, Q)
+// and leaves its final state in dc_out[2]; they may be the same array.
+void STARCH_IMPL(iqdata_conv_uc8, generic) (const uc8_t * restrict in, uint16_t * restrict out_u, unsigned len,
+                                         const int32_t *dc_in, int32_t *dc_out, double *out_level, double *out_power)
+{
+    int16_t * restrict out = (int16_t *) out_u;   // signed I/Q stored in the uint16_t FIFO buffer
+    int16_t raw[2 * IQ_DC_BLOCK];
+    int32_t offset[2] = { dc_in[0], dc_in[1] };
+    uint64_t sum_level = 0, sum_power = 0;
+
+    for (unsigned n = 0; n < len; n += IQ_DC_BLOCK) {
+        unsigned nb = MIN(IQ_DC_BLOCK, len - n);
+        iqconv_raw_uc8(in + n, raw, nb);
+        iqconv_dc_block(raw, out + 2 * n, nb, offset, &sum_level, &sum_power);
+    }
+
+    dc_out[0] = offset[0];
+    dc_out[1] = offset[1];
+    iqconv_stats(sum_level, sum_power, len, out_level, out_power);
+}
+
+void STARCH_IMPL(iqdata_conv_sc16, generic) (const sc16_t * restrict in, uint16_t * restrict out_u, unsigned len,
+                                         const int32_t *dc_in, int32_t *dc_out, double *out_level, double *out_power)
+{
+    int16_t * restrict out = (int16_t *) out_u;   // signed I/Q stored in the uint16_t FIFO buffer
+    int16_t raw[2 * IQ_DC_BLOCK];
+    int32_t offset[2] = { dc_in[0], dc_in[1] };
+    uint64_t sum_level = 0, sum_power = 0;
+
+    for (unsigned n = 0; n < len; n += IQ_DC_BLOCK) {
+        unsigned nb = MIN(IQ_DC_BLOCK, len - n);
+        iqconv_raw_sc16(in + n, raw, nb);
+        iqconv_dc_block(raw, out + 2 * n, nb, offset, &sum_level, &sum_power);
+    }
+
+    dc_out[0] = offset[0];
+    dc_out[1] = offset[1];
+    iqconv_stats(sum_level, sum_power, len, out_level, out_power);
+}
+
+void STARCH_IMPL(iqdata_conv_sc16q11, generic) (const sc16_t * restrict in, uint16_t * restrict out_u, unsigned len,
+                                         const int32_t *dc_in, int32_t *dc_out, double *out_level, double *out_power)
+{
+    int16_t * restrict out = (int16_t *) out_u;   // signed I/Q stored in the uint16_t FIFO buffer
+    int16_t raw[2 * IQ_DC_BLOCK];
+    int32_t offset[2] = { dc_in[0], dc_in[1] };
+    uint64_t sum_level = 0, sum_power = 0;
+
+    for (unsigned n = 0; n < len; n += IQ_DC_BLOCK) {
+        unsigned nb = MIN(IQ_DC_BLOCK, len - n);
+        iqconv_raw_sc16q11(in + n, raw, nb);
+        iqconv_dc_block(raw, out + 2 * n, nb, offset, &sum_level, &sum_power);
+    }
+
+    dc_out[0] = offset[0];
+    dc_out[1] = offset[1];
+    iqconv_stats(sum_level, sum_power, len, out_level, out_power);
 }

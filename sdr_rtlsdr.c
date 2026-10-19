@@ -362,7 +362,7 @@ static void rtlsdrCallback(unsigned char *buf, uint32_t len, void *ctx)
     buf = RTLSDR.bounce_buffer;
 #endif
 
-    RTLSDR.converter(buf, &outbuf->data[outbuf->overlap], to_convert, RTLSDR.converter_state, &outbuf->mean_level, &outbuf->mean_power);
+    RTLSDR.converter(buf, magbuf_sample(outbuf, outbuf->overlap), to_convert, RTLSDR.converter_state, &outbuf->mean_level, &outbuf->mean_power);
     outbuf->validLength = outbuf->overlap + to_convert;
 
     // Push to the demodulation thread

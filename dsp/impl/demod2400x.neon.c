@@ -1,6 +1,6 @@
 // Part of dump1090, a Mode S message decoder for RTLSDR devices.
 //
-// demod2400x.neon.c: DEMOD_2400X upsampler and preamble search, ARM NEON.
+// demod2400x.neon.c: DEMOD_2400X input conversion, upsampler and preamble search, ARM NEON.
 // Built for both 32-bit (armv7a_neon_vfpv4) and 64-bit (armv8_neon_simd) ARM.
 //
 // This file is free software: you may copy, redistribute and/or modify it
@@ -16,6 +16,7 @@
 
 #include "dsp/helpers/demod2400x_dsp.h"
 #include "dsp/helpers/demod2400x_coeffs.h"
+#include "dsp/helpers/demod2400x_iqconv.h"
 
 // Horizontal add of two vectors at once: returns [sum of a, sum of b]
 static inline __attribute__((always_inline))
@@ -374,4 +375,129 @@ int STARCH_IMPL(locate_preamble, neon) (const uint16_t * restrict pp, int nt, ui
            mm[6*k + j] = preamble_metric1(&pp[j*stride + k]);
 
    return METRIC_SIZE(nt);
+}
+
+
+// Input conversion, as the generic iqdata_conv_* (dsp/helpers/demod2400x_iqconv.h)
+
+// 16 raw samples as 12-bit I and Q (samples 0-7 in [0], 8-15 in [1])
+typedef struct {
+    int16x8_t i[2];
+    int16x8_t q[2];
+} iq16x16_neon_t;
+
+static inline __attribute__((always_inline)) iq16x16_neon_t iqconv_load_uc8_neon(const uc8_t *in)
+{
+    const uint8x16x2_t v = vld2q_u8((const uint8_t *) in);    // I0-15, Q0-15
+    const int16x8_t c = vdupq_n_s16(2040);
+    iq16x16_neon_t r;
+    // (2 * v - 255) * 8 = 16 * v - 2040
+    r.i[0] = vsubq_s16(vreinterpretq_s16_u16(vshll_n_u8(vget_low_u8(v.val[0]), 4)), c);
+    r.i[1] = vsubq_s16(vreinterpretq_s16_u16(vshll_n_u8(vget_high_u8(v.val[0]), 4)), c);
+    r.q[0] = vsubq_s16(vreinterpretq_s16_u16(vshll_n_u8(vget_low_u8(v.val[1]), 4)), c);
+    r.q[1] = vsubq_s16(vreinterpretq_s16_u16(vshll_n_u8(vget_high_u8(v.val[1]), 4)), c);
+    return r;
+}
+
+static inline __attribute__((always_inline)) iq16x16_neon_t iqconv_load_sc16_neon(const sc16_t *in)
+{
+    const int16x8x2_t a = vld2q_s16((const int16_t *) in);
+    const int16x8x2_t b = vld2q_s16((const int16_t *) (in + 8));
+    iq16x16_neon_t r;
+    r.i[0] = vshrq_n_s16(a.val[0], 4);
+    r.i[1] = vshrq_n_s16(b.val[0], 4);
+    r.q[0] = vshrq_n_s16(a.val[1], 4);
+    r.q[1] = vshrq_n_s16(b.val[1], 4);
+    return r;
+}
+
+static inline __attribute__((always_inline)) int16x8_t clamp12_s16x8_neon(const int16x8_t v)
+{
+    return vmaxq_s16(vminq_s16(v, vdupq_n_s16(2047)), vdupq_n_s16(-2048));
+}
+
+static inline __attribute__((always_inline)) iq16x16_neon_t iqconv_load_sc16q11_neon(const sc16_t *in)
+{
+    const int16x8x2_t a = vld2q_s16((const int16_t *) in);
+    const int16x8x2_t b = vld2q_s16((const int16_t *) (in + 8));
+    iq16x16_neon_t r;
+    r.i[0] = clamp12_s16x8_neon(a.val[0]);
+    r.i[1] = clamp12_s16x8_neon(b.val[0]);
+    r.q[0] = clamp12_s16x8_neon(a.val[1]);
+    r.q[1] = clamp12_s16x8_neon(b.val[1]);
+    return r;
+}
+
+// Same as iqconv_dc_block() for a full block. off = [I, Q] offsets; the block sum
+// of (raw - corr) is sum(raw) - 16 * corr, so the serial part is just a few ops.
+static inline __attribute__((always_inline))
+void iqconv_block_neon(const iq16x16_neon_t r, int16_t * restrict out, int32x2_t *off,
+                       uint64x2_t *acc_level, uint64x2_t *acc_power)
+{
+    const int32x2_t corr = vrshr_n_s32(*off, IQ_DC_SHIFT);              // (off + 2048) >> 12
+    const int32x2_t sums = hsum2_s32x4_neon(vpaddlq_s16(vaddq_s16(r.i[0], r.i[1])),
+                                            vpaddlq_s16(vaddq_s16(r.q[0], r.q[1])));
+    *off = vadd_s32(*off, vsub_s32(sums, vshl_n_s32(corr, 4)));
+
+    const int16x4_t c16 = vmovn_s32(vcombine_s32(corr, corr));          // [ci, cq, ci, cq]
+    const int16x8_t ci = vdupq_lane_s16(c16, 0);
+    const int16x8_t cq = vdupq_lane_s16(c16, 1);
+
+    uint32x4_t level = vdupq_n_u32(0), power = vdupq_n_u32(0);
+    for (int h = 0; h < 2; ++h) {
+        int16x8x2_t x;
+        x.val[0] = clamp12_s16x8_neon(vsubq_s16(r.i[h], ci));
+        x.val[1] = clamp12_s16x8_neon(vsubq_s16(r.q[h], cq));
+        vst2q_s16(out + 16 * h, x);
+
+        const uint32x4_t m0 = vreinterpretq_u32_s32(
+            vmlal_s16(vmull_s16(vget_low_s16(x.val[0]), vget_low_s16(x.val[0])), vget_low_s16(x.val[1]), vget_low_s16(x.val[1])));
+        const uint32x4_t m1 = vreinterpretq_u32_s32(
+            vmlal_s16(vmull_s16(vget_high_s16(x.val[0]), vget_high_s16(x.val[0])), vget_high_s16(x.val[1]), vget_high_s16(x.val[1])));
+        power = vaddq_u32(power, vaddq_u32(m0, m1));
+        level = vaddq_u32(level, vaddq_u32(isqrt_u32x4_neon(vshlq_n_u32(m0, IQ_LEVEL_SHIFT)),
+                                           isqrt_u32x4_neon(vshlq_n_u32(m1, IQ_LEVEL_SHIFT))));
+    }
+
+    *acc_level = vpadalq_u32(*acc_level, level);
+    *acc_power = vpadalq_u32(*acc_power, power);
+}
+
+#define IQDATA_CONV_NEON_BODY(fmt)                                                            \
+    int16_t * restrict out = (int16_t *) out_u;                                               \
+    int32x2_t off = vld1_s32(dc_in);                                                      \
+    uint64x2_t acc_level = vdupq_n_u64(0), acc_power = vdupq_n_u64(0);                        \
+    unsigned n = 0;                                                                           \
+                                                                                              \
+    for (; n + IQ_DC_BLOCK <= len; n += IQ_DC_BLOCK)                                          \
+        iqconv_block_neon(iqconv_load_##fmt##_neon(in + n), out + 2 * n, &off, &acc_level, &acc_power); \
+                                                                                              \
+    vst1_s32(dc_out, off);                                                                 \
+    uint64_t sum_level = vgetq_lane_u64(acc_level, 0) + vgetq_lane_u64(acc_level, 1);         \
+    uint64_t sum_power = vgetq_lane_u64(acc_power, 0) + vgetq_lane_u64(acc_power, 1);         \
+                                                                                              \
+    if (n < len) {                                                                            \
+        int16_t raw[2 * IQ_DC_BLOCK];                                                         \
+        iqconv_raw_##fmt(in + n, raw, len - n);                                               \
+        iqconv_dc_block(raw, out + 2 * n, len - n, dc_out, &sum_level, &sum_power);        \
+    }                                                                                         \
+                                                                                              \
+    iqconv_stats(sum_level, sum_power, len, out_level, out_power);
+
+void STARCH_IMPL(iqdata_conv_uc8, neon) (const uc8_t * restrict in, uint16_t * restrict out_u, unsigned len,
+                                         const int32_t *dc_in, int32_t *dc_out, double *out_level, double *out_power)
+{
+    IQDATA_CONV_NEON_BODY(uc8)
+}
+
+void STARCH_IMPL(iqdata_conv_sc16, neon) (const sc16_t * restrict in, uint16_t * restrict out_u, unsigned len,
+                                          const int32_t *dc_in, int32_t *dc_out, double *out_level, double *out_power)
+{
+    IQDATA_CONV_NEON_BODY(sc16)
+}
+
+void STARCH_IMPL(iqdata_conv_sc16q11, neon) (const sc16_t * restrict in, uint16_t * restrict out_u, unsigned len,
+                                             const int32_t *dc_in, int32_t *dc_out, double *out_level, double *out_power)
+{
+    IQDATA_CONV_NEON_BODY(sc16q11)
 }

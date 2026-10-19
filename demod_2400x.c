@@ -40,17 +40,11 @@
 // Static data
 struct staticdata_t {
 
-    int isize;
-    int16_t *idata;         // DC-removed I/Q, laid out like the FIFO buffer: [overlap | new samples]
-
     int usize;
     uint16_t *udata;
 
     int msize;
     uint8_t *metric;
-
-    int32_t offset_i;
-    int32_t offset_q;
 
     unsigned prev_mlen;     // new samples in the previous buffer (0 = no previous buffer)
     int next_start;         // first peak position to search in this buffer (skips the rest of a
@@ -94,7 +88,6 @@ static int allocateBuffers(struct staticdata_t *stdata, int totalLength) {
    int stride = NU_STRIDE(nt);
    int mt = METRIC_SIZE(nt);
 
-   if (allocBuffer(2*totalLength*sizeof(int16_t), &stdata->isize, (void **)&stdata->idata) < 0) return -1;
    if (allocBuffer(6*stride*sizeof(uint16_t), &stdata->usize, (void **)&stdata->udata) < 0) return -1;
    if (allocBuffer(mt*sizeof(uint8_t), &stdata->msize, (void **)&stdata->metric) < 0) return -1;
 
@@ -322,7 +315,7 @@ static double searchFrames(const struct mag_buf *mag, struct staticdata_t *st, i
             continue;
 
         double energy;
-        if (emitFrame(mag, &c, bits, st->idata, &energy)) {
+        if (emitFrame(mag, &c, bits, (const int16_t *) mag->data, &energy)) {
             energy_sum += energy;
             // Skip to 8 bits before the end of the frame, as demod_2400.c does
             p = c.pos + bits * 12 - 1;
@@ -335,45 +328,6 @@ static double searchFrames(const struct mag_buf *mag, struct staticdata_t *st, i
     return energy_sum;
 }
 
-
-// Remove DC from 'dlen' new I/Q samples, 'in' -> 'out' (both interleaved I,Q).
-// Returns the gain shift for upsample12.
-#define AVG_SHIFT 12
-static void removeDcOffset(const int16_t * restrict in,
-                          int16_t * restrict out,
-                          struct staticdata_t * restrict stdata,
-                          int dlen)
-{
-    int32_t off_i = stdata->offset_i;
-    int32_t off_q = stdata->offset_q;
-
-    for (int i = 0; i < dlen; i++) {
-
-        int32_t ii = in[0];
-        int32_t qq = in[1];
-
-        ii -= (off_i + (1<<(AVG_SHIFT-1))) >> AVG_SHIFT;
-        qq -= (off_q + (1<<(AVG_SHIFT-1))) >> AVG_SHIFT;
-
-        off_i += ii;
-        off_q += qq;
-
-        if (ii > 2047)  ii = 2047;
-        if (ii < -2048) ii = -2048;
-
-        if (qq > 2047)  qq = 2047;
-        if (qq < -2048) qq = -2048;
-
-        out[0] = (int16_t) ii;
-        out[1] = (int16_t) qq;
-
-        in += 2;
-        out += 2;
-    }
-
-    stdata->offset_i = off_i;
-    stdata->offset_q = off_q;
-}
 
 #ifndef USE_MAGNITUDE
 #define DEMOD_SHIFT_ADJ 3
@@ -391,7 +345,7 @@ static int powerShift(double mean_power)      // mean_power: fraction of 12-bit 
 // Demodulate 2400
 //#define CHECK_USAMP
 //#define CHECK_POW
-// mag->data contains signed 12-bit I/Q sample pairs (-2048..2047): [overlap | new samples]
+// mag->data contains DC-removed signed 12-bit I/Q sample pairs (-2048..2047): [overlap | new samples]
 void demodulate2400x(struct mag_buf *mag)
 {
    static struct staticdata_t stdata;
@@ -405,19 +359,10 @@ void demodulate2400x(struct mag_buf *mag)
 
    assert(overlap >= OVERLAP_WINDOW);
 
-   // This buffer's overlap = the filtered tail of the previous buffer,
-   // the same way the FIFO does it for the raw samples
-   if (!stdata.prev_mlen || (mag->flags & MAGBUF_DISCONTINUOUS)) {
-       memset(stdata.idata, 0, 2 * overlap * sizeof(int16_t));
+   // No usable skip from the previous buffer
+   if (!stdata.prev_mlen || (mag->flags & MAGBUF_DISCONTINUOUS))
        stdata.next_start = 0;
-   } else {
-       memmove(stdata.idata, stdata.idata + 2 * stdata.prev_mlen, 2 * overlap * sizeof(int16_t));
-   }
 
-   // Remove DC offset from the new samples only
-   removeDcOffset((const int16_t *) &mag->data[2 * overlap],
-                   stdata.idata + 2 * overlap, &stdata, (int) newlen);
-                   
 #ifdef USE_MAGNITUDE
    int pshift = 0;                              // magnitude needs no gain shift
 #else
@@ -426,7 +371,7 @@ void demodulate2400x(struct mag_buf *mag)
    stdata.prev_mlen = newlen;
 
    // Upsample the whole buffer
-   int ulen = starch_upsample12(stdata.idata, (int) dlen, pshift, stdata.udata);
+   int ulen = starch_upsample12((const int16_t *) mag->data, (int) dlen, pshift, stdata.udata);
 
 #ifdef CHECK_POW
    int max = 0;

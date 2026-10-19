@@ -1,6 +1,6 @@
 // Part of dump1090, a Mode S message decoder for RTLSDR devices.
 //
-// demod2400x.avx2.c: DEMOD_2400X upsampler and preamble search, x86 AVX2.
+// demod2400x.avx2.c: DEMOD_2400X input conversion, upsampler and preamble search, x86 AVX2.
 // Structured the same way as demod2400x.neon.c.
 //
 // This file is free software: you may copy, redistribute and/or modify it
@@ -16,6 +16,7 @@
 
 #include "dsp/helpers/demod2400x_dsp.h"
 #include "dsp/helpers/demod2400x_coeffs.h"
+#include "dsp/helpers/demod2400x_iqconv.h"
 
 // Two vectors of 8 x int16: val[0] = I, val[1] = Q (same layout as NEON's int16x8x2_t)
 typedef struct {
@@ -320,4 +321,130 @@ int STARCH_IMPL(locate_preamble, avx2) (const uint16_t * restrict pp, int nt, ui
            mm[6*k + j] = preamble_metric1(&pp[j*stride + k]);
 
    return METRIC_SIZE(nt);
+}
+
+
+// Input conversion, as the generic iqdata_conv_* (dsp/helpers/demod2400x_iqconv.h)
+
+// 16 raw samples as 12-bit interleaved I,Q (samples 0-7 in [0], 8-15 in [1])
+typedef struct {
+    __m256i v[2];
+} iq16x16_avx2_t;
+
+static inline __attribute__((always_inline)) iq16x16_avx2_t iqconv_load_uc8_avx2(const uc8_t *in)
+{
+    const __m256i c = _mm256_set1_epi16(2040);
+    iq16x16_avx2_t r;
+    // (2 * v - 255) * 8 = 16 * v - 2040
+    r.v[0] = _mm256_sub_epi16(_mm256_slli_epi16(_mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *) in)), 4), c);
+    r.v[1] = _mm256_sub_epi16(_mm256_slli_epi16(_mm256_cvtepu8_epi16(_mm_loadu_si128((const __m128i *) (in + 8))), 4), c);
+    return r;
+}
+
+static inline __attribute__((always_inline)) iq16x16_avx2_t iqconv_load_sc16_avx2(const sc16_t *in)
+{
+    iq16x16_avx2_t r;
+    r.v[0] = _mm256_srai_epi16(_mm256_loadu_si256((const __m256i *) in), 4);
+    r.v[1] = _mm256_srai_epi16(_mm256_loadu_si256((const __m256i *) (in + 8)), 4);
+    return r;
+}
+
+static inline __attribute__((always_inline)) __m256i clamp12_s16x16_avx2(const __m256i v)
+{
+    return _mm256_max_epi16(_mm256_min_epi16(v, _mm256_set1_epi16(2047)), _mm256_set1_epi16(-2048));
+}
+
+static inline __attribute__((always_inline)) iq16x16_avx2_t iqconv_load_sc16q11_avx2(const sc16_t *in)
+{
+    iq16x16_avx2_t r;
+    r.v[0] = clamp12_s16x16_avx2(_mm256_loadu_si256((const __m256i *) in));
+    r.v[1] = clamp12_s16x16_avx2(_mm256_loadu_si256((const __m256i *) (in + 8)));
+    return r;
+}
+
+// Add the 8 x u32 lanes of v into the 4 x u64 lanes of acc
+static inline __attribute__((always_inline)) __m256i acc_u32x8_u64_avx2(const __m256i acc, const __m256i v)
+{
+    const __m256i zero = _mm256_setzero_si256();
+    return _mm256_add_epi64(acc, _mm256_add_epi64(_mm256_unpacklo_epi32(v, zero), _mm256_unpackhi_epi32(v, zero)));
+}
+
+// Same as iqconv_dc_block() for a full block. The block sum of (raw - corr) is
+// sum(raw) - 16 * corr, so the serial part is just a few scalar ops.
+static inline __attribute__((always_inline))
+void iqconv_block_avx2(const iq16x16_avx2_t r, int16_t * restrict out, int32_t *off_i, int32_t *off_q,
+                       __m256i *acc_level, __m256i *acc_power)
+{
+    const int32_t corr_i = (*off_i + (1 << (IQ_DC_SHIFT - 1))) >> IQ_DC_SHIFT;
+    const int32_t corr_q = (*off_q + (1 << (IQ_DC_SHIFT - 1))) >> IQ_DC_SHIFT;
+
+    // Raw sums: madd with (1, 0) picks I, with (0, 1) picks Q
+    const __m256i rs = _mm256_add_epi16(r.v[0], r.v[1]);
+    __m256i s = _mm256_hadd_epi32(_mm256_madd_epi16(rs, _mm256_set1_epi32(0x00000001)),
+                                  _mm256_madd_epi16(rs, _mm256_set1_epi32(0x00010000)));
+    __m128i s4 = _mm_add_epi32(_mm256_castsi256_si128(s), _mm256_extracti128_si256(s, 1)); // [I, I, Q, Q]
+    s4 = _mm_hadd_epi32(s4, s4);                                                           // [I, Q, I, Q]
+    *off_i += _mm_cvtsi128_si32(s4) - 16 * corr_i;
+    *off_q += _mm_extract_epi32(s4, 1) - 16 * corr_q;
+
+    const __m256i corr = _mm256_set1_epi32((int32_t) (((uint32_t) corr_q << 16) | (uint16_t) corr_i));
+
+    __m256i level = _mm256_setzero_si256(), power = _mm256_setzero_si256();
+    for (int h = 0; h < 2; ++h) {
+        const __m256i x = clamp12_s16x16_avx2(_mm256_sub_epi16(r.v[h], corr));
+        _mm256_storeu_si256((__m256i *) (out + 16 * h), x);
+
+        const __m256i m = _mm256_madd_epi16(x, x);              // I * I + Q * Q per sample
+        power = _mm256_add_epi32(power, m);
+        level = _mm256_add_epi32(level, isqrt_u32x8_avx2(_mm256_slli_epi32(m, IQ_LEVEL_SHIFT)));
+    }
+
+    *acc_level = acc_u32x8_u64_avx2(*acc_level, level);
+    *acc_power = acc_u32x8_u64_avx2(*acc_power, power);
+}
+
+static inline __attribute__((always_inline)) uint64_t hsum_u64x4_avx2(const __m256i v)
+{
+    const __m128i s = _mm_add_epi64(_mm256_castsi256_si128(v), _mm256_extracti128_si256(v, 1));
+    return (uint64_t) _mm_cvtsi128_si64(s) + (uint64_t) _mm_extract_epi64(s, 1);
+}
+
+#define IQDATA_CONV_AVX2_BODY(fmt)                                                            \
+    int16_t * restrict out = (int16_t *) out_u;                                               \
+    int32_t off_i = dc_in[0], off_q = dc_in[1];                                       \
+    __m256i acc_level = _mm256_setzero_si256(), acc_power = _mm256_setzero_si256();           \
+    unsigned n = 0;                                                                           \
+                                                                                              \
+    for (; n + IQ_DC_BLOCK <= len; n += IQ_DC_BLOCK)                                          \
+        iqconv_block_avx2(iqconv_load_##fmt##_avx2(in + n), out + 2 * n, &off_i, &off_q, &acc_level, &acc_power); \
+                                                                                              \
+    dc_out[0] = off_i;                                                                     \
+    dc_out[1] = off_q;                                                                     \
+    uint64_t sum_level = hsum_u64x4_avx2(acc_level);                                          \
+    uint64_t sum_power = hsum_u64x4_avx2(acc_power);                                          \
+                                                                                              \
+    if (n < len) {                                                                            \
+        int16_t raw[2 * IQ_DC_BLOCK];                                                         \
+        iqconv_raw_##fmt(in + n, raw, len - n);                                               \
+        iqconv_dc_block(raw, out + 2 * n, len - n, dc_out, &sum_level, &sum_power);        \
+    }                                                                                         \
+                                                                                              \
+    iqconv_stats(sum_level, sum_power, len, out_level, out_power);
+
+void STARCH_IMPL(iqdata_conv_uc8, avx2) (const uc8_t * restrict in, uint16_t * restrict out_u, unsigned len,
+                                         const int32_t *dc_in, int32_t *dc_out, double *out_level, double *out_power)
+{
+    IQDATA_CONV_AVX2_BODY(uc8)
+}
+
+void STARCH_IMPL(iqdata_conv_sc16, avx2) (const sc16_t * restrict in, uint16_t * restrict out_u, unsigned len,
+                                          const int32_t *dc_in, int32_t *dc_out, double *out_level, double *out_power)
+{
+    IQDATA_CONV_AVX2_BODY(sc16)
+}
+
+void STARCH_IMPL(iqdata_conv_sc16q11, avx2) (const sc16_t * restrict in, uint16_t * restrict out_u, unsigned len,
+                                             const int32_t *dc_in, int32_t *dc_out, double *out_level, double *out_power)
+{
+    IQDATA_CONV_AVX2_BODY(sc16q11)
 }

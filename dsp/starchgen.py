@@ -35,13 +35,13 @@ gen.add_function(
     argtypes = ['const uint16_t *', 'unsigned', 'uint16_t', 'unsigned *'])
 gen.add_function(
    name = 'iqdata_conv_uc8',
-   argtypes = ['const uc8_t *', 'uint16_t *', 'unsigned', 'double *', 'double *'])
+    argtypes = ['const uc8_t *', 'uint16_t *', 'unsigned', 'const int32_t *', 'int32_t *', 'double *', 'double *'])
 gen.add_function(
     name = 'iqdata_conv_sc16',
-    argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned', 'double *', 'double *'])
+    argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned', 'const int32_t *', 'int32_t *', 'double *', 'double *'])
 gen.add_function(
     name = 'iqdata_conv_sc16q11',
-    argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned', 'double *', 'double *'])
+    argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned', 'const int32_t *', 'int32_t *', 'double *', 'double *'])
 gen.add_function(
    name = 'upsample12',
    argtypes = ['const int16_t *', 'int', 'int', 'uint16_t *'],

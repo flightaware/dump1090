@@ -221,7 +221,7 @@ void ifileRun()
         unsigned samples_read = bytes_read / ifile.bytes_per_sample;
 
         // Convert the new data
-        ifile.converter(ifile.readbuf, &outbuf->data[outbuf->overlap], samples_read, ifile.converter_state, &outbuf->mean_level, &outbuf->mean_power);
+        ifile.converter(ifile.readbuf, magbuf_sample(outbuf, outbuf->overlap), samples_read, ifile.converter_state, &outbuf->mean_level, &outbuf->mean_power);
         outbuf->validLength = outbuf->overlap + samples_read;
         outbuf->flags = 0;
 
