@@ -357,8 +357,8 @@ struct _Modes {                             // Internal state
     int   net;                       // Enable networking
     int   net_only;                  // Enable just networking
     uint64_t net_heartbeat_interval; // TCP heartbeat interval (milliseconds)
-    int   net_output_flush_size;     // Minimum Size of output data
-    uint64_t net_output_flush_interval; // Maximum interval (in milliseconds) between outputwrites
+    unsigned net_output_flush_size;     // Maximum buffered data between output writes
+    uint64_t net_output_flush_interval; // Maximum interval (in milliseconds) between output writes
     char *net_output_raw_ports;      // List of raw output TCP ports
     char *net_input_raw_ports;       // List of raw input TCP ports
     char *net_output_sbs_ports;      // List of SBS output TCP ports

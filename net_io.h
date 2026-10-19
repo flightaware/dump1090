@@ -62,13 +62,15 @@ struct client {
     int    modeac_requested;             // 1 if this Beast output connection has asked for A/C
     int    verbatim_requested;           // 1 if this Beast output connection has asked for verbatim mode
     int    local_requested;              // 1 if this Beast output connection has asked for local-only mode
+    unsigned out_index;                  // index of next byte to write from writer output buffer
 };
 
 // Common writer state for all output sockets of one type
 struct net_writer {
     struct net_service *service; // owning service
     void *data;          // shared write buffer, sized MODES_OUT_BUF_SIZE
-    int dataUsed;        // number of bytes of write buffer currently used
+    unsigned dataUsed;   // number of bytes of write buffer currently used
+    unsigned pending;    // number of bytes added to write buffer since last flush
     uint64_t lastWrite;  // time of last write to clients
     heartbeat_fn send_heartbeat; // function that queues a heartbeat if needed
 };
