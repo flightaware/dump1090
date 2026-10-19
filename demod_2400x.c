@@ -245,10 +245,42 @@ static double signalPower(const int16_t *iq, int pos, int bits, double *energy)
 }
 
 
+// Arrival time: the 12 MHz sample within +-2 of 'pos' where the frame's data chips
+// (from the corrected message) correlate best with the upsampled signal, i.e. the
+// chip centres. bestPhase() picks 'pos' by bit quality, which is flat across about
+// 3 samples on a clean pulse, so 'pos' alone is a poor time estimate for MLAT.
+static int fineTiming(int pos, const uint8_t *msg, int bits, const uint16_t *udata, int nt)
+{
+    static const int order[5] = { 0, -1, 1, -2, 2 };   // ties go to the nearest to 'pos'
+    int stride = NU_STRIDE(nt);
+    int best = pos;
+    int32_t best_corr = INT32_MIN;
+
+    if (pos < 2 || pos + 2 + 6 * (16 + 2 * bits) > nt)
+        return pos;
+
+    for (int k = 0; k < 5; k++) {
+        int t = pos + order[k];
+        const uint16_t *u = &udata[(t % 6) * stride + t / 6 + 16];    // first data chip
+        int32_t corr = 0;
+
+        for (int i = 0; i < bits; i++) {
+            int d = u[2 * i] - u[2 * i + 1];                            // first chip - second
+            corr += ((msg[i >> 3] >> (7 - (i & 7))) & 1) ? d : -d;
+        }
+        if (corr > best_corr) {
+            best_corr = corr;
+            best = t;
+        }
+    }
+    return best;
+}
+
+
 // Score, decode and pass one frame on to the rest of dump1090.
 // Returns its length in bits if it was accepted, else 0; *energy gets its signal energy.
 static int emitFrame(const struct mag_buf *mag, const struct candidate *c,
-                     const int16_t *iq, double *energy)
+                     const int16_t *iq, const uint16_t *udata, int nt, double *energy)
 {
     static const struct modesMessage zeroMessage;
     struct modesMessage mm;
@@ -263,10 +295,6 @@ static int emitFrame(const struct mag_buf *mag, const struct candidate *c,
     }
 
     mm = zeroMessage;
-
-    // Timestamp at the end of bit 56, even for 112-bit frames (Beast / Radarcape convention)
-    mm.timestampMsg = mag->sampleTimestamp + c->pos + UPSAMPLE_DELAY + (8 + 56) * 12;
-    mm.sysTimestampMsg = mag->sysTimestamp + receiveclock_ms_elapsed(mag->sampleTimestamp, mm.timestampMsg);
     mm.score = score;
 
     if (decodeModesMessage(&mm, c->msg) < 0) {
@@ -282,6 +310,11 @@ static int emitFrame(const struct mag_buf *mag, const struct candidate *c,
         return 0;
     }
     Modes.stats_current.demod_accepted[mm.correctedbits]++;
+
+    // Timestamp at the end of bit 56, even for 112-bit frames (Beast / Radarcape convention)
+    int tpos = fineTiming(c->pos, mm.msg, mm.msgbits, udata, nt);
+    mm.timestampMsg = mag->sampleTimestamp + tpos + UPSAMPLE_DELAY + (8 + 56) * 12;
+    mm.sysTimestampMsg = mag->sysTimestamp + receiveclock_ms_elapsed(mag->sampleTimestamp, mm.timestampMsg);
 
     mm.signalLevel = signalPower(iq, c->pos, mm.msgbits, energy);
     if (mm.signalLevel > Modes.stats_current.peak_signal_power)
@@ -325,7 +358,7 @@ static double searchFrames(const struct mag_buf *mag, struct staticdata_t *st, i
         demodFrame(&c, st->udata, nt);
 
         double energy;
-        int bits = emitFrame(mag, &c, (const int16_t *) mag->data, &energy);
+        int bits = emitFrame(mag, &c, (const int16_t *) mag->data, st->udata, nt, &energy);
         if (bits) {
             energy_sum += energy;
             // Skip to 8 bits before the end of the frame, as demod_2400.c does
