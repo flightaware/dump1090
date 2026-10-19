@@ -37,15 +37,15 @@
 
 // Least-squares fractional delay: each phase fitted to delay 3.1 + 0.2p input
 // samples with flat gain over 0..1.0 MHz, then rounded with a common offset
-// (binary search) so every phase sums to exactly 112.
-// Group delay error between phases <= 0.046 samples up to 0.8 MHz, noise gain 0.94.
-#define UPSAMPLE_ABS_SUM 212    // largest sum of |taps| over the phases (phase 2)
+// (binary search) so every phase sums to exactly 128 (gen/ls_coeffs.py 1.0 128).
+// Group delay error between phases <= 0.028 samples up to 0.8 MHz, noise gain 0.94.
+#define UPSAMPLE_ABS_SUM 244    // largest sum of |taps| over the phases
 static const int8_t upsample_coeffs[5][8] = {
-    {  -2,   4,  -9, 110,  12,  -5,   3,  -1 }, // phase=0 sum=112
-    {  -4,   9, -19,  95,  41, -15,   8,  -3 }, // phase=1 sum=112
-    {  -4,  10, -21,  71,  71, -21,  10,  -4 }, // phase=2 sum=112
-    {  -3,   8, -15,  41,  95, -19,   9,  -4 }, // phase=3 sum=112
-    {  -1,   3,  -5,  12, 110,  -9,   4,  -2 }, // phase=4 sum=112
+    {  -2,   4, -10, 126,  14,  -6,   3,  -1 }, // phase=0 sum=128
+    {  -4,  10, -22, 109,  47, -17,   9,  -4 }, // phase=1 sum=128
+    {  -5,  12, -24,  81,  81, -24,  12,  -5 }, // phase=2 sum=128
+    {  -4,   9, -17,  47, 109, -22,  10,  -4 }, // phase=3 sum=128
+    {  -1,   3,  -6,  14, 126, -10,   4,  -2 }, // phase=4 sum=128
 };
 
 // Filter outputs are rounded by (x + 2^(UPSAMPLE_SHIFT-1)) >> UPSAMPLE_SHIFT. With 12-bit input
