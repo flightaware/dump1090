@@ -81,7 +81,7 @@ Demodulation time for the 60 s capture:
 
 | | Stock | DEMOD_2400X |
 |---|---|---|
-| Raspberry Pi 5 (Cortex-A76) | 2.0 s | 4.3 s |
+| Raspberry Pi 5 (Cortex-A76) | 2.0 s | 4.3 s (gcc 14), 4.1 s (clang 19) |
 | Raspberry Pi 4 (Cortex-A72) | 3.9 s | 10.6 s |
 
 The Pi 4 times were measured while the live receiver was also running on
@@ -89,3 +89,25 @@ the same Pi, so both are probably slightly high. Live on the Pi 4 this is
 about 31% of one core. These results come from
 one receiver and a one-minute capture; longer side-by-side runs are in
 progress.
+
+## Compilers
+
+Built with the same options as the GitHub workflow
+(`make RTLSDR=yes BLADERF=yes HACKRF=yes LIMESDR=yes SOAPYSDR=yes all`,
+then `make test`):
+
+| Compiler | Target | Warnings | `make test` |
+|---|---|---|---|
+| gcc 14.2 | AArch64 (Pi 5) | 0 | pass (65 validations) |
+| clang 19.1 | AArch64 (Pi 5) | 0 | pass (65 validations) |
+| gcc 14.2 (cross) | ARMv7 | 0 | `starch-benchmark -V` passes, run natively on AArch64 |
+| gcc 14.2 (cross) | x86-64 AVX2 | 0 | pass under qemu-x86_64 |
+| clang 19.1 (cross) | x86-64 AVX2 | 0 | pass under qemu-x86_64 (59 validations) |
+
+The gcc and clang AArch64 builds give byte-identical decoder output,
+timestamps included. On x86, clang with `-ffast-math` compiles every AVX2
+divide and square root to a reciprocal estimate (`vrcpps`/`vrsqrtps`), so the
+kernels correct the estimate in both directions to stay exact. QEMU computes
+these estimates exactly, so x86 correctness also needs a run on real
+hardware. The AVX2 kernels passed on an Intel CPU before the mirrored
+upsampler and `decode_bits` were added; those still need an Intel run.
