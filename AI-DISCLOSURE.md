@@ -29,8 +29,10 @@ README-demod2400x.md and this file were also written with Claude Code.
   `starch-benchmark -V` (`make test`), on AArch64, ARMv7 and x86 AVX2,
   including full-range worst-case input and a 64-bit check of the generic
   upsampler.
-* Decoded output was compared with stock dump1090-fa on real RTL-SDR
-  captures, message by message (contents, signal level and timestamps).
+* Decoded output was compared with stock dump1090-fa on an RTL-SDR
+  recording (FlightAware Pro Stick Plus), message by message (contents,
+  signal level and timestamps). An SDRplay recording was used to check that
+  each change gave the same or more messages than the version before.
 * Synthetic frames at known times (`sim/`) check sensitivity and MLAT
   timestamp accuracy.
 * The build has run live on my Raspberry Pi 4 receiver feeding FlightAware,

@@ -4,6 +4,19 @@ What was built, why, and what was tried and dropped. Results are in
 [README-demod2400x.md](README-demod2400x.md). Times are for the 60 s Pi 4
 RTL-SDR capture decoded on a Raspberry Pi 5 unless stated otherwise.
 
+## Test data
+
+* **SDRplay recording**: 2.4 MHz SC16 I/Q, 17.8 s of signal. Used for the
+  early development and speed work.
+* **RTL-SDR recording**: 60 s at 2.4 MHz, UC8, from the live receiver: a
+  Raspberry Pi 4 with the FlightAware Pro Stick Plus (blue, internal LNA and
+  SAW filter) at gain 49.6 dB, outdoor antenna on a 3 m pole, 12 m of
+  LMR400. Used for the stock comparison, the later tuning and CPU figures.
+* **Synthetic frames** from `sim/gen_timing.c` (based on `gen_data.c`):
+  DF17 frames at known 12 MHz ticks with noise and a random carrier offset,
+  for sensitivity and MLAT timestamp accuracy.
+* **Live**: the same Pi 4 receiver feeding FlightAware, including MLAT.
+
 ## Signal path
 
 1. **Input conversion** (`iqdata_conv_uc8/sc16/sc16q11`, `convert.c`).
@@ -45,9 +58,9 @@ RTL-SDR capture decoded on a Raspberry Pi 5 unless stated otherwise.
 
 | Change | Why | Effect |
 |---|---|---|
-| DC removal in the converter | One pass over the data; FIFO keeps clean I/Q for later use | Fixed an overlap write-offset bug on the way; 3325 → 3332 messages on the SC16 test file |
+| DC removal in the converter | One pass over the data; FIFO keeps clean I/Q for later use | Fixed an overlap write-offset bug on the way; 3325 → 3332 messages on the SDRplay recording |
 | Always decode 112 bits | CRC correction can fix the DF bits, so length is only known after scoring | No lost long frames |
-| Skip the metric divide below threshold | `floor(n/d) ≥ T ⇔ n ≥ T·d`; peaks below T are never used | ~1570 → ~1490 ms (SC16 file) |
+| Skip the metric divide below threshold | `floor(n/d) ≥ T ⇔ n ≥ T·d`; peaks below T are never used | ~1570 → ~1490 ms (SDRplay recording) |
 | AVX2 divide/sqrt corrected both ways | `-ffast-math` lets the compiler use reciprocal estimates; results were one too small on real Intel hardware | Validation passes on Intel |
 | Fine arrival time | Bit quality is flat over ~3 ticks on a clean pulse, so `pos` was biased (0 to +2 ticks by phase) and jittery (σ 0.88) | Exact on synthetic frames; MLAT synced with ~260 receivers live |
 | Least-squares coefficients | The windowed sinc had uneven delay and gain across phases | Weak synthetic frames 1205 → 1405 |

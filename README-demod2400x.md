@@ -25,7 +25,9 @@ and x86 AVX2 versions. All versions give bit-identical results, which
 A 60 s capture from a Raspberry Pi 4 with a FlightAware Pro Stick Plus
 (gain 49.6 dB), with an outdoor antenna on a 3 m pole and 12 m of LMR400,
 decoded by stock dump1090-fa 11.1 and by this branch with the same options
-(`--fix`, receiver position set):
+(`--fix`, receiver position set). Development also used an SDRplay
+recording and synthetic frames; see
+[NOTES-demod2400x.md](NOTES-demod2400x.md#test-data).
 
 | | Stock | DEMOD_2400X | Change |
 |---|---|---|---|
