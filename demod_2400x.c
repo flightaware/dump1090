@@ -29,7 +29,7 @@
 
 #ifdef USE_MAGNITUDE
 #define PEAMBLE_THRES 50
-#define DATA_THRES    80
+#define DATA_THRES    65
 #else
 #define PEAMBLE_THRES 80
 #define DATA_THRES    150
