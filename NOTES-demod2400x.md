@@ -99,6 +99,7 @@ RTL-SDR capture decoded on a Raspberry Pi 5 unless stated otherwise.
 | ARMv7 `upsample12`: partial transpose instead of single-byte stores | With byte outputs, `vtrn.8` and `vtrn.16` on the phase registers give `[c0 c1 c2 c3]` of windows k and k + 4; `ph[4]` shifted by 8k (as 32-bit lanes) and `vtrn.32` add c4, giving each window's 5 outputs in one register (11 shuffles per 8 windows). Stored 8 bytes at a time at `5w`, overlapping, they are in tick order, and the AArch64 `vld3q_u16` split into the 6 rows is shared, replacing 40 lane stores per 8 windows. A 3-way split between registers doesn't exist (`vuzp` is 2-way), so the 248-byte stack buffer stays; it lives in L1 | Pi 3B `upsample12` 8.46 → 7.18 ms (−15%), 20 s decode 8.97 → 8.47 s (−5.6%), identical output; AArch64 unchanged |
 | Coherent frequency search over ±250 kHz, in two stages | Most aircraft the coherent pass gave up on have a steady carrier 100–240 kHz off (transponders are allowed ±1 MHz); 8-bit block sums cancel at those offsets, so more bins alone can't reach them. Stage 1: 2-bit blocks, 16 wide bins 31.25 kHz apart for each 28-bit piece; stage 2: the 16 central fine bins (±30 kHz) around each piece's peak, the stronger kept. The wide bin goes into the slicing phasors, so chips are never de-rotated; regrouping is vectorised through transposed tables | Same as an exact float search over ±248 kHz. Messages +2.7% / +4.0% / +4.6% (RTL-SDR a / b, SDRplay 5 MHz), coherent rescues +26..45%, aircraft +5 / +3 / 0; demodulation CPU +7.0% / +8.6% / +2.3% on the Pi 5, +5.8% on the Pi 3B; weak synthetic frames (random ±100 kHz offsets) 1,592 → 1,710 |
 | `coherent_decode` NEON rewritten for the in-order Cortex-A53 | Profiled per stage on the Pi 3B: the chip interpolation was over a third of the time, one dependent chain per chip (load, 4 multiply-accumulates, add) with a divide by 5 for its address; the searches broadcast each block before multiplying. Now the searches multiply by a register lane (`vqrdmulh` is symmetric, so the same products); chips are worked by tap set (6k mod 5 = k mod 5), coefficients in registers, 4 chips interleaved, their windows from 7 loads and `vext`, the max in the same loop; the int16 conversion narrows and transposes with `vtrn` instead of `vld4`, with only the lower clamp (nothing exceeds 2^13 − 1 after the shift). Tried and dropped: both bin vectors per pass (ARMv7 runs out of q registers: stage 1 870 → 1,260 ns), a stage-1 gate (ρ₁ separates noise poorly with 14 blocks: at no loss it keeps 88% of RTL-SDR attempts) | Bit-exact (`-V` on AArch64 and ARMv7; decoder output byte-identical). Pi 3B 12.15 → 10.81 µs full (−11%), 5.73 → 5.01 µs at the gate; Pi 5 2.23 → 2.08 µs (−7%). The full-capture CPU tables were measured before this change |
+| Fall back to the stock demodulator while DEMOD_2400X is behind (live input) | When the CPU can't keep up the FIFO fills and the driver drops whole buffers, so every message in them is lost; stock decodes most of them for a third to a half of the CPU (Pi 3B 8.6 s against 24.0 s, Pi 5 2.1 against 3.8). From about 2/3 of the FIFO queued until it is down to 1/3, each buffer goes to stock, on its magnitudes (`getMagnitude()`, shared with Mode A/C and adaptive gain, made once per buffer); a switch is a gap (`MAGBUF_DISCONTINUOUS`) for the demodulator taking over, and is logged. How far behind comes from the buffer's age (its sample start time to now, less its length, in buffer lengths), so `fifo.c` is unchanged. 16 FIFO buffers instead of 12 for more slack (stock keeps 12). Not for `--ifile`: a file is read only as fast as it is demodulated, so its FIFO is always full but never drops, and tests must not fall back (`-DDEMOD_FALLBACK_TEST` allows it) | File output byte-identical to dev (default, `--modeac`, `--no-demod2400x`). Throttled 20 s on a Pi 3B core: alone, or shared with one busy loop, no fallback and the same frames; shared with two, 25% of samples on stock, 9 switches, frames −6.4%. Live on the Pi 4: no switches, 24% of a core |
 
 ### Overflow bound
 
@@ -225,13 +226,13 @@ stated.
 | File | Change | Why |
 |---|---|---|
 | `Makefile` | Adds `-DDEMOD_2400X -DUSE_MAGNITUDE -DDEMOD_2400X_COHERENT`, the new objects, default version `11.2x` | Builds the new demodulator in |
-| `dump1090.c` | Options `--no-demod2400x` and `--no-coherent` (both on by default); `fifo_create()` with I/Q or magnitudes; `demodulate2400x()` or `demodulate2400()` | Chooses the demodulator when running |
-| `dump1090.h` | `Modes.demod_2400x`, `Modes.coherent`; includes `demod_2400x.h` | |
+| `dump1090.c` | Options `--no-demod2400x` and `--no-coherent` (both on by default); `fifo_create()` with I/Q (16 buffers) or magnitudes (12, as upstream); `demodulate2400x()` or `demodulate2400()`; `demodBehind()`: the stock demodulator on the I/Q buffer's magnitudes while DEMOD_2400X is behind with live input | Chooses the demodulator when running; falls back instead of dropping buffers when the CPU can't keep up |
+| `dump1090.h` | `Modes.demod_2400x`, `Modes.coherent`; `MODES_MAG_BUFFERS_2400X` (16); includes `demod_2400x.h` | |
 | `fifo.c/h` | Not under `#ifdef`: `fifo_create()` takes `dtype_iq`, and the buffers and overlap copy are twice as large when it is 1; `magbuf_sample()` addresses sample n (`fifo_values_per_sample` is 1 for magnitudes, as before) | The FIFO carries interleaved I/Q for DEMOD_2400X, so it (and the coherent pass) can use the phase |
 | `sdr_*.c` | Not under `#ifdef`, one line each: write at `magbuf_sample(outbuf, overlap)` (the same address as before with magnitudes) | Same, for every SDR driver and `--ifile` |
 | `convert.c` | I/Q converters (`convert_iq_*`, calling the `iqdata_conv_*` kernels: 12-bit signed I/Q with DC removed) beside the stock ones; `init_converter()` picks by `Modes.demod_2400x` | DC is removed once, in the converter, so the FIFO holds clean I/Q |
-| `demod_2400.c` | `demodulate2400AC()` computes magnitudes from the I/Q first (`getMagnitude()`) when the FIFO holds I/Q | Mode A/C still uses the stock demodulator, which expects magnitudes |
-| `stats.c/h`, `net_io.c` | Three coherent counters; `--stats` lines and `"coherent":{...}` in `stats.json` `local`, only while the coherent pass runs | Live monitoring of the coherent pass. Consumers that ignore unknown fields are unaffected |
+| `demod_2400.c` | `getMagnitude()`: the magnitudes of the I/Q buffer, made once per buffer in one array (the main loop sets `demod_magnitude` to NULL before each buffer); used by `demodulate2400AC()`, by `demodulate2400iq()` (the stock demodulator on an I/Q buffer, for the fallback) and by DEMOD_2400X's adaptive gain | Mode A/C and the fallback use the stock demodulator, which expects magnitudes; one conversion serves all three |
+| `stats.c/h`, `net_io.c` | Three coherent counters; `--stats` lines and `"coherent":{...}` in `stats.json` `local`, only while the coherent pass runs; `samples_fallback` (samples demodulated by stock while DEMOD_2400X was behind), in `--stats` only | Live monitoring of the coherent pass and the fallback. Consumers that ignore unknown fields are unaffected |
 | `dsp/starchgen.py` | Seven new starch functions | The kernels |
 | `wisdom.*` | Kernel order for the new functions | starch picks the fastest version |
 | `README.md` | A short section pointing at these documents | |
@@ -264,16 +265,19 @@ doesn't have the two options.
   and `--no-coherent` drops the second pass. The cost is CPU: on a Pi 3B the
   default uses about 40% of one core for demodulation against 14% for stock
   (see [Raspberry Pi 3B](#raspberry-pi-3b)). A Pi 3B running it needs a
-  heatsink: if it throttles to 600 MHz it can't keep up and drops samples.
-  `vcgencmd get_throttled` shows whether it has throttled (0x0 if never).
+  heatsink: if it throttles to 600 MHz it needs about twice the CPU and may
+  fall behind. `vcgencmd get_throttled` shows whether it has throttled (0x0 if
+  never). When DEMOD_2400X falls behind with live input it hands buffers to
+  the stock demodulator until it catches up, instead of dropping them.
 * The default version string is `11.2x`; upstream's is `unknown` (packages
   set it).
 * `--dcfilter` is still not supported (as upstream), although the converters
   now remove DC anyway.
 * Mode A/C (`--modeac`) with DEMOD_2400X goes through `getMagnitude()`, which
-  keeps a static buffer. With `--no-demod2400x` its output is identical to
+  keeps one static buffer, shared with the fallback and adaptive gain. With `--no-demod2400x` its output is identical to
   stock, and it runs clean under the sanitizers.
-* Statics: `getMagnitude()`'s buffer, the coherent statistics, sample-dump
+* Statics: `getMagnitude()`'s buffer and `demod_magnitude`, `demodBehind()`'s
+  state, the coherent statistics, sample-dump
   state and `fineTiming()`'s magnitude table (filled on first use) in
   `demod_2400x.c`, and two diagnostic globals in `demod_2400x_coherent.c`.
   All are used from the demodulator thread only.
@@ -343,6 +347,18 @@ preamble search, over half of it, cost the same whatever the traffic. Earlier
 builds (square root, divide, single-byte stores) needed 63% of a core, and at
 600 MHz (thermal throttling) could not keep up, so a heatsink is still
 advisable. The steps that got it here are in "Decisions and why".
+
+With throttled file input on core 3 (a test build that lets files fall back),
+the 20 s of capture a:
+
+| Core 3 shared with | Samples on stock | Switches | Frames (correct CRC) |
+|---|---|---|---|
+| nothing | 0 | 0 | 30,836 |
+| 1 busy loop | 0 | 0 | 30,836 |
+| 2 busy loops | 25% | 9 | 28,873 (−6.4%) |
+
+So it keeps up even with half a core, and with a third it loses a few percent
+of frames instead of whole buffers.
 
 The static `dump1090` for ARMv7 needs `-lncurses`, which the cross-compiler
 doesn't have; ncurses is only used by interactive mode, so the test build

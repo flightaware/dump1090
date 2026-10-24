@@ -125,13 +125,22 @@ Pi, so they may be slightly high. The Pi 3B times are for the first 20 s of
 the capture, times 3; on a Pi 3B the default uses about 40% of one core for
 demodulation (see
 [NOTES-demod2400x.md](NOTES-demod2400x.md#raspberry-pi-3b)). A Pi 3B needs a
-heatsink: if it overheats and throttles to 600 MHz it can't keep up and drops
-samples (`vcgencmd get_throttled` shows 0x0 if it has never throttled), and
-`--no-coherent` or `--no-demod2400x` reduce the load. Live on the Pi 4,
+heatsink: if it overheats and throttles to 600 MHz it needs about twice the CPU
+and may fall behind (`vcgencmd get_throttled` shows 0x0 if it has never
+throttled), and `--no-coherent` or `--no-demod2400x` reduce the load. Live on the Pi 4,
 with about 105,000 messages a minute, demodulation took about 25% of one
 core before the wider coherent search (about 5% more with it, from the
 captures). These results come from one receiver and a one-minute capture; longer
 side-by-side runs are in progress.
+
+If the demodulator falls behind with live input (about 2/3 of its 16 FIFO
+buffers queued), each buffer goes to the stock demodulator until the queue is
+down to 1/3, and each switch is logged ("DEMOD_2400X can't keep up" in the
+journal). A burst of load then costs some messages instead of whole dropped
+buffers. On a Pi 3B whose core was shared with two busy processes, a quarter of
+the samples went to stock and 6.4% of frames were lost; with the core to
+itself, or shared with one, it never fell back. File input (`--ifile`) never
+falls back, so tests always run DEMOD_2400X.
 
 ## Compilers
 
