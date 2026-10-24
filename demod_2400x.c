@@ -125,11 +125,10 @@ struct staticdata_t {
     int next_start;         // first peak position to search in this buffer (skips the rest of a
                             // frame decoded at the end of the previous buffer)
 
-    // Adaptive gain input, as demod_2400.c: 2.4 MHz magnitudes (0..65535) of this buffer
-    // and the first sample not yet passed to adaptive_update()
-    int asize;
-    uint16_t *abuf;
-    uint16_t *amag;         // abuf, or NULL when adaptive gain is off
+    // Adaptive gain input, as demod_2400.c: 2.4 MHz magnitudes (0..65535) of this piece
+    // (from getMagnitude(), shared with the stock demodulators) and the first sample not
+    // yet passed to adaptive_update()
+    uint16_t *amag;         // NULL when adaptive gain is off
     unsigned adaptive_end;
 };
 
@@ -238,7 +237,6 @@ static int allocateBuffers(struct staticdata_t *stdata, int totalLength) {
 
    if (allocBuffer(6*stride*sizeof(uint8_t), &stdata->usize, (void **)&stdata->udata) < 0) return -1;
    if (allocBuffer(mt*sizeof(uint8_t), &stdata->msize, (void **)&stdata->metric) < 0) return -1;
-   if (allocBuffer(totalLength*sizeof(uint16_t), &stdata->asize, (void **)&stdata->abuf) < 0) return -1;
 
    return 0;
 }
@@ -617,7 +615,7 @@ static double searchFrames(const struct mag_buf *mag, struct staticdata_t *st, i
 //#define CHECK_USAMP
 //#define CHECK_POW
 // mag->data contains DC-removed signed 12-bit I/Q sample pairs (-2048..2047): [overlap | new samples]
-static void demodulateBlock(struct mag_buf *mag, struct staticdata_t *st)
+static void demodulateBlock(struct mag_buf *mag, struct staticdata_t *st, uint16_t *amag)
 {
    unsigned overlap = mag->overlap;
    unsigned dlen = mag->validLength;            // whole buffer, overlap included
@@ -658,10 +656,8 @@ static void demodulateBlock(struct mag_buf *mag, struct staticdata_t *st)
 #endif
 
    // Magnitudes for adaptive gain, on the stock scale
-   st->amag = NULL;
-   if (Modes.adaptive_burst_control || Modes.adaptive_range_control) {
-       st->amag = st->abuf;
-       starch_magnitude_sc16q11((const sc16_t *) mag->data, st->amag, dlen);
+   st->amag = amag;
+   if (amag) {
        if (st->adaptive_end > newlen || (mag->flags & MAGBUF_DISCONTINUOUS))
            st->adaptive_end = 0;
    }
@@ -694,6 +690,11 @@ void demodulate2400x(struct mag_buf *mag)
    if (allocateBuffers(&stdata, MIN(mag->totalLength, overlap + DEMOD_BLOCK)) < 0)
        return;
 
+   // Magnitudes of the whole buffer for adaptive gain (made once, see getMagnitude())
+   uint16_t *amag = NULL;
+   if ((Modes.adaptive_burst_control || Modes.adaptive_range_control) && (amag = getMagnitude(mag)) == NULL)
+       return;
+
    // Each piece: the previous piece's last 'overlap' samples, then up to
    // DEMOD_BLOCK new ones, just as if the FIFO buffers were that size
    for (unsigned start = 0; start < newlen; start += DEMOD_BLOCK) {
@@ -705,7 +706,7 @@ void demodulate2400x(struct mag_buf *mag)
        piece.sysTimestamp = mag->sysTimestamp + receiveclock_ms_elapsed(mag->sampleTimestamp, piece.sampleTimestamp);
        if (start)
            piece.flags &= ~MAGBUF_DISCONTINUOUS;
-       demodulateBlock(&piece, &stdata);
+       demodulateBlock(&piece, &stdata, amag ? amag + start : NULL);
    }
 }
 

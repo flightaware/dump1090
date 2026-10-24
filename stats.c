@@ -81,6 +81,10 @@ void display_stats(struct stats *st) {
         printf("Local receiver:\n");
         printf("  %12llu samples processed\n",                        (unsigned long long)st->samples_processed);
         printf("  %12llu samples dropped\n",                          (unsigned long long)st->samples_dropped);
+#ifdef DEMOD_2400X
+        if (Modes.demod_2400x)
+            printf("  %12llu samples demodulated by stock (DEMOD_2400X behind)\n", (unsigned long long)st->samples_fallback);
+#endif
 
         printf("  %12u Mode A/C messages received\n",                 st->demod_modeac);
         printf("  %12u Mode-S message preambles received\n",          st->demod_preambles);
@@ -348,6 +352,9 @@ void add_stats(const struct stats *st1, const struct stats *st2, struct stats *t
 
     target->samples_processed = st1->samples_processed + st2->samples_processed;
     target->samples_dropped = st1->samples_dropped + st2->samples_dropped;
+#ifdef DEMOD_2400X
+    target->samples_fallback = st1->samples_fallback + st2->samples_fallback;
+#endif
 
     target->sdr_gain = newer->sdr_gain;
 

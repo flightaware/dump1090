@@ -72,6 +72,9 @@ struct stats {
 
     uint64_t samples_processed;
     uint64_t samples_dropped;
+#ifdef DEMOD_2400X
+    uint64_t samples_fallback;  // demodulated by the stock demodulator while DEMOD_2400X was behind
+#endif
 
     // SDR settings:
     int sdr_gain;  // current gain step in use

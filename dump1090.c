@@ -173,7 +173,8 @@ static void modesInit(void) {
     }
 
     // The DEMOD_2400X demodulator takes I/Q samples, the stock one magnitudes
-    if (!fifo_create(MODES_MAG_BUFFERS, MODES_MAG_BUF_SAMPLES + Modes.trailing_samples, Modes.demod_2400x ? 1 : 0, Modes.trailing_samples)) {
+    if (!fifo_create(Modes.demod_2400x ? MODES_MAG_BUFFERS_2400X : MODES_MAG_BUFFERS, MODES_MAG_BUF_SAMPLES + Modes.trailing_samples,
+                     Modes.demod_2400x ? 1 : 0, Modes.trailing_samples)) {
         fprintf(stderr, "Out of memory allocating FIFO\n");
         exit(1);
     }
@@ -607,6 +608,40 @@ static void applyNetDefaults()
         Modes.net_output_beast_ports = strdup("30005");
 }
 
+#ifdef DEMOD_2400X
+// DEMOD_2400X falls back to the stock demodulator while the CPU can't keep up: from
+// when about 2/3 of the FIFO is queued until it is down to 1/3, so a burst of load
+// costs some messages instead of whole dropped buffers. A buffer's age (from the start
+// of its samples) less its own length, in buffer lengths, is about the number queued
+// behind it. Live input only: a file is read only as fast as it is demodulated, so its
+// FIFO is always full but never drops samples, and a test must not fall back. On a
+// switch, sets MAGBUF_DISCONTINUOUS in *flags for the demodulator taking over
+static bool demodBehind(const struct mag_buf *buf, mag_buf_flags *flags)
+{
+    static bool behind;
+
+#ifndef DEMOD_FALLBACK_TEST
+    if (Modes.sdr_type == SDR_IFILE)
+        return false;
+#endif
+    const double len_ms = (buf->validLength - buf->overlap) * 1000.0 / Modes.sample_rate;
+    if (len_ms <= 0)
+        return behind;
+    const double queued = ((double) mstime() - (double) buf->sysTimestamp - len_ms) / len_ms;
+    if (!behind && 3 * queued >= 2 * MODES_MAG_BUFFERS_2400X) {
+        behind = true;
+        log_with_timestamp("DEMOD_2400X can't keep up (%.0f buffers queued): stock demodulator until it catches up", queued);
+    } else if (behind && 3 * queued <= MODES_MAG_BUFFERS_2400X) {
+        behind = false;
+        log_with_timestamp("DEMOD_2400X caught up, back from the stock demodulator");
+    } else {
+        return behind;
+    }
+    *flags |= MAGBUF_DISCONTINUOUS;
+    return behind;
+}
+#endif
+
 int main(int argc, char **argv) {
     int j;
 
@@ -923,9 +958,18 @@ int main(int argc, char **argv) {
 
                 start_cpu_timing(&start_time);
 #ifdef DEMOD_2400X
-                if (Modes.demod_2400x)
-                    demodulate2400x(buf);
-                else
+                demod_magnitude = NULL;     // this buffer's magnitudes aren't made yet
+                if (Modes.demod_2400x) {
+                    // A switch between demodulators is a gap for the one taking over
+                    struct mag_buf b = *buf;
+                    const bool behind = demodBehind(buf, &b.flags);
+                    if (behind) {
+                        demodulate2400iq(&b);
+                        Modes.stats_current.samples_fallback += buf->validLength - buf->overlap;
+                    } else {
+                        demodulate2400x(&b);
+                    }
+                } else
 #endif
                     demodulate2400(buf);
                 if (Modes.mode_ac) {

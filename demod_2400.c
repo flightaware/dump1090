@@ -538,12 +538,19 @@ static void draw_modeac(uint16_t *m, unsigned modeac, unsigned f1_clock, unsigne
 
 #ifdef DEMOD_2400X
 
-// Convert the IQ FIFO buffer (interleaved 12-bit I/Q = SC16Q11 layout) into
-// magnitudes for the stock demodulators. Returns NULL if out of memory.
-static uint16_t *getMagnitude(struct mag_buf *mag)
+// Magnitudes of the I/Q FIFO buffer being demodulated (interleaved 12-bit I/Q =
+// SC16Q11 layout), for the stock demodulators and adaptive gain. Only the demodulator
+// thread uses them, so there is one array; the main loop sets demod_magnitude to NULL
+// before each buffer, and the first caller converts it. Returns NULL if out of memory.
+uint16_t *demod_magnitude;
+
+uint16_t *getMagnitude(struct mag_buf *mag)
 {
     static uint16_t *mptr = NULL;
     static unsigned msize = 0;
+
+    if (demod_magnitude)
+        return demod_magnitude;
 
     if (mag->totalLength > msize) {
 
@@ -562,7 +569,15 @@ static uint16_t *getMagnitude(struct mag_buf *mag)
     // whole buffer, including the leading overlap the demodulator looks back into
     starch_magnitude_sc16q11((const sc16_t *) mag->data, mptr, mag->validLength);
 
-    return mptr;
+    return demod_magnitude = mptr;
+}
+
+// The stock demodulator on the I/Q FIFO buffer, from its magnitudes
+void demodulate2400iq(struct mag_buf *mag)
+{
+    struct mag_buf m = *mag;
+    if ((m.data = getMagnitude(mag)) != NULL)
+        demodulate2400(&m);
 }
 #endif
 
