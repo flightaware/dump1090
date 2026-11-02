@@ -57,6 +57,29 @@ void decodeCommB(struct modesMessage *mm)
         return;
     }
 
+    // Data parity: the reply itself names the register
+    if (mm->dp_bds) {
+        CommBDecoderFn fn = NULL;
+        switch (mm->dp_bds) {
+        case 0x10: fn = decodeBDS10; break;
+        case 0x17: fn = decodeBDS17; break;
+        case 0x20: fn = decodeBDS20; break;
+        case 0x30: fn = decodeBDS30; break;
+        case 0x40: fn = decodeBDS40; break;
+        case 0x44: fn = decodeBDS44; break;
+        case 0x50: fn = decodeBDS50; break;
+        case 0x60: fn = decodeBDS60; break;
+        }
+        if (!fn) {
+            mm->commb_format = COMMB_UNKNOWN;
+        } else if (fn(mm, false) > 0) {
+            fn(mm, true);
+        } else {
+            mm->commb_format = COMMB_REJECTED;
+        }
+        return;
+    }
+
     // This is a bit hairy as we don't know what the requested register was
     int bestScore = 0;
     CommBDecoderFn bestDecoder = NULL;
