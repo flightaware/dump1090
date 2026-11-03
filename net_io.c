@@ -2648,6 +2648,7 @@ static void writeFATSV()
 {
     struct aircraft *a;
     static uint64_t next_update;
+    static uint32_t resume_at; // if non-zero, last scan stopped at this aircraft
 
     if (!Modes.fatsv_out.service || !Modes.fatsv_out.service->connections) {
         return; // not enabled or no active connections
@@ -2661,7 +2662,25 @@ static void writeFATSV()
     // scan once a second at most
     next_update = now + 1000;
 
-    for (a = Modes.aircrafts; a; a = a->next) {
+    unsigned emitted = 0;                    // Bytes emitted so far this update
+    const unsigned BYTES_PER_UPDATE = 10000; // Generate up to about this many bytes per update
+
+    // Find our starting point
+    a = Modes.aircrafts;
+    if (resume_at) {
+        for (; a; a = a->next) {
+            if (a->addr == resume_at)
+                break;
+        }
+        if (!a) {
+            // Missed the resume point (e.g. aircraft entry expired)
+            // just run the whole list again
+            a = Modes.aircrafts;
+        }
+    }
+
+    // Scan until we've emitted enough, or reached the end of the list
+    for (; a && emitted < BYTES_PER_UPDATE; a = a->next) {
         if (!a->reliable)
             continue;
 
@@ -2755,6 +2774,7 @@ static void writeFATSV()
         char *p = prepareWrite(&Modes.fatsv_out, TSV_MAX_PACKET_SIZE);
         if (!p)
             return;
+        char *start = p;
         char *end = p + TSV_MAX_PACKET_SIZE;
 
         p = appendFATSV(p, end, "_v",    "%s", TSV_VERSION);
@@ -2845,10 +2865,12 @@ static void writeFATSV()
         --p; // remove last tab
         p = safe_snprintf(p, end, "\n");
 
-        if (p < end)
+        if (p < end) {
+            emitted += (p - start);
             completeWrite(&Modes.fatsv_out, p);
-        else
+        } else {
             fprintf(stderr, "fatsv: output too large (max %d, overran by %d)\n", TSV_MAX_PACKET_SIZE, (int) (p - end));
+        }
 
         a->fatsv_emitted_altitude_baro = a->altitude_baro;
         a->fatsv_emitted_altitude_geom = a->altitude_geom;
@@ -2886,6 +2908,12 @@ static void writeFATSV()
             a->fatsv_last_force_emit = now;
         }
     }
+
+    // If we didn't completely scan the list, resume next time
+    // from the point where we stopped. We use the aircraft
+    // address to track this, to avoid worrying about the lifetime
+    // of the aircraft struct.
+    resume_at = a ? a->addr : 0;
 }
 
 //
