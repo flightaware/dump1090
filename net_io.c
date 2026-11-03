@@ -128,6 +128,7 @@ struct net_service *serviceInit(const char *descr, struct net_writer *writer, he
 
         service->writer->service = service;
         service->writer->dataUsed = 0;
+        service->writer->pending = 0;
         service->writer->lastWrite = mstime();
         service->writer->send_heartbeat = hb;
     }
@@ -161,6 +162,7 @@ struct client *createGenericClient(struct net_service *service, int fd)
     c->modeac_requested = 0;
     c->verbatim_requested = (service == Modes.beast_verbatim_service || service == Modes.beast_verbatim_local_service);
     c->local_requested = (service == Modes.beast_verbatim_local_service);
+    c->out_index = 0;
     Modes.clients = c;
 
     moveNetClient(c, service);
@@ -339,36 +341,107 @@ static void modesCloseClient(struct client *c) {
 
     autoset_modeac();
 }
+
+// Try to write more data for a single client, advancing c->out_index.
+// Return false on a (permanent) write error (the client is _not_
+// closed, the caller should do that). A short write isn't considered
+// an error.
+static bool flushClient(struct client *c)
+{
+    if (!c->service)
+        return false;
+    if (!c->service->writer)
+        return true; // no work to do
+
+    struct net_writer *writer = c->service->writer;
+    assert(c->out_index <= writer->dataUsed);
+    if (c->out_index == writer->dataUsed)
+        return true; // no work to do
+
+    int nwritten = write(c->fd, writer->data + c->out_index, writer->dataUsed - c->out_index);
+    if (nwritten < 0) {
+        // a write error (possibly a temporary no-buffer-space error)
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            // a real write error
+            return false;
+        }
+    } else {
+        assert((unsigned)nwritten <= writer->dataUsed - c->out_index);
+        c->out_index += nwritten;
+    }
+
+    return true;
+}
+
 //
 //=========================================================================
 //
 // Send the write buffer for the specified writer to all connected clients
 //
-static void flushWrites(struct net_writer *writer) {
+static void flushWrites(struct net_writer *writer, unsigned minspace)
+{
     struct client *c;
 
+    assert(writer->dataUsed <= MODES_OUT_BUF_SIZE);
+    assert(minspace <= MODES_OUT_BUF_SIZE);
+
+    unsigned min_consumed = writer->dataUsed;
     for (c = Modes.clients; c; c = c->next) {
-        if (!c->service)
+        if (c->service != writer->service)
             continue;
-        if (c->service == writer->service) {
-#ifndef _WIN32
-            int nwritten = write(c->fd, writer->data, writer->dataUsed);
-#else
-            int nwritten = send(c->fd, writer->data, writer->dataUsed, 0 );
-#endif
-            if (nwritten != writer->dataUsed) {
-                modesCloseClient(c);
-            }
+
+        if (!flushClient(c)) {
+            // write error
+            modesCloseClient(c);
+            continue;
         }
+
+        if (MODES_OUT_BUF_SIZE - (writer->dataUsed - c->out_index) < minspace) {
+            // we did not clear enough space to satisfy minspace, this client
+            // is not keeping up, drop the client (and don't count it against
+            // min_consumed)
+            modesCloseClient(c);
+            continue;
+        }
+
+        if (c->out_index < min_consumed)
+            min_consumed = c->out_index;
     }
 
-    writer->dataUsed = 0;
+    // min_consumed is the number of bytes at the start of the buffer
+    // that were successfully written by _all_ clients; we no longer
+    // need these bytes and can discard them. Most of the time,
+    // min_consumed == dataUsed (i.e. all clients successfully write
+    // the whole buffer, and we can discard the whole buffer)
+
+    // discard the start of the buffer and move the retained part to the start
+    assert(min_consumed <= writer->dataUsed);
+    writer->dataUsed -= min_consumed;
+    if (writer->dataUsed) {
+        memmove(writer->data, writer->data + min_consumed, writer->dataUsed);
+    }
+
+    // adjust every client's out_index to account for the discarded part
+    // (this can't happen in the earlier loop because we don't know the
+    // final min_consumed value at that point)
+    for (c = Modes.clients; c; c = c->next) {
+        if (c->service != writer->service)
+            continue;
+        assert(c->out_index >= min_consumed);
+        c->out_index -= min_consumed;
+        assert(c->out_index <= writer->dataUsed);
+    }
+
+    writer->pending = 0;
     writer->lastWrite = mstime();
+
+    assert(MODES_OUT_BUF_SIZE - writer->dataUsed >= minspace);
 }
 
 // Prepare to write up to 'len' bytes to the given net_writer.
 // Returns a pointer to write to, or NULL to skip this write.
-static void *prepareWrite(struct net_writer *writer, int len) {
+static void *prepareWrite(struct net_writer *writer, unsigned len)
+{
     if (!writer ||
         !writer->service ||
         !writer->service->connections ||
@@ -379,8 +452,10 @@ static void *prepareWrite(struct net_writer *writer, int len) {
         return NULL;
 
     if (writer->dataUsed + len >= MODES_OUT_BUF_SIZE) {
-        // Flush now to free some space
-        flushWrites(writer);
+        // Flush now to free some space.
+        // Ensure that we free at least net_output_flush_size to avoid
+        // one slow client triggering many small writes
+        flushWrites(writer, len < Modes.net_output_flush_size ? Modes.net_output_flush_size : len);
     }
 
     return writer->data + writer->dataUsed;
@@ -390,10 +465,15 @@ static void *prepareWrite(struct net_writer *writer, int len) {
 // endptr should point one byte past the last byte written
 // to the buffer returned from prepareWrite.
 static void completeWrite(struct net_writer *writer, void *endptr) {
-    writer->dataUsed = endptr - writer->data;
+    assert(endptr >= writer->data + writer->dataUsed);
+    assert(endptr <= writer->data + MODES_OUT_BUF_SIZE);
 
-    if (writer->dataUsed >= Modes.net_output_flush_size) {
-        flushWrites(writer);
+    unsigned added = endptr - (writer->data + writer->dataUsed);
+    writer->dataUsed += added;
+    writer->pending += added;
+
+    if (writer->pending >= Modes.net_output_flush_size) {
+        flushWrites(writer, 0);
     }
 }
 
@@ -1118,17 +1198,38 @@ static void moveNetClient(struct client *c, struct net_service *new_service)
     if (c->service == new_service)
         return;
 
+    // The only place where we are sure there is a message boundary
+    // is at the end of any pending write data i.e. at
+    // writer->data + writer->dataUsed; make sure we switch services
+    // only at those boundaries.
+
     if (c->service) {
-        // Flush to ensure correct message framing
-        if (c->service->writer)
-            flushWrites(c->service->writer);
+        if (c->service->writer) {
+            // Write all pending data for this client (hopefully)
+            if (!flushClient(c)) {
+                // write error
+                modesCloseClient(c);
+                return;
+            }
+
+            if (c->out_index != c->service->writer->dataUsed) {
+                // We're still not at a message boundary despite the flush,
+                // give up on this client
+                modesCloseClient(c);
+                return;
+            }
+
+            // we're at a message boundary and can safely continue
+        }
+
         --c->service->connections;
     }
 
     if (new_service) {
-        // Flush to ensure correct message framing
-        if (new_service->writer)
-            flushWrites(new_service->writer);
+        if (new_service->writer) {
+            // ensure new writes start from a message boundary
+            c->out_index = new_service->writer->dataUsed;
+        }
         ++new_service->connections;
     }
 
@@ -2337,6 +2438,9 @@ static void modesReadFromClient(struct client *c) {
                     return;
                 }
 
+                if (!c->service) // handler might close the connection in some edge cases
+                    return;
+
                 // advance to next message
                 som = eom;
             }
@@ -2380,6 +2484,9 @@ static void modesReadFromClient(struct client *c) {
                     return;
                 }
 
+                if (!c->service) // handler might close the connection in some edge cases
+                    return;
+
                 // advance to next message
                 som = eom;
             }
@@ -2401,6 +2508,10 @@ static void modesReadFromClient(struct client *c) {
                     modesCloseClient(c);           // Handler returns 1 on error to signal we .
                     return;                        // should close the client connection
                 }
+
+                if (!c->service) // handler might close the connection in some edge cases
+                    return;
+
                 som = p + strlen(c->service->read_sep);               // Move to start of next message
             }
 
@@ -2895,7 +3006,6 @@ void modesNetPeriodicWork(void) {
     struct client *c, **prev;
     struct net_service *s;
     uint64_t now = mstime();
-    int need_flush = 0;
 
     // Accept new connections
     modesAcceptClients();
@@ -2929,8 +3039,8 @@ void modesNetPeriodicWork(void) {
     for (s = Modes.services; s; s = s->next) {
         if (s->writer &&
             s->writer->dataUsed &&
-            (need_flush || (s->writer->lastWrite + Modes.net_output_flush_interval) <= now)) {
-            flushWrites(s->writer);
+            (s->writer->lastWrite + Modes.net_output_flush_interval) <= now) {
+            flushWrites(s->writer, 0);
         }
     }
 
