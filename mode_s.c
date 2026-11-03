@@ -345,6 +345,25 @@ static int correctMessage(const unsigned char *in, unsigned char *out, uint32_t 
     return -1;
 }
 
+// Data Parity (DP) overlay for DF20/21: when an interrogator asks for a
+// Comm-B register with data parity, the reply's parity is overlaid with
+// address XOR (BDS1,BDS2 << 16) instead of the plain address.
+// Given a syndrome, return the register if syndrome ^ (bds << 16) is a
+// recently seen aircraft, else 0.
+static const uint8_t dp_registers[] = {
+    0x10, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x30,
+    0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x48, 0x50, 0x51, 0x52, 0x53, 0x5f, 0x60
+};
+
+static unsigned dataParityRegister(uint32_t syndrome)
+{
+    for (unsigned i = 0; i < sizeof(dp_registers); ++i) {
+        if (icaoFilterTest(syndrome ^ ((uint32_t)dp_registers[i] << 16)))
+            return dp_registers[i];
+    }
+    return 0;
+}
+
 // Score how plausible this ModeS message looks.
 // The more positive, the more reliable the message is.
 score_rank scoreModesMessage(const unsigned char *uncorrected)
@@ -372,12 +391,19 @@ score_rank scoreModesMessage(const unsigned char *uncorrected)
         }
 
     case 16: // long air-air surveillance
+        {
+            if (long_syndrome == UNCHECKED_SYNDROME)
+                long_syndrome = modesChecksum(corrected, MODES_LONG_MSG_BITS);
+            bool recent = icaoFilterTest(long_syndrome);
+            return recent ? SR_UNRELIABLE_KNOWN : SR_UNRELIABLE_UNKNOWN;
+        }
+
     case 20: // Comm-B, altitude reply
     case 21: // Comm-B, identity reply
         {
             if (long_syndrome == UNCHECKED_SYNDROME)
                 long_syndrome = modesChecksum(corrected, MODES_LONG_MSG_BITS);
-            bool recent = icaoFilterTest(long_syndrome);
+            bool recent = icaoFilterTest(long_syndrome) || dataParityRegister(long_syndrome) != 0;
             return recent ? SR_UNRELIABLE_KNOWN : SR_UNRELIABLE_UNKNOWN;
         }
 
@@ -594,6 +620,13 @@ int decodeModesMessage(struct modesMessage *mm, const unsigned char *in)
         mm->source = SOURCE_MODE_S;
         mm->addr = mm->crc;
         mm->reliable = 0;
+        if (!icaoFilterTest(mm->crc)) {
+            unsigned bds = dataParityRegister(mm->crc);
+            if (bds) {
+                mm->addr = mm->crc ^ (bds << 16);
+                mm->dp_bds = bds;
+            }
+        }
         break;
 
     case 24: // Comm-D (ELM)
@@ -731,6 +764,10 @@ int decodeModesMessage(struct modesMessage *mm, const unsigned char *in)
     if (mm->msgtype == 20 || mm->msgtype == 21) {
         memcpy(mm->MB, &msg[4], 7);
         decodeCommB(mm);
+        // A data parity match on a register we can decode, whose contents
+        // don't pass that register's checks, is most likely a damaged frame
+        if (mm->dp_bds && mm->commb_format == COMMB_REJECTED)
+            return -2;
     }
 
     // MD (message, Comm-D)
@@ -1683,6 +1720,8 @@ static const char *commb_format_to_string(commb_format_t format) {
         return "ambiguous format";
     case COMMB_NOT_DECODED:
         return "not decoded";
+    case COMMB_REJECTED:
+        return "rejected (data parity register mismatch)";
     case COMMB_DATALINK_CAPS:
         return "BDS1,0 Datalink capabilities";
     case COMMB_GICB_CAPS:

@@ -204,6 +204,7 @@ typedef enum {
     COMMB_UNKNOWN,
     COMMB_AMBIGUOUS,
     COMMB_NOT_DECODED,
+    COMMB_REJECTED,      // data parity named a register, but contents don't fit it
     COMMB_EMPTY_RESPONSE,
     COMMB_DATALINK_CAPS,
     COMMB_GICB_CAPS,
@@ -515,6 +516,7 @@ struct modesMessage {
     unsigned mesub;  // DF17/18 ME subtype
 
     commb_format_t commb_format; // Inferred format of a comm-b message
+    unsigned dp_bds;             // DF20/21: register named by data parity overlay, 0 if plain address/parity
 
     // valid if altitude_baro_valid:
     int               altitude_baro;       // Altitude in either feet or meters
