@@ -45,7 +45,36 @@ static struct {
 
     SoapySDRRange gain_range;
     int current_gain_step;
+
+    int sdrplay_lna_max;    // >= 0: SDRplay model in sdrplay_models[], highest LNA state at 1090 MHz;
+                            // total gain is then set through IFGR/RFGR here (soapySetTotalGain())
 } SOAPY;
+
+// SDRplay devices through SoapySDRPlay3: both gain elements are gain *reductions*
+// (IFGR = IF gain reduction in dB, 20..59; RFGR = LNA state, higher = more
+// attenuation), so SoapySDR's generic total gain runs backwards: its maximum is the
+// least gain. The module also reports one RFGR range per model, for all bands, but
+// fewer LNA states exist in L-band (1000-2000 MHz); at 1090 MHz the top of the
+// reported range is not valid, and sdrplay_api_Init() fails with it (seen on the
+// RSP1B: RFGR 9). For the models below dump1090 maps its own total gain onto the
+// two elements. Other models keep the generic mapping.
+#define SDRPLAY_IFGR_MIN 20
+#define SDRPLAY_IFGR_MAX 59
+
+static const struct {
+    const char *hw_key;     // SoapySDRPlay3 hardware key
+    int lna_max;            // highest LNA state in L-band
+} sdrplay_models[] = {
+    { "RSP1B", 8 },         // 9 L-band LNA states; tested on hardware
+
+    // Needs testing on hardware before enabling. L-band LNA state counts from the
+    // SDRplay API 3.15 headers:
+    // { "RSP1A",  8 },     // needs testing: RSPIA_NUM_LNA_STATES_LBAND 9 (sdrplay_api_rsp1a.h)
+    // { "RSPduo", 8 },     // needs testing: RSPDUO_NUM_LNA_STATES_LBAND 9 (sdrplay_api_rspDuo.h)
+    // { "RSPdx", 18 },     // needs testing: RSPDX_NUM_LNA_STATES_LBAND 19 (sdrplay_api_rspDx.h)
+    // RSP1, RSP2 and RSPdx-R2: no L-band figure in the headers; need the LNA state
+    // count at 1090 MHz and testing
+};
 
 // Polyfill some differences between SoapySDR 0.7 and 0.8
 #if !defined(SOAPY_SDR_API_VERSION) || (SOAPY_SDR_API_VERSION < 0x00080000)
@@ -79,6 +108,40 @@ static SoapySDRStream *polyfill_SoapySDRDevice_setupStream(SoapySDRDevice *devic
 // =============================== SoapySDR handling ==========================
 //
 
+// Set the total gain: the device's own mapping, except on the SDRplay models above,
+// where the gain below the maximum is taken off IFGR first (keeping the LNA at full
+// gain for the noise figure) and then off the LNA. Returns 0 on success.
+static int soapySetTotalGain(double gain)
+{
+    if (SOAPY.sdrplay_lna_max < 0)
+        return SoapySDRDevice_setGain(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel, gain) < 0 ? -1 : 0;
+
+    const int ifgr_span = SDRPLAY_IFGR_MAX - SDRPLAY_IFGR_MIN;
+    int reduction = (int) round(SOAPY.gain_range.maximum - gain);
+    if (reduction < 0)
+        reduction = 0;
+    if (reduction > ifgr_span + SOAPY.sdrplay_lna_max)
+        reduction = ifgr_span + SOAPY.sdrplay_lna_max;
+
+    const int ifgr = SDRPLAY_IFGR_MIN + (reduction < ifgr_span ? reduction : ifgr_span);
+    const int lna = reduction - (ifgr - SDRPLAY_IFGR_MIN);
+    if (SoapySDRDevice_setGainElement(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel, "IFGR", ifgr) != 0 ||
+        SoapySDRDevice_setGainElement(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel, "RFGR", lna) != 0)
+        return -1;
+    return 0;
+}
+
+// The total gain on the same scale as soapySetTotalGain()
+static double soapyGetTotalGain(void)
+{
+    if (SOAPY.sdrplay_lna_max < 0)
+        return SoapySDRDevice_getGain(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel);
+
+    const double ifgr = SoapySDRDevice_getGainElement(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel, "IFGR");
+    const double lna = SoapySDRDevice_getGainElement(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel, "RFGR");
+    return SOAPY.gain_range.maximum - ((ifgr - SDRPLAY_IFGR_MIN) + lna);
+}
+
 void soapyInitConfig()
 {
     SOAPY.dev = NULL;
@@ -91,6 +154,7 @@ void soapyInitConfig()
     SOAPY.enable_agc = false;
     SOAPY.num_gain_elements = 0;
     SOAPY.gain_elements = NULL;
+    SOAPY.sdrplay_lna_max = -1;
     SOAPY.num_settings = 0;
     SOAPY.settings = NULL;
 }
@@ -214,12 +278,14 @@ bool soapyOpen(void)
     }
     SoapySDRKwargs_clear(&result);
 
+    bool is_sdrplay = false;
     char* driver_key = SoapySDRDevice_getDriverKey(SOAPY.dev);
     if (driver_key) {
         fprintf(stderr, "soapy: driver key:      %s\n", driver_key);
 
         // Apply driver-specific defaults
         if (!strcmp(driver_key, "SDRplay")) {
+            is_sdrplay = true;
             // Default to 5MHz bandwidth
             if (SOAPY.bandwidth == 0)
                 SOAPY.bandwidth = 5.0e6;
@@ -231,6 +297,9 @@ bool soapyOpen(void)
     char* hw_key = SoapySDRDevice_getHardwareKey(SOAPY.dev);
     if (hw_key) {
         fprintf(stderr, "soapy: hardware key:    %s\n", hw_key);
+        for (size_t i = 0; is_sdrplay && i < sizeof(sdrplay_models) / sizeof(sdrplay_models[0]); i++)
+            if (!strcmp(hw_key, sdrplay_models[i].hw_key))
+                SOAPY.sdrplay_lna_max = sdrplay_models[i].lna_max;
         SoapySDR_free(hw_key);
     }
 
@@ -298,6 +367,11 @@ bool soapyOpen(void)
     }
 
     SOAPY.gain_range = SoapySDRDevice_getGainRange(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel);
+    if (SOAPY.sdrplay_lna_max >= 0) {
+        SOAPY.gain_range.minimum = 0;
+        SOAPY.gain_range.maximum = (SDRPLAY_IFGR_MAX - SDRPLAY_IFGR_MIN) + SOAPY.sdrplay_lna_max;
+        SOAPY.gain_range.step = 1;
+    }
     if (SOAPY.gain_range.step <= 0)
         SOAPY.gain_range.step = 1.0;
     else if (SOAPY.gain_range.step <= 0.1)
@@ -326,7 +400,7 @@ bool soapyOpen(void)
         }
 
         double gain = (Modes.gain == MODES_DEFAULT_GAIN ? SOAPY.gain_range.maximum : Modes.gain);
-        if (SoapySDRDevice_setGain(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel, gain) < 0) {
+        if (soapySetTotalGain(gain) != 0) {
             fprintf(stderr, "soapy: setGain(%.1fdB) failed\n", gain);
             goto error;
         }
@@ -355,7 +429,7 @@ bool soapyOpen(void)
         }
     }
 
-    SOAPY.current_gain_step = (int) round( (SoapySDRDevice_getGain(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel) - SOAPY.gain_range.minimum) / SOAPY.gain_range.step );
+    SOAPY.current_gain_step = (int) round( (soapyGetTotalGain() - SOAPY.gain_range.minimum) / SOAPY.gain_range.step );
     if (Modes.adaptive_range_target == 0)
         Modes.adaptive_range_target = (SOAPY.gain_range.maximum - SOAPY.gain_range.minimum) * 0.6; // just a wild guess
 
@@ -369,8 +443,7 @@ bool soapyOpen(void)
     // Done configuring, report the final device state
     //
 
-    fprintf(stderr, "soapy: total gain:      %.1fdB",
-            SoapySDRDevice_getGain(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel));
+    fprintf(stderr, "soapy: total gain:      %.1fdB", soapyGetTotalGain());
     char** gain_elements = SoapySDRDevice_listGains(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel, &length);
     if (gain_elements) {
         for (size_t i = 0; i < length; i++) {
@@ -589,12 +662,12 @@ double soapyGetGainDb(int step) {
 int soapySetGain(int step) {
     double gainDb = soapyGetGainDb(step);
 
-    if (SoapySDRDevice_setGain(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel, gainDb) != 0) {
+    if (soapySetTotalGain(gainDb) != 0) {
         fprintf(stderr, "soapy: setGain(%.1fdB) failed: %s\n", gainDb, SoapySDRDevice_lastError());
         return -1;
     }
 
-    fprintf(stderr, "soapy: total gain set to %.1fdB", SoapySDRDevice_getGain(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel));
+    fprintf(stderr, "soapy: total gain set to %.1fdB", soapyGetTotalGain());
     size_t length = 0;
     char** gain_elements = SoapySDRDevice_listGains(SOAPY.dev, SOAPY_SDR_RX, SOAPY.channel, &length);
     for (size_t i = 0; i < length; i++) {
