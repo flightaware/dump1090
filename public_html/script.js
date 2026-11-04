@@ -18,6 +18,16 @@ var infoBoxOriginalPosition = {};
 var customAltitudeColors = true;
 var myAdsbStatsSiteUrl = null;
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+}
+
 var ADSB_Enabled = true;
 var UAT_Enabled = false;
 
@@ -2458,7 +2468,9 @@ function getFlightAwareIdentLink(ident, linkText) {
         if (!linkText) {
             linkText = ident;
         }
-        return "<a target=\"_blank\" href=\"https://flightaware.com/live/flight/" + ident.trim() + "\"><span title=\"Bold ident indicates this is an aircraft registration number\"> " + linkText + "</span></a>";
+        var safeIdent = encodeURIComponent(ident.trim());
+        var safeLinkText = escapeHtml(linkText);
+        return "<a target=\"_blank\" href=\"https://flightaware.com/live/flight/" + safeIdent + "\"><span title=\"Bold ident indicates this is an aircraft registration number\"> " + safeLinkText + "</span></a>";
     }
 
     return "";
@@ -2470,11 +2482,12 @@ function getFlightAwareModeSLink(code, ident, linkText) {
             linkText = "FlightAware: " + code.toUpperCase();
         }
 
-        var linkHtml = "<a target=\"_blank\" href=\"https://flightaware.com/live/modes/" + code ;
+        var safeCode = encodeURIComponent(code);
+        var linkHtml = "<a target=\"_blank\" href=\"https://flightaware.com/live/modes/" + safeCode;
         if (ident !== null && ident !== "") {
-            linkHtml += "/ident/" + ident.trim();
+            linkHtml += "/ident/" + encodeURIComponent(ident.trim());
         }
-        linkHtml += "/redirect\">" + linkText + "</a>";
+        linkHtml += "/redirect\">" + escapeHtml(linkText) + "</a>";
         return linkHtml;
     }
 
@@ -2491,10 +2504,12 @@ function getFlightAwarePhotoLink(registration) {
 
 function getAirframesModeSLink(code) {
     if (code !== null && code.length > 0 && code[0] !== '~' && code !== "000000") {
-        return "<a href=\"http://www.airframes.org/\" onclick=\"$('#airframes_post_icao').attr('value','" + code + "'); document.getElementById('horrible_hack').submit.call(document.getElementById('airframes_post')); return false;\">Airframes.org: " + code.toUpperCase() + "</a>";
+        var safeCode = code.replace(/[^0-9a-fA-F]/g, '');
+        var displayCode = escapeHtml(code.toUpperCase());
+        return "<a href=\"https://www.airframes.org/\" onclick=\"$('#airframes_post_icao').attr('value','" + safeCode + "'); document.getElementById('horrible_hack').submit.call(document.getElementById('airframes_post')); return false;\">Airframes.org: " + displayCode + "</a>";
     }
 
-    return "";   
+    return "";
 }
 
 
