@@ -82,6 +82,8 @@ else
     fi
 
     if [ "$ERROR_CORRECTION" = "yes" ]; then OPTS="$OPTS --fix"; fi
+    if [ "$DEMOD_2400X" = "no" ]; then OPTS="$OPTS --no-demod2400x"; fi
+    if [ "$COHERENT" = "no" ]; then OPTS="$OPTS --no-coherent"; fi
 
     if [ -n "$RECEIVER_LAT" -a -n "$RECEIVER_LON" ]; then
         OPTS="$OPTS --lat $RECEIVER_LAT --lon $RECEIVER_LON"

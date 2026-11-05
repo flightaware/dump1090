@@ -264,7 +264,7 @@ static int handle_hackrf_samples(hackrf_transfer *transfer)
         dropped = samples_read - to_convert;
     }
 
-    HackRF.converter(buf, &outbuf->data[outbuf->overlap], to_convert, HackRF.converter_state, &outbuf->mean_level, &outbuf->mean_power);
+    HackRF.converter(buf, magbuf_sample(outbuf, outbuf->overlap), to_convert, HackRF.converter_state, &outbuf->mean_level, &outbuf->mean_power);
     outbuf->validLength = outbuf->overlap + to_convert;
 
     // Push to the demodulation thread

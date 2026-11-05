@@ -23,3 +23,36 @@ mean_power_u16                           u32_generic                            
 count_above_u16                          generic_x86_avx2                          # 20 ns/call
 count_above_u16                          generic_generic                           # 30 ns/call
 
+
+# DEMOD_2400X kernels (8-bit log power), measured with starch-benchmark -i 5 (x86-64 with AVX2)
+upsample12                               avx2_x86_avx2                             # 869303 ns/call
+upsample12                               generic_x86_avx2                          # 3052150 ns/call
+upsample12                               generic_generic                           # 3089852 ns/call
+
+# threshold 0 / 88
+locate_preamble                          avx2_x86_avx2                             # 199245 / 204926 ns/call
+locate_preamble                          generic_x86_avx2                          # 554045 / 563642 ns/call
+locate_preamble                          generic_generic                           # 869344 / 882067 ns/call
+
+# DEMOD_2400X input conversion, measured with starch-benchmark -i 5 (x86-64 with AVX2)
+iqdata_conv_uc8                          avx2_x86_avx2                             # 94390 ns/call
+iqdata_conv_uc8                          generic_x86_avx2                          # 320422 ns/call
+iqdata_conv_uc8                          generic_generic                           # 508878 ns/call
+
+iqdata_conv_sc16                         avx2_x86_avx2                             # 90728 ns/call
+iqdata_conv_sc16                         generic_x86_avx2                          # 309971 ns/call
+iqdata_conv_sc16                         generic_generic                           # 482983 ns/call
+
+iqdata_conv_sc16q11                      avx2_x86_avx2                             # 91876 ns/call
+iqdata_conv_sc16q11                      generic_x86_avx2                          # 320584 ns/call
+iqdata_conv_sc16q11                      generic_generic                           # 479817 ns/call
+
+# DEMOD_2400X bit decoding, measured with starch-benchmark -i 5 (x86-64 with AVX2; short / long case)
+decode_bits                              avx2_x86_avx2                             # 16 / 2821 ns/call
+decode_bits                              generic_x86_avx2                          # 50 / 6786 ns/call
+decode_bits                              generic_generic                           # 50 / 14865 ns/call
+
+# DEMOD_2400X coherent decode, measured with starch-benchmark -i 5 (x86-64 with AVX2; full decode / stopped at the gate)
+coherent_decode                          avx2_x86_avx2                             # 1298 / 606 ns/call
+coherent_decode                          generic_x86_avx2                          # 3675 / 1481 ns/call
+coherent_decode                          generic_generic                           # 4778 / 2041 ns/call

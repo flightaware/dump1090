@@ -33,6 +33,12 @@ WISDOM=/etc/dump1090-fa/wisdom.local
 # Correct CRC errors where possible
 ERROR_CORRECTION=yes
 
+# Demodulator: "yes" for DEMOD_2400X (more messages, 2-3 times the CPU of the
+# stock demodulator), "no" for the stock one
+DEMOD_2400X=yes
+# DEMOD_2400X coherent second pass (recovers more weak frames, about 20% more CPU)
+COHERENT=yes
+
 # Receiver location, used for some types of position decoding. Provide the location as
 # signed decimal degrees. If not given here, dump1090 will also try to read a receiver
 # location from /var/cache/piaware/location.env (written automatically by PiAware, if installed)

@@ -379,7 +379,7 @@ static void limesdrCallback(unsigned char *buf, uint32_t len, void *ctx)
         dropped = samples_read - to_convert;
     }
 
-    LimeSDR.converter(buf, &outbuf->data[outbuf->overlap], to_convert, LimeSDR.converter_state, &outbuf->mean_level, &outbuf->mean_power);
+    LimeSDR.converter(buf, magbuf_sample(outbuf, outbuf->overlap), to_convert, LimeSDR.converter_state, &outbuf->mean_level, &outbuf->mean_power);
     outbuf->validLength = outbuf->overlap + to_convert;
 
     // Push to the demodulation thread

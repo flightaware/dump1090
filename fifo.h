@@ -57,7 +57,6 @@ struct mag_buf {
     unsigned        validLength;     // Number of valid samples in "data", including overlap samples
     unsigned        overlap;         // Number of leading overlap samples at the start of "data";
                                      // also the number of trailing samples that will be preserved for next time
-
     uint64_t        sampleTimestamp; // Clock timestamp of the start of this block, 12MHz clock
     uint64_t        sysTimestamp;    // Estimated system time at start of block
 
@@ -69,12 +68,23 @@ struct mag_buf {
     struct mag_buf *next;            // linked list forward link
 };
 
+// Values stored per sample in mag_buf.data: 1 (magnitudes) or 2 (interleaved I,Q),
+// as chosen by fifo_create()
+extern unsigned fifo_values_per_sample;
+
+// Address of sample n in a buffer (n counts samples, not uint16_t values)
+static inline uint16_t *magbuf_sample(struct mag_buf *buf, unsigned n)
+{
+    return &buf->data[n * fifo_values_per_sample];
+}
+
 // Create the queue structures. Not threadsafe. Returns true on success.
 //
 //   buffer_count - the number of buffers to preallocate
 //   buffer_size  - the size of each magnitude buffer, in samples, including overlap
+//   dtype_iq     - 0 is power samples, 1 = IQ samples
 //   overlap      - the number of samples to overlap between adjacent buffers
-bool fifo_create(unsigned buffer_count, unsigned buffer_size, unsigned overlap);
+bool fifo_create(unsigned buffer_count, unsigned buffer_size, unsigned dtype_iq, unsigned overlap);
 
 // Destroy the fifo structures allocated in magbuf_fifo_create. Not threadsafe; ensure all FIFO users
 // are done before calling.

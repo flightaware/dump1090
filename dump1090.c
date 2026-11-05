@@ -113,6 +113,12 @@ static void modesInitConfig(void) {
     Modes.gain                    = MODES_DEFAULT_GAIN;
     Modes.freq                    = MODES_DEFAULT_FREQ;
     Modes.fix_df                  = 1;
+#ifdef DEMOD_2400X
+    Modes.demod_2400x             = 1;
+#endif
+#ifdef DEMOD_2400X_COHERENT
+    Modes.coherent                = 1;
+#endif
     Modes.interactive_display_ttl = MODES_INTERACTIVE_DISPLAY_TTL;
     // Default TTL is 60s; width must match so the Ti column pads correctly for values >= 10
     Modes.interactive_display_size = 2;
@@ -166,7 +172,9 @@ static void modesInit(void) {
         exit(1);
     }
 
-    if (!fifo_create(MODES_MAG_BUFFERS, MODES_MAG_BUF_SAMPLES + Modes.trailing_samples, Modes.trailing_samples)) {
+    // The DEMOD_2400X demodulator takes I/Q samples, the stock one magnitudes
+    if (!fifo_create(Modes.demod_2400x ? MODES_MAG_BUFFERS_2400X : MODES_MAG_BUFFERS, MODES_MAG_BUF_SAMPLES + Modes.trailing_samples,
+                     Modes.demod_2400x ? 1 : 0, Modes.trailing_samples)) {
         fprintf(stderr, "Out of memory allocating FIFO\n");
         exit(1);
     }
@@ -350,6 +358,12 @@ static void showHelp(void)
 "--no-fix-df              Disable error correction of the DF message field\n"
 "                          (reduces CPU requirements)\n"
 "--enable-df24            Enable decoding of DF24 Comm-D ELM messages\n"
+#ifdef DEMOD_2400X
+"--no-demod2400x          Use the stock demodulator instead of DEMOD_2400X\n"
+#endif
+#ifdef DEMOD_2400X_COHERENT
+"--no-coherent            Disable the DEMOD_2400X coherent second pass\n"
+#endif
 "--lat <latitude>         Reference/receiver latitude for surface positions\n"
 "--lon <longitude>        Reference/receiver longitude for surface positions\n"
 "--max-range <distance>   Absolute maximum range for position decoding (in NM)\n"
@@ -594,6 +608,40 @@ static void applyNetDefaults()
         Modes.net_output_beast_ports = strdup("30005");
 }
 
+#ifdef DEMOD_2400X
+// DEMOD_2400X falls back to the stock demodulator while the CPU can't keep up: from
+// when about 2/3 of the FIFO is queued until it is down to 1/3, so a burst of load
+// costs some messages instead of whole dropped buffers. A buffer's age (from the start
+// of its samples) less its own length, in buffer lengths, is about the number queued
+// behind it. Live input only: a file is read only as fast as it is demodulated, so its
+// FIFO is always full but never drops samples, and a test must not fall back. On a
+// switch, sets MAGBUF_DISCONTINUOUS in *flags for the demodulator taking over
+static bool demodBehind(const struct mag_buf *buf, mag_buf_flags *flags)
+{
+    static bool behind;
+
+#ifndef DEMOD_FALLBACK_TEST
+    if (Modes.sdr_type == SDR_IFILE)
+        return false;
+#endif
+    const double len_ms = (buf->validLength - buf->overlap) * 1000.0 / Modes.sample_rate;
+    if (len_ms <= 0)
+        return behind;
+    const double queued = ((double) mstime() - (double) buf->sysTimestamp - len_ms) / len_ms;
+    if (!behind && 3 * queued >= 2 * MODES_MAG_BUFFERS_2400X) {
+        behind = true;
+        log_with_timestamp("DEMOD_2400X can't keep up (%.0f buffers queued): stock demodulator until it catches up", queued);
+    } else if (behind && 3 * queued <= MODES_MAG_BUFFERS_2400X) {
+        behind = false;
+        log_with_timestamp("DEMOD_2400X caught up, back from the stock demodulator");
+    } else {
+        return behind;
+    }
+    *flags |= MAGBUF_DISCONTINUOUS;
+    return behind;
+}
+#endif
+
 int main(int argc, char **argv) {
     int j;
 
@@ -633,6 +681,14 @@ int main(int argc, char **argv) {
             Modes.nfix_crc = 0;
         } else if (!strcmp(argv[j],"--no-fix-df")) {
             Modes.fix_df = 0;
+#ifdef DEMOD_2400X
+        } else if (!strcmp(argv[j],"--no-demod2400x")) {
+            Modes.demod_2400x = 0;
+#endif
+#ifdef DEMOD_2400X_COHERENT
+        } else if (!strcmp(argv[j],"--no-coherent")) {
+            Modes.coherent = 0;
+#endif
         } else if (!strcmp(argv[j],"--no-crc-check")) {
             fprintf(stderr, "warning: --no-crc-check no longer supported, option ignored (please raise an issue on github if you have a usecase that needs this)\n");
         } else if (!strcmp(argv[j],"--phase-enhance")) {
@@ -901,7 +957,21 @@ int main(int argc, char **argv) {
                 // Process one buffer
 
                 start_cpu_timing(&start_time);
-                demodulate2400(buf);
+#ifdef DEMOD_2400X
+                demod_magnitude = NULL;     // this buffer's magnitudes aren't made yet
+                if (Modes.demod_2400x) {
+                    // A switch between demodulators is a gap for the one taking over
+                    struct mag_buf b = *buf;
+                    const bool behind = demodBehind(buf, &b.flags);
+                    if (behind) {
+                        demodulate2400iq(&b);
+                        Modes.stats_current.samples_fallback += buf->validLength - buf->overlap;
+                    } else {
+                        demodulate2400x(&b);
+                    }
+                } else
+#endif
+                    demodulate2400(buf);
                 if (Modes.mode_ac) {
                     demodulate2400AC(buf);
                 }

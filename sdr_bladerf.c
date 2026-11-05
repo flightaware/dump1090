@@ -396,7 +396,7 @@ static void *handle_bladerf_samples(struct bladerf *dev,
 
         // Convert one block of sample data
         double mean_level, mean_power;
-        BladeRF.converter(sample_data, &outbuf->data[outbuf->validLength], samples_per_block, BladeRF.converter_state, &mean_level, &mean_power);
+        BladeRF.converter(sample_data, magbuf_sample(outbuf, outbuf->validLength), samples_per_block, BladeRF.converter_state, &mean_level, &mean_power);
         outbuf->validLength += samples_per_block;
         outbuf->mean_level += mean_level;
         outbuf->mean_power += mean_power;

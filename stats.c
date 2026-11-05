@@ -81,6 +81,10 @@ void display_stats(struct stats *st) {
         printf("Local receiver:\n");
         printf("  %12llu samples processed\n",                        (unsigned long long)st->samples_processed);
         printf("  %12llu samples dropped\n",                          (unsigned long long)st->samples_dropped);
+#ifdef DEMOD_2400X
+        if (Modes.demod_2400x)
+            printf("  %12llu samples demodulated by stock (DEMOD_2400X behind)\n", (unsigned long long)st->samples_fallback);
+#endif
 
         printf("  %12u Mode A/C messages received\n",                 st->demod_modeac);
         printf("  %12u Mode-S message preambles received\n",          st->demod_preambles);
@@ -89,6 +93,13 @@ void display_stats(struct stats *st) {
         printf("    %12u accepted with correct CRC\n",                st->demod_accepted[0]);
         for (j = 1; j <= Modes.nfix_crc; ++j)
             printf("    %12u accepted with %d-bit error repaired\n", st->demod_accepted[j], j);
+#ifdef DEMOD_2400X_COHERENT
+        if (Modes.demod_2400x && Modes.coherent) {
+            printf("  %12u coherent decodes tried\n",                      st->demod_coherent_tried);
+            printf("    %12u with a coherent carrier\n",                   st->demod_coherent_coherent);
+            printf("    %12u rescued (included in accepted above)\n",      st->demod_coherent_rescued);
+        }
+#endif
 
         if (st->noise_power_sum > 0 && st->noise_power_count > 0) {
             printf("  %5.1f dBFS noise power\n",
@@ -332,10 +343,18 @@ void add_stats(const struct stats *st1, const struct stats *st2, struct stats *t
     target->demod_rejected_unknown_icao = st1->demod_rejected_unknown_icao + st2->demod_rejected_unknown_icao;
     for (i = 0; i < MODES_MAX_BITERRORS+1; ++i)
         target->demod_accepted[i]  = st1->demod_accepted[i] + st2->demod_accepted[i];
+#ifdef DEMOD_2400X_COHERENT
+    target->demod_coherent_tried = st1->demod_coherent_tried + st2->demod_coherent_tried;
+    target->demod_coherent_coherent = st1->demod_coherent_coherent + st2->demod_coherent_coherent;
+    target->demod_coherent_rescued = st1->demod_coherent_rescued + st2->demod_coherent_rescued;
+#endif
     target->demod_modeac = st1->demod_modeac + st2->demod_modeac;
 
     target->samples_processed = st1->samples_processed + st2->samples_processed;
     target->samples_dropped = st1->samples_dropped + st2->samples_dropped;
+#ifdef DEMOD_2400X
+    target->samples_fallback = st1->samples_fallback + st2->samples_fallback;
+#endif
 
     target->sdr_gain = newer->sdr_gain;
 

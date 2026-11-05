@@ -93,6 +93,7 @@
 #define MODES_RTL_BUF_SIZE         (16*16384)                 // 256k
 #define MODES_MAG_BUF_SAMPLES      (MODES_RTL_BUF_SIZE / 2)   // Each sample is 2 bytes
 #define MODES_MAG_BUFFERS          12                         // Number of magnitude buffers (should be smaller than RTL_BUFFERS for flowcontrol to work)
+#define MODES_MAG_BUFFERS_2400X    16                         // DEMOD_2400X: I/Q buffers, more slack before it falls back to stock
 #define MODES_LEGACY_AUTO_GAIN     -10                        // old gain value for "use automatic gain"
 #define MODES_DEFAULT_GAIN         999999                     // Use default SDR gain
 #define MODES_MSG_SQUELCH_DB       4.0                        // Minimum SNR, in dB
@@ -288,6 +289,7 @@ typedef enum {
 #include "net_io.h"
 #include "crc.h"
 #include "demod_2400.h"
+#include "demod_2400x.h"
 #include "stats.h"
 #include "cpr.h"
 #include "icao_filter.h"
@@ -353,6 +355,8 @@ struct _Modes {                             // Internal state
     int   enable_df24;               // Enable decoding of DF24..DF31 (Comm-D ELM)
     int   raw;                       // Raw output format
     int   mode_ac;                   // Enable decoding of SSR Modes A & C
+    int   demod_2400x;               // DEMOD_2400X build: use the DEMOD_2400X demodulator (else the stock one)
+    int   coherent;                  // DEMOD_2400X_COHERENT build: run the coherent second pass
     int   mode_ac_auto;              // allow toggling of A/C by Beast commands
     int   net;                       // Enable networking
     int   net_only;                  // Enable just networking

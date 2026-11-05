@@ -33,6 +33,29 @@ gen.add_function(
 gen.add_function(
     name = 'count_above_u16',
     argtypes = ['const uint16_t *', 'unsigned', 'uint16_t', 'unsigned *'])
+gen.add_function(
+   name = 'iqdata_conv_uc8',
+    argtypes = ['const uc8_t *', 'uint16_t *', 'unsigned', 'const int32_t *', 'int32_t *', 'double *', 'double *'])
+gen.add_function(
+    name = 'iqdata_conv_sc16',
+    argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned', 'const int32_t *', 'int32_t *', 'double *', 'double *'])
+gen.add_function(
+    name = 'iqdata_conv_sc16q11',
+    argtypes = ['const sc16_t *', 'uint16_t *', 'unsigned', 'const int32_t *', 'int32_t *', 'double *', 'double *'])
+gen.add_function(
+   name = 'upsample12',
+   argtypes = ['const int16_t *', 'int', 'uint8_t *'],
+   returntype = 'int')
+gen.add_function(
+   name = 'locate_preamble',
+   argtypes = ['const uint8_t *', 'int', 'unsigned', 'uint8_t *'],
+   returntype = 'int')       
+gen.add_function(
+   name = 'coherent_decode',
+   argtypes = ['const int16_t *', 'int', 'unsigned', 'uint8_t *', 'uint32_t *'])
+gen.add_function(
+   name = 'decode_bits',
+   argtypes = ['const uint8_t *', 'unsigned', 'uint8_t *', 'unsigned *'])
 
 gen.add_flavor(
     name = 'generic',
@@ -77,6 +100,7 @@ gen.add_mix(
 
 gen.scan_impls('dsp/impl/*.generic.c')
 gen.scan_impls('dsp/impl/*.neon.c', flavors=[armv7a_neon_vfpv4, armv8_neon_simd])
+gen.scan_impls('dsp/impl/*.avx2.c', flavors=['x86_avx2'])
 gen.scan_benchmarks('dsp/impl/*.benchmark.c')
 
 gen.generate()

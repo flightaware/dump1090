@@ -24,11 +24,11 @@ STARCH_CFLAGS := -DSTARCH_MIX_X86
 
 
 
-dsp/generated/flavor.x86_avx2.o: dsp/generated/flavor.x86_avx2.c dsp/generated/starch.h dsp/impl/count_above_u16.generic.c dsp/impl/magnitude_power_uc8.generic.c dsp/impl/magnitude_sc16.generic.c dsp/impl/magnitude_sc16q11.generic.c dsp/impl/magnitude_uc8.generic.c dsp/impl/mean_power_u16.generic.c
+dsp/generated/flavor.x86_avx2.o: dsp/generated/flavor.x86_avx2.c dsp/generated/starch.h dsp/impl/count_above_u16.generic.c dsp/impl/demod2400x.avx2.c dsp/impl/demod2400x.generic.c dsp/impl/magnitude_power_uc8.generic.c dsp/impl/magnitude_sc16.generic.c dsp/impl/magnitude_sc16q11.generic.c dsp/impl/magnitude_uc8.generic.c dsp/impl/mean_power_u16.generic.c
 	@$(MKDIR_P) $(dir $(STARCH_OBJ_PATH)dsp/generated/flavor.x86_avx2.o)
 	$(STARCH_COMPILE) $(STARCH_CFLAGS) -mavx2 -ffast-math dsp/generated/flavor.x86_avx2.c -o $(STARCH_OBJ_PATH)dsp/generated/flavor.x86_avx2.o
 
-dsp/generated/flavor.generic.o: dsp/generated/flavor.generic.c dsp/generated/starch.h dsp/impl/count_above_u16.generic.c dsp/impl/magnitude_power_uc8.generic.c dsp/impl/magnitude_sc16.generic.c dsp/impl/magnitude_sc16q11.generic.c dsp/impl/magnitude_uc8.generic.c dsp/impl/mean_power_u16.generic.c
+dsp/generated/flavor.generic.o: dsp/generated/flavor.generic.c dsp/generated/starch.h dsp/impl/count_above_u16.generic.c dsp/impl/demod2400x.generic.c dsp/impl/magnitude_power_uc8.generic.c dsp/impl/magnitude_sc16.generic.c dsp/impl/magnitude_sc16q11.generic.c dsp/impl/magnitude_uc8.generic.c dsp/impl/mean_power_u16.generic.c
 	@$(MKDIR_P) $(dir $(STARCH_OBJ_PATH)dsp/generated/flavor.generic.o)
 	$(STARCH_COMPILE) $(STARCH_CFLAGS)  dsp/generated/flavor.generic.c -o $(STARCH_OBJ_PATH)dsp/generated/flavor.generic.o
 
@@ -40,7 +40,7 @@ dsp/generated/dispatcher.o: dsp/generated/dispatcher.c dsp/generated/starch.h
 STARCH_OBJS := dsp/generated/flavor.x86_avx2.o dsp/generated/flavor.generic.o dsp/generated/dispatcher.o
 
 
-dsp/generated/benchmark.o: dsp/generated/benchmark.c dsp/generated/starch.h dsp/impl/count_above_u16.benchmark.c dsp/impl/magnitude_power_uc8.benchmark.c dsp/impl/magnitude_sc16.benchmark.c dsp/impl/magnitude_sc16q11.benchmark.c dsp/impl/magnitude_uc8.benchmark.c dsp/impl/mean_power_u16.benchmark.c
+dsp/generated/benchmark.o: dsp/generated/benchmark.c dsp/generated/starch.h dsp/impl/count_above_u16.benchmark.c dsp/impl/demod2400x.benchmark.c dsp/impl/magnitude_power_uc8.benchmark.c dsp/impl/magnitude_sc16.benchmark.c dsp/impl/magnitude_sc16q11.benchmark.c dsp/impl/magnitude_uc8.benchmark.c dsp/impl/mean_power_u16.benchmark.c
 	@$(MKDIR_P) $(dir $(STARCH_OBJ_PATH)dsp/generated/benchmark.o)
 	$(STARCH_COMPILE) $(STARCH_CFLAGS) dsp/generated/benchmark.c -o $(STARCH_OBJ_PATH)dsp/generated/benchmark.o
 

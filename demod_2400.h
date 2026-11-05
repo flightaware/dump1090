@@ -26,5 +26,10 @@ struct mag_buf;
 
 void demodulate2400(struct mag_buf *mag);
 void demodulate2400AC(struct mag_buf *mag);
+#ifdef DEMOD_2400X
+extern uint16_t *demod_magnitude;
+uint16_t *getMagnitude(struct mag_buf *mag);
+void demodulate2400iq(struct mag_buf *mag);
+#endif
 
 #endif

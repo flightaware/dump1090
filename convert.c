@@ -19,6 +19,62 @@
 
 #include "dump1090.h"
 
+#ifdef DEMOD_2400X
+
+//
+// DEMOD_2400X demodulator (the default in this build; --no-demod2400x selects the
+// stock one): these converters output interleaved signed I,Q at 12-bit scale
+// (-2048..+2047) into the FIFO buffer (stored as uint16_t), instead of magnitudes.
+//
+// The iqdata_conv_* kernels also remove DC; the filter state is kept in
+// converter_state between calls. They accept NULL for the level/power outputs.
+//
+
+struct converter_state {
+    int32_t dc_offset[2];       // DC filter state (I, Q): running mean << 12
+};
+
+static void convert_iq_uc8(void *iq_data,
+                           uint16_t *mag_data,
+                           unsigned nsamples,
+                           struct converter_state *state,
+                           double *out_mean_level,
+                           double *out_mean_power)
+{
+    const uc8_t *in = (const uc8_t *) iq_data;
+
+    starch_iqdata_conv_uc8(in, mag_data, nsamples, state->dc_offset, state->dc_offset, out_mean_level, out_mean_power);
+}
+
+static void convert_iq_sc16(void *iq_data,
+                            uint16_t *mag_data,
+                            unsigned nsamples,
+                            struct converter_state *state,
+                            double *out_mean_level,
+                            double *out_mean_power)
+{
+    const sc16_t *in = (const sc16_t *) iq_data;
+
+    starch_iqdata_conv_sc16(in, mag_data, nsamples, state->dc_offset, state->dc_offset, out_mean_level, out_mean_power);
+}
+
+static void convert_iq_sc16q11(void *iq_data,
+                               uint16_t *mag_data,
+                               unsigned nsamples,
+                               struct converter_state *state,
+                               double *out_mean_level,
+                               double *out_mean_power)
+{
+    const sc16_t *in = (const sc16_t *) iq_data;
+
+    starch_iqdata_conv_sc16q11(in, mag_data, nsamples, state->dc_offset, state->dc_offset, out_mean_level, out_mean_power);
+}
+
+#endif /* DEMOD_2400X */
+
+// Stock converters: magnitudes
+
+
 static void convert_uc8(void *iq_data,
                         uint16_t *mag_data,
                         unsigned nsamples,
@@ -79,12 +135,36 @@ iq_convert_fn init_converter(input_format_t format,
                              struct converter_state **out_state)
 {
     MODES_NOTUSED(sample_rate);
-    MODES_NOTUSED(out_state);
 
     if (filter_dc) {
         fprintf(stderr, "DC filtering not supported (yet)\n");
         return NULL;
     }
+
+#ifdef DEMOD_2400X
+    if (Modes.demod_2400x) {
+        if (!(*out_state = calloc(1, sizeof(struct converter_state)))) {
+            fprintf(stderr, "can't allocate converter state\n");
+            return NULL;
+        }
+
+        switch (format) {
+        case INPUT_UC8:
+            return convert_iq_uc8;
+        case INPUT_SC16:
+            return convert_iq_sc16;
+        case INPUT_SC16Q11:
+            return convert_iq_sc16q11;
+        default:
+            fprintf(stderr, "no suitable converter for format=%u\n", (unsigned) format);
+            free(*out_state);
+            *out_state = NULL;
+            return NULL;
+        }
+    }
+#else
+    MODES_NOTUSED(out_state);
+#endif
 
     switch (format) {
     case INPUT_UC8:
@@ -101,5 +181,10 @@ iq_convert_fn init_converter(input_format_t format,
 
 void cleanup_converter(struct converter_state *state)
 {
+#ifdef DEMOD_2400X
+    free(state);        // NULL with the stock converters
+#else
     MODES_NOTUSED(state);
+#endif
 }
+

@@ -60,12 +60,21 @@ struct stats {
     uint32_t demod_rejected_bad;
     uint32_t demod_rejected_unknown_icao;
     uint32_t demod_accepted[MODES_MAX_BITERRORS+1];
+#ifdef DEMOD_2400X_COHERENT
+    // Coherent second pass (demod_2400x_coherent.c); rescued frames are also in demod_accepted
+    uint32_t demod_coherent_tried;      // failed the CRC, passed the quality gate
+    uint32_t demod_coherent_coherent;   // ... and the carrier was coherent (rho2 gate)
+    uint32_t demod_coherent_rescued;    // ... and the coherent bits passed the CRC
+#endif
 
     // Mode A/C demodulator counts:
     uint32_t demod_modeac;
 
     uint64_t samples_processed;
     uint64_t samples_dropped;
+#ifdef DEMOD_2400X
+    uint64_t samples_fallback;  // demodulated by the stock demodulator while DEMOD_2400X was behind
+#endif
 
     // SDR settings:
     int sdr_gain;  // current gain step in use

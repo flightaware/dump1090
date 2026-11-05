@@ -516,7 +516,7 @@ void soapyRun()
         }
 
         // Convert the new data
-        SOAPY.converter(buf, &outbuf->data[outbuf->overlap], to_convert, SOAPY.converter_state, &outbuf->mean_level, &outbuf->mean_power);
+        SOAPY.converter(buf, magbuf_sample(outbuf, outbuf->overlap), to_convert, SOAPY.converter_state, &outbuf->mean_level, &outbuf->mean_power);
         outbuf->validLength = outbuf->overlap + to_convert;
 
         // Push to the demodulation thread

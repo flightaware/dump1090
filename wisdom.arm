@@ -23,3 +23,36 @@ mean_power_u16                           u64_generic                            
 count_above_u16                          neon_armv7a_neon_vfpv4                    # 35 ns/call
 count_above_u16                          generic_generic                           # 178 ns/call
 
+
+# DEMOD_2400X kernels: provisional order (hand-written NEON first).
+# Replace with real timings: ./starch-benchmark -i 5 -o wisdom.local upsample12 locate_preamble
+upsample12                               neon_armv7a_neon_vfpv4
+upsample12                               generic_armv7a_neon_vfpv4
+upsample12                               generic_generic
+
+locate_preamble                          neon_armv7a_neon_vfpv4
+locate_preamble                          generic_armv7a_neon_vfpv4
+locate_preamble                          generic_generic
+
+# DEMOD_2400X input conversion, measured with starch-benchmark (32-bit build on a Cortex-A76)
+iqdata_conv_uc8                          neon_armv7a_neon_vfpv4                    # 330265 ns/call
+iqdata_conv_uc8                          generic_armv7a_neon_vfpv4                 # 761068 ns/call
+iqdata_conv_uc8                          generic_generic                           # 937124 ns/call
+
+iqdata_conv_sc16                         neon_armv7a_neon_vfpv4                    # 345799 ns/call
+iqdata_conv_sc16                         generic_armv7a_neon_vfpv4                 # 760711 ns/call
+iqdata_conv_sc16                         generic_generic                           # 891093 ns/call
+
+iqdata_conv_sc16q11                      neon_armv7a_neon_vfpv4                    # 336462 ns/call
+iqdata_conv_sc16q11                      generic_armv7a_neon_vfpv4                 # 760099 ns/call
+iqdata_conv_sc16q11                      generic_generic                           # 1022069 ns/call
+
+# DEMOD_2400X bit decoding, measured with starch-benchmark -i 5 (32-bit build on a Cortex-A76), 7 bytes
+decode_bits                              neon_armv7a_neon_vfpv4                    # 65 ns/call
+decode_bits                              generic_generic                           # 102 ns/call
+decode_bits                              generic_armv7a_neon_vfpv4                 # 110 ns/call
+
+# DEMOD_2400X coherent decode: provisional order (hand-written NEON first)
+coherent_decode                          neon_armv7a_neon_vfpv4
+coherent_decode                          generic_armv7a_neon_vfpv4
+coherent_decode                          generic_generic
