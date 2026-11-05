@@ -34,7 +34,18 @@ angles, integer arithmetic (int16 where possible), transmitters without a
 stable carrier left alone, and each bit's carrier sample taken from the chip
 with the larger magnitude. Claude Code wrote the Python models, the kernel
 and its SIMD versions, and ran the comparisons, under my review.
-COHERENT-demod2400x.md was also written with Claude Code.
+COHERENT-demod2400x.md was also written with Claude Code. The later
+two-stage search over ±250 kHz (coarse bins 31.25 kHz apart, then fine
+bins 4 kHz apart around the best one, none at DC) and the NEON
+rewrite of the coherent kernel for the Cortex-A53 were written by Claude Code
+to my choices; the NEON version gives exactly the same results as generic.
+
+The run-time options `--no-demod2400x` and `--no-coherent` (both on by
+default) and the fallback to the stock demodulator are also my design: hand
+buffers to the stock demodulator while DEMOD_2400X is behind with live input,
+never with a file, and convert the I/Q buffer to magnitudes only once, in a
+single array whose pointer is reset before each buffer. Claude Code wrote the
+code and ran the tests.
 
 ## How it was checked
 
@@ -48,5 +59,21 @@ COHERENT-demod2400x.md was also written with Claude Code.
   each change gave the same or more messages than the version before.
 * Synthetic frames at known times (`sim/`) check sensitivity and MLAT
   timestamp accuracy.
+* With `--no-demod2400x`, and in a build without the defines, the output is
+  byte-identical to upstream `dev`'s stock build (`--raw --mlat`, messages
+  and timestamps, with and without `--modeac`) on RTL-SDR and SDRplay
+  recordings.
+* The fallback was tested with the demodulator's core deliberately starved,
+  on a Pi 3B and a Pi 5: it switched to stock and back, with no dropped
+  buffers.
 * The build has run live on my Raspberry Pi 4 receiver feeding FlightAware,
   with MLAT synchronized as with the stock build.
+
+## DCO
+
+I certify the [DCO](https://developercertificate.org/), clause (a), for the
+whole branch. The AI output was produced at my direction for this change,
+written against this codebase, and reviewed by me before it was committed;
+it was not copied from other projects. Anthropic's terms assign to me
+whatever rights Anthropic has in the output, so I have the right to submit it
+under the project's licence (GPL-2.0-or-later).
