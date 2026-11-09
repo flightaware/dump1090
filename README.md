@@ -44,6 +44,19 @@ $ dpkg-buildpackage -b --no-sign --build-profiles=custom                 # build
 ```
 
 
+## Range Outline Feature
+
+dump1090-fa includes a range outline visualization that shows your receiver's maximum detection range at each bearing (0-359 degrees). The outline is colored based on the altitude of aircraft at maximum range, creating a gradient visualization of your coverage profile.
+
+To configure the data retention period (default 24 hours):
+```
+--range-outline-retention <hours>
+```
+
+For example, to keep range data for 48 hours: `--range-outline-retention 48`
+
+See [RANGE_OUTLINE.md](RANGE_OUTLINE.md) for complete documentation.
+
 ## Building manually
 
 You can probably just run "make" after installing the required dependencies.

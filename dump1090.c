@@ -101,6 +101,52 @@ void receiverPositionChanged(float lat, float lon, float alt)
     writeJsonToFile("receiver.json", generateReceiverJson); // location changed
 }
 
+// Save range outline data to file for persistence across restarts
+static void saveRangeOutline(void)
+{
+    if (!Modes.range_outline_persistence_file)
+        return;
+
+    FILE *f = fopen(Modes.range_outline_persistence_file, "wb");
+    if (!f) {
+        log_with_timestamp("Failed to save range outline data to %s: %s",
+                          Modes.range_outline_persistence_file, strerror(errno));
+        return;
+    }
+
+    // Write a simple binary format: three arrays
+    fwrite(Modes.range_outline_max, sizeof(Modes.range_outline_max), 1, f);
+    fwrite(Modes.range_outline_updated, sizeof(Modes.range_outline_updated), 1, f);
+    fwrite(Modes.range_outline_altitude, sizeof(Modes.range_outline_altitude), 1, f);
+    fclose(f);
+}
+
+// Load range outline data from file
+static void loadRangeOutline(void)
+{
+    if (!Modes.range_outline_persistence_file)
+        return;
+
+    FILE *f = fopen(Modes.range_outline_persistence_file, "rb");
+    if (!f) {
+        // File doesn't exist yet, that's OK
+        return;
+    }
+
+    // Read the three arrays
+    if (fread(Modes.range_outline_max, sizeof(Modes.range_outline_max), 1, f) != 1 ||
+        fread(Modes.range_outline_updated, sizeof(Modes.range_outline_updated), 1, f) != 1 ||
+        fread(Modes.range_outline_altitude, sizeof(Modes.range_outline_altitude), 1, f) != 1) {
+        log_with_timestamp("Failed to load range outline data, file may be corrupted");
+        memset(Modes.range_outline_max, 0, sizeof(Modes.range_outline_max));
+        memset(Modes.range_outline_updated, 0, sizeof(Modes.range_outline_updated));
+        memset(Modes.range_outline_altitude, 0, sizeof(Modes.range_outline_altitude));
+    } else {
+        log_with_timestamp("Loaded range outline data from %s", Modes.range_outline_persistence_file);
+    }
+
+    fclose(f);
+}
 
 //
 // =============================== Initialization ===========================
@@ -144,6 +190,12 @@ static void modesInitConfig(void) {
     Modes.adaptive_range_change_delay = 10;
     Modes.adaptive_range_scan_delay = 300;
     Modes.adaptive_range_rescan_delay = 3600;
+
+    // Range outline persistence - default to /tmp, will be updated if --write-json is used
+    Modes.range_outline_persistence_file = strdup("/tmp/range_outline.dat");
+
+    // Range outline retention - default to 24 hours (converted to milliseconds)
+    Modes.range_outline_retention_ms = (uint64_t)RANGE_OUTLINE_DEFAULT_RETENTION_HOURS * 3600 * 1000;
 
     sdrInitConfig();
 }
@@ -414,6 +466,8 @@ static void showHelp(void)
 "--json-stats-every <t>   Write json stats output every t seconds (default 60)\n"
 "--json-location-accuracy <n>  Accuracy of receiver location in json metadata\n"
 "                          (0=no location, 1=approximate, 2=exact)\n"
+"--range-outline-retention <h>  Set range outline data retention period in hours\n"
+"                          (default: 24)\n"
 "\n"
 "      Interactive mode\n"
 "\n"
@@ -462,6 +516,7 @@ static void backgroundTasks(void) {
     static uint64_t next_stats_update;
     static uint64_t next_json_stats_update;
     static uint64_t next_json, next_history;
+    static uint64_t next_range_outline_save;
 
     uint64_t now = mstime();
 
@@ -546,6 +601,7 @@ static void backgroundTasks(void) {
 
     if (Modes.json_dir && now >= next_json) {
         writeJsonToFile("aircraft.json", generateAircraftJson);
+        writeJsonToFile("range_outline.json", generateRangeOutlineJson);
         next_json = now + Modes.json_interval;
     }
 
@@ -568,6 +624,16 @@ static void backgroundTasks(void) {
             writeJsonToFile("receiver.json", generateReceiverJson); // number of history entries changed
 
         next_history = now + HISTORY_INTERVAL;
+    }
+
+    // Periodically save range outline data (every 1 minute)
+    if (now >= next_range_outline_save) {
+        if (next_range_outline_save == 0) {
+            next_range_outline_save = now + 60000; // 1 minute
+        } else {
+            saveRangeOutline();
+            next_range_outline_save += 60000;
+        }
     }
 }
 
@@ -759,6 +825,11 @@ int main(int argc, char **argv) {
             // Ignored
         } else if (!strcmp(argv[j], "--write-json") && more) {
             Modes.json_dir = strdup(argv[++j]);
+            // Update range outline persistence file to json directory
+            free(Modes.range_outline_persistence_file);
+            char pathbuf[PATH_MAX];
+            snprintf(pathbuf, PATH_MAX, "%s/range_outline.dat", Modes.json_dir);
+            Modes.range_outline_persistence_file = strdup(pathbuf);
         } else if (!strcmp(argv[j], "--write-json-every") && more) {
             Modes.json_interval = (uint64_t)(1000 * atof(argv[++j]));
             if (Modes.json_interval < 100) // 0.1s
@@ -805,6 +876,8 @@ int main(int argc, char **argv) {
             Modes.adaptive_range_scan_delay = atoi(argv[++j]);
         } else if (!strcmp(argv[j], "--adaptive-range-rescan-delay") && more) {
             Modes.adaptive_range_rescan_delay = atoi(argv[++j]);
+        } else if (!strcmp(argv[j], "--range-outline-retention") && more) {
+            Modes.range_outline_retention_ms = (uint64_t)(atof(argv[++j]) * 3600 * 1000); // convert hours to milliseconds
         } else if (sdrHandleOption(argc, argv, &j)) {
             /* handled */
         } else {
@@ -862,10 +935,14 @@ int main(int argc, char **argv) {
 
     adaptive_init();
 
+    // Load persisted range outline data
+    loadRangeOutline();
+
     // write initial json files so they're not missing
     writeJsonToFile("receiver.json", generateReceiverJson);
     writeJsonToFile("stats.json", generateStatsJson);
     writeJsonToFile("aircraft.json", generateAircraftJson);
+    writeJsonToFile("range_outline.json", generateRangeOutlineJson);
 
     interactiveInit();
 
@@ -944,6 +1021,9 @@ int main(int argc, char **argv) {
     if (Modes.stats) {
         display_stats(&Modes.stats_alltime);
     }
+
+    // Save range outline data for persistence
+    saveRangeOutline();
 
     sdrClose();
     fifo_destroy();
