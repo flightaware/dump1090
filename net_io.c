@@ -594,9 +594,12 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     if (mm->addr & MODES_NON_ICAO_ADDRESS)
         return;
 
-    p = prepareWrite(&Modes.sbs_out, 200);
-    if (!p)
-        return;
+    {
+        int buflen = 200;
+        p = prepareWrite(&Modes.sbs_out, buflen);
+        if (!p)
+            return;
+        char *end = p + buflen;
 
     //
     // SBS BS style output checked against the following reference
@@ -645,7 +648,7 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     }
 
     // Fields 1 to 6 : SBS message type and ICAO address of the aircraft and some other stuff
-    p += sprintf(p, "MSG,%d,1,1,%06X,1,", msgType, mm->addr);
+    p = safe_snprintf(p, end, "MSG,%d,1,1,%06X,1,", msgType, mm->addr);
 
     // Find current system time
     clock_gettime(CLOCK_REALTIME, &now);
@@ -656,132 +659,133 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     localtime_r(&received, &stTime_receive);
 
     // Fields 7 & 8 are the message reception time and date
-    p += sprintf(p, "%04d/%02d/%02d,", (stTime_receive.tm_year+1900),(stTime_receive.tm_mon+1), stTime_receive.tm_mday);
-    p += sprintf(p, "%02d:%02d:%02d.%03u,", stTime_receive.tm_hour, stTime_receive.tm_min, stTime_receive.tm_sec, (unsigned) (mm->sysTimestampMsg % 1000));
+    p = safe_snprintf(p, end, "%04d/%02d/%02d,", (stTime_receive.tm_year+1900),(stTime_receive.tm_mon+1), stTime_receive.tm_mday);
+    p = safe_snprintf(p, end, "%02d:%02d:%02d.%03u,", stTime_receive.tm_hour, stTime_receive.tm_min, stTime_receive.tm_sec, (unsigned) (mm->sysTimestampMsg % 1000));
 
     // Fields 9 & 10 are the current time and date
-    p += sprintf(p, "%04d/%02d/%02d,", (stTime_now.tm_year+1900),(stTime_now.tm_mon+1), stTime_now.tm_mday);
-    p += sprintf(p, "%02d:%02d:%02d.%03u", stTime_now.tm_hour, stTime_now.tm_min, stTime_now.tm_sec, (unsigned) (now.tv_nsec / 1000000U));
+    p = safe_snprintf(p, end, "%04d/%02d/%02d,", (stTime_now.tm_year+1900),(stTime_now.tm_mon+1), stTime_now.tm_mday);
+    p = safe_snprintf(p, end, "%02d:%02d:%02d.%03u", stTime_now.tm_hour, stTime_now.tm_min, stTime_now.tm_sec, (unsigned) (now.tv_nsec / 1000000U));
 
     // Field 11 is the callsign (if we have it)
-    if (mm->callsign_valid) {p += sprintf(p, ",%s", mm->callsign);}
-    else                    {p += sprintf(p, ",");}
+    if (mm->callsign_valid) {p = safe_snprintf(p, end, ",%s", mm->callsign);}
+    else                    {p = safe_snprintf(p, end, ",");}
 
     // Field 12 is the altitude (if we have it)
     if (Modes.use_gnss) {
         if (mm->altitude_geom_valid) {
-            p += sprintf(p, ",%dH", mm->altitude_geom);
+            p = safe_snprintf(p, end, ",%dH", mm->altitude_geom);
         } else if (mm->altitude_baro_valid && trackDataValid(&a->geom_delta_valid)) {
-            p += sprintf(p, ",%dH", mm->altitude_baro + a->geom_delta);
+            p = safe_snprintf(p, end, ",%dH", mm->altitude_baro + a->geom_delta);
         } else if (mm->altitude_baro_valid) {
-            p += sprintf(p, ",%d", mm->altitude_baro);
+            p = safe_snprintf(p, end, ",%d", mm->altitude_baro);
         } else {
-            p += sprintf(p, ",");
+            p = safe_snprintf(p, end, ",");
         }
     } else {
         if (mm->altitude_baro_valid) {
-            p += sprintf(p, ",%d", mm->altitude_baro);
+            p = safe_snprintf(p, end, ",%d", mm->altitude_baro);
         } else if (mm->altitude_geom_valid && trackDataValid(&a->geom_delta_valid)) {
-            p += sprintf(p, ",%d", mm->altitude_geom - a->geom_delta);
+            p = safe_snprintf(p, end, ",%d", mm->altitude_geom - a->geom_delta);
         } else {
-            p += sprintf(p, ",");
+            p = safe_snprintf(p, end, ",");
         }
     }
 
     // Field 13 is the ground Speed (if we have it)
     if (mm->gs_valid) {
-        p += sprintf(p, ",%.0f", mm->gs.selected);
+        p = safe_snprintf(p, end, ",%.0f", mm->gs.selected);
     } else {
-        p += sprintf(p, ",");
+        p = safe_snprintf(p, end, ",");
     }
 
     // Field 14 is the ground Heading (if we have it)
     if (mm->heading_valid && mm->heading_type == HEADING_GROUND_TRACK) {
-        p += sprintf(p, ",%.0f", mm->heading);
+        p = safe_snprintf(p, end, ",%.0f", mm->heading);
     } else {
-        p += sprintf(p, ",");
+        p = safe_snprintf(p, end, ",");
     }
 
     // Fields 15 and 16 are the Lat/Lon (if we have it)
     if (mm->cpr_decoded) {
-        p += sprintf(p, ",%1.5f,%1.5f", mm->decoded_lat, mm->decoded_lon);
+        p = safe_snprintf(p, end, ",%1.5f,%1.5f", mm->decoded_lat, mm->decoded_lon);
     } else {
-        p += sprintf(p, ",,");
+        p = safe_snprintf(p, end, ",,");
     }
 
     // Field 17 is the VerticalRate (if we have it)
     if (Modes.use_gnss) {
         if (mm->geom_rate_valid) {
-            p += sprintf(p, ",%dH", mm->geom_rate);
+            p = safe_snprintf(p, end, ",%dH", mm->geom_rate);
         } else if (mm->baro_rate_valid) {
-            p += sprintf(p, ",%d", mm->baro_rate);
+            p = safe_snprintf(p, end, ",%d", mm->baro_rate);
         } else {
-            p += sprintf(p, ",");
+            p = safe_snprintf(p, end, ",");
         }
     } else {
         if (mm->baro_rate_valid) {
-            p += sprintf(p, ",%d", mm->baro_rate);
+            p = safe_snprintf(p, end, ",%d", mm->baro_rate);
         } else if (mm->geom_rate_valid) {
-            p += sprintf(p, ",%d", mm->geom_rate);
+            p = safe_snprintf(p, end, ",%d", mm->geom_rate);
         } else {
-            p += sprintf(p, ",");
+            p = safe_snprintf(p, end, ",");
         }
     }
 
     // Field 18 is  the Squawk (if we have it)
     if (mm->squawk_valid) {
-        p += sprintf(p, ",%04x", mm->squawk);
+        p = safe_snprintf(p, end, ",%04x", mm->squawk);
     } else {
-        p += sprintf(p, ",");
+        p = safe_snprintf(p, end, ",");
     }
 
     // Field 19 is the Squawk Changing Alert flag (if we have it)
     if (mm->alert_valid) {
         if (mm->alert) {
-            p += sprintf(p, ",-1");
+            p = safe_snprintf(p, end, ",-1");
         } else {
-            p += sprintf(p, ",0");
+            p = safe_snprintf(p, end, ",0");
         }
     } else {
-        p += sprintf(p, ",");
+        p = safe_snprintf(p, end, ",");
     }
 
     // Field 20 is the Squawk Emergency flag (if we have it)
     if (mm->squawk_valid) {
         if ((mm->squawk == 0x7500) || (mm->squawk == 0x7600) || (mm->squawk == 0x7700)) {
-            p += sprintf(p, ",-1");
+            p = safe_snprintf(p, end, ",-1");
         } else {
-            p += sprintf(p, ",0");
+            p = safe_snprintf(p, end, ",0");
         }
     } else {
-        p += sprintf(p, ",");
+        p = safe_snprintf(p, end, ",");
     }
 
     // Field 21 is the Squawk Ident flag (if we have it)
     if (mm->spi_valid) {
         if (mm->spi) {
-            p += sprintf(p, ",-1");
+            p = safe_snprintf(p, end, ",-1");
         } else {
-            p += sprintf(p, ",0");
+            p = safe_snprintf(p, end, ",0");
         }
     } else {
-        p += sprintf(p, ",");
+        p = safe_snprintf(p, end, ",");
     }
 
     // Field 22 is the OnTheGround flag (if we have it)
     switch (mm->airground) {
     case AG_GROUND:
-        p += sprintf(p, ",-1");
+        p = safe_snprintf(p, end, ",-1");
         break;
     case AG_AIRBORNE:
-        p += sprintf(p, ",0");
+        p = safe_snprintf(p, end, ",0");
         break;
     default:
-        p += sprintf(p, ",");
+        p = safe_snprintf(p, end, ",");
         break;
     }
 
-    p += sprintf(p, "\r\n");
+    p = safe_snprintf(p, end, "\r\n");
+    }
 
     completeWrite(&Modes.sbs_out, p);
 }
