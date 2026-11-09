@@ -21,3 +21,6 @@ debian/.debhelper
 debian/dump1090-fa*
 debian/debhelper-build-stamp
 debian/files
+.DS_Store
+.vscode/
+public_html/data/
