@@ -187,6 +187,10 @@ int main(int argc, char **argv) {
             }
         } else if (!strcmp(argv[j], "--interactive-callsign-filter") && more) {
             Modes.interactive_callsign_filter = strdup(argv[++j]);
+            if (!Modes.interactive_callsign_filter) {
+                fprintf(stderr, "out of memory\n");
+                exit(1);
+            }
         } else if (!strcmp(argv[j], "--lat") && more) {
             Modes.fUserLat = atof(argv[++j]);
         } else if (!strcmp(argv[j],"--lon") && more) {
