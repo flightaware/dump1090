@@ -162,6 +162,7 @@ struct client *createGenericClient(struct net_service *service, int fd)
     c->verbatim_requested = (service == Modes.beast_verbatim_service || service == Modes.beast_verbatim_local_service);
     c->local_requested = (service == Modes.beast_verbatim_local_service);
     Modes.clients = c;
+    Modes.client_count++;
 
     moveNetClient(c, service);
 
@@ -306,6 +307,10 @@ static struct client * modesAcceptClients(void) {
         int i;
         for (i = 0; i < s->listener_count; ++i) {
             while ((fd = anetTcpAccept(Modes.aneterr, s->listener_fds[i])) >= 0) {
+                if (Modes.max_clients > 0 && Modes.client_count >= Modes.max_clients) {
+                    close(fd);
+                    continue;
+                }
                 createSocketClient(s, fd);
             }
         }
@@ -331,6 +336,7 @@ static void modesCloseClient(struct client *c) {
 
     close(c->fd);
     c->service->connections--;
+    Modes.client_count--;
 
     // mark it as inactive and ready to be freed
     c->fd = -1;
