@@ -339,6 +339,26 @@ static void modesCloseClient(struct client *c) {
 
     autoset_modeac();
 }
+
+static void modesWriteStatusClient(struct client *c) {
+    char str[] =
+        "\x1a\xff"
+        MODES_DUMP1090_VARIANT
+        ","
+        MODES_DUMP1090_VERSION
+        ","
+        "0";
+    str[sizeof(str)-2] = c->local_requested ? 'l' : (c->verbatim_requested ? 'v' : 'n');
+
+#ifndef _WIN32
+    int nwritten = write(c->fd, str, sizeof(str) -1 );
+#else
+    int nwritten = send(c->fd, str, sizeof(str) - 1, 0 );
+#endif
+    if (nwritten != sizeof(str) - 1) {
+        modesCloseClient(c);
+    }
+}
 //
 //=========================================================================
 //
@@ -1219,6 +1239,9 @@ static int handleBeastCommand(struct client *c, char *p) {
     case 'L':
         c->local_requested = 1;
         handleOptionsChange(c);
+        break;
+    case 'h':
+        modesWriteStatusClient(c);
         break;
     }
 
