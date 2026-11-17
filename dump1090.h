@@ -389,6 +389,7 @@ struct _Modes {                             // Internal state
     int   json_location_accuracy;    // Accuracy of location metadata: 0=none, 1=approx, 2=exact
     double faup_rate_multiplier;     // Multiplier to adjust rate of faup1090 messages emitted
     bool faup_upload_unknown_commb;  // faup1090: should we upload Comm-B messages that weren't in a recognized format?
+    bool force_background_tasks;     // override: used to enable background maintenance tasks when running with --ifile
 
     int   json_aircraft_history_next;
     struct {
