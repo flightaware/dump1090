@@ -1430,7 +1430,7 @@ static int decodeHexMessage(struct client *c, char *hex) {
     // Turn the message into binary.
     // Accept *-AVR raw @-AVR/BEAST timeS+raw %-AVR timeS+raw (CRC good) <-BEAST timeS+sigL+raw
     // and some AVR records that we can understand
-    if (hex[l-1] != ';') {return (0);} // not complete - abort
+    if (l < 1 || hex[l-1] != ';') {return (0);} // empty or not complete - abort
 
     switch (hex[0]) {
         case '<':
