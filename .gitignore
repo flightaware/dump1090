@@ -26,3 +26,4 @@ crctests
 regressiontests
 fuzz/out
 fuzz/out-regress
+fuzz/replay
