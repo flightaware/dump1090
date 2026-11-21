@@ -23,4 +23,6 @@ debian/debhelper-build-stamp
 debian/files
 cprtests
 crctests
+regressiontests
 fuzz/out
+fuzz/out-regress

@@ -218,14 +218,22 @@ starch-benchmark: cpu.o dsp/helpers/tables.o $(STARCH_OBJS) $(STARCH_BENCHMARK_O
 	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS)
 
 clean:
-	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o dsp/generated/*.o dsp/helpers/*.o dump1090 view1090 faup1090 cprtests crctests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
+	rm -f *.o oneoff/*.o compat/clock_gettime/*.o compat/clock_nanosleep/*.o dsp/generated/*.o dsp/helpers/*.o dump1090 view1090 faup1090 cprtests crctests regressiontests oneoff/convert_benchmark oneoff/decode_comm_b oneoff/dsp_error_measurement oneoff/uc8_capture_stats starch-benchmark
 
-test: cprtests starch-benchmark
+test: cprtests regressiontests starch-benchmark
 	./cprtests
+	./regressiontests
 	./starch-benchmark -V
 
 cprtests: cpr.o cprtests.o
 	$(CC) $(ALL_CCFLAGS) -g -o $@ $^ -lm
+
+# regressiontests.c includes net_io.c directly, so net_io.o is not linked
+regressiontests: regressiontests.o anet.o mode_ac.o mode_s.o comm_b.o crc.o stats.o cpr.o icao_filter.o track.o util.o ais_charset.o sdr_stub.o $(COMPAT)
+	$(CC) -g -o $@ $^ $(LDFLAGS) $(LIBS)
+
+regressiontests.o: regressiontests.c net_io.c *.h
+	$(CC) $(ALL_CCFLAGS) -c $< -o $@
 
 crctests: crc.c crc.h
 	$(CC) $(ALL_CCFLAGS) -g -DCRCDEBUG -o $@ $<
