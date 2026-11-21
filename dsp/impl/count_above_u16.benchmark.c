@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 
 void STARCH_BENCHMARK(count_above_u16) (void)
@@ -16,6 +17,18 @@ void STARCH_BENCHMARK(count_above_u16) (void)
 
     unsigned count;
     STARCH_BENCHMARK_RUN( count_above_u16, in, len, threshold, &count );
+    /* Validation only: also check lengths that leave a partial vector at the
+       end, which the main run (a multiple of every vector width) never does */
+    if (starch_benchmark_validate_only) {
+        static const unsigned extra_len[] = { 1, 3, 7, 9, 15, 17, 33 };
+        const unsigned n_extra = sizeof(extra_len) / sizeof(extra_len[0]);
+        for (unsigned k = 0; k <= n_extra; ++k) {
+            unsigned n = (k < n_extra) ? extra_len[k] : len - 3;
+            fprintf(stderr, "  (length %u)\n", n);
+            STARCH_BENCHMARK_RUN( count_above_u16, in, n, threshold, &count );
+        }
+    }
+
 
  done:
     free(in);

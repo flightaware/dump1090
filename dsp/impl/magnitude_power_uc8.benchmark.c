@@ -43,6 +43,18 @@ void STARCH_BENCHMARK(magnitude_power_uc8) (void)
     }
 
     STARCH_BENCHMARK_RUN( magnitude_power_uc8, in, out_mag, len, &out_level, &out_power );
+    /* Validation only: also check lengths that leave a partial vector at the
+       end, which the main run (a multiple of every vector width) never does */
+    if (starch_benchmark_validate_only) {
+        static const unsigned extra_len[] = { 1, 3, 7, 9, 15, 17, 33 };
+        const unsigned n_extra = sizeof(extra_len) / sizeof(extra_len[0]);
+        for (unsigned k = 0; k <= n_extra; ++k) {
+            unsigned n = (k < n_extra) ? extra_len[k] : len - 3;
+            fprintf(stderr, "  (length %u)\n", n);
+            STARCH_BENCHMARK_RUN( magnitude_power_uc8, in, out_mag, n, &out_level, &out_power );
+        }
+    }
+
 
  done:
     free(in);
@@ -86,14 +98,14 @@ bool STARCH_BENCHMARK_VERIFY(magnitude_power_uc8) (const uc8_t *in, uint16_t *ou
     sum_power = sum_power / len / (65536.0 * 65536.0);
 
     double level_error = sum_level - *out_level;
-    if (fabs(level_error / sum_level) > max_error) {
+    if (!(fabs(level_error) <= max_error * sum_level + 1e-9)) {  /* also fails on NaN */
         fprintf(stderr, "verification failed: expected mean level %.5f, got mean level %.5f, error=%.2f%%\n",
                 sum_level, *out_level, 100.0 * level_error / sum_level);
         okay = false;
     }
 
     double power_error = sum_power - *out_power;
-    if (fabs(power_error / sum_power) > max_error) {
+    if (!(fabs(power_error) <= max_error * sum_power + 1e-9)) {  /* also fails on NaN */
         fprintf(stderr, "verification failed: expected mean power %.5f, got mean power %.5f, error=%.2f%%\n",
                 sum_power, *out_power, 100.0 * power_error / sum_power);
         okay = false;

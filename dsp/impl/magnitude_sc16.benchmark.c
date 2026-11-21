@@ -42,6 +42,18 @@ void STARCH_BENCHMARK(magnitude_sc16) (void)
     }
 
     STARCH_BENCHMARK_RUN( magnitude_sc16, in, out_mag, len );
+    /* Validation only: also check lengths that leave a partial vector at the
+       end, which the main run (a multiple of every vector width) never does */
+    if (starch_benchmark_validate_only) {
+        static const unsigned extra_len[] = { 1, 3, 7, 9, 15, 17, 33 };
+        const unsigned n_extra = sizeof(extra_len) / sizeof(extra_len[0]);
+        for (unsigned k = 0; k <= n_extra; ++k) {
+            unsigned n = (k < n_extra) ? extra_len[k] : len - 3;
+            fprintf(stderr, "  (length %u)\n", n);
+            STARCH_BENCHMARK_RUN( magnitude_sc16, in, out_mag, n );
+        }
+    }
+
 
  done:
     free(in);
