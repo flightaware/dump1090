@@ -177,6 +177,41 @@ static void test_faup_command_missing_value(void)
     CHECK(Modes.faup_rate_multiplier == 2.5, "faup command: a well-formed command still works");
 }
 
+static void put_le_float(char *p, float f)
+{
+    uint32_t bits;
+    memcpy(&bits, &f, sizeof(bits));
+    p[0] = bits & 0xFF;
+    p[1] = (bits >> 8) & 0xFF;
+    p[2] = (bits >> 16) & 0xFF;
+    p[3] = (bits >> 24) & 0xFF;
+}
+
+// A Radarcape position message from a Beast input client must not set the
+// receiver location unless explicitly allowed.
+static void test_radarcape_position(void)
+{
+    char frame[22] = { '5' };   // type byte + 21 payload bytes
+    put_le_float(frame + 1 + 4, 51.5f);
+    put_le_float(frame + 1 + 8, -0.25f);
+    put_le_float(frame + 1 + 12, 100.0f);
+
+    Modes.bUserFlags &= ~MODES_USER_LATLON_VALID;
+    Modes.fUserLat = Modes.fUserLon = 0;
+    Modes.net_accept_position = 0;
+    decodeBinMessage(NULL, frame);
+    CHECK(!(Modes.bUserFlags & MODES_USER_LATLON_VALID), "Beast input: Radarcape position is ignored by default");
+
+    Modes.net_accept_position = 1;
+    decodeBinMessage(NULL, frame);
+    CHECK((Modes.bUserFlags & MODES_USER_LATLON_VALID) && Modes.fUserLat == 51.5 && Modes.fUserLon == -0.25,
+          "Beast input: Radarcape position is accepted with --net-accept-position");
+
+    Modes.bUserFlags &= ~MODES_USER_LATLON_VALID;
+    Modes.fUserLat = Modes.fUserLon = 0;
+    Modes.net_accept_position = 0;
+}
+
 int main(void)
 {
     memset(&Modes, 0, sizeof(Modes));
@@ -192,6 +227,7 @@ int main(void)
     test_aircraft_table_bound();
     test_short_frame_long_df();
     test_faup_command_missing_value();
+    test_radarcape_position();
 
     if (failures) {
         fprintf(stderr, "%d regression test(s) FAILED\n", failures);

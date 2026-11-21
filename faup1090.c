@@ -72,6 +72,7 @@ static void faupInitConfig(void) {
     Modes.nfix_crc                = 1;
     Modes.fix_df                  = 1;
     Modes.net                     = 1;
+    Modes.net_accept_position     = 1; // we connect out to a configured Beast source (e.g. a Radarcape)
     Modes.net_heartbeat_interval  = MODES_NET_HEARTBEAT_INTERVAL;
     Modes.maxRange                = 1852 * 360; // 360NM default max range; this also disables receiver-relative positions
     Modes.quiet                   = 1;

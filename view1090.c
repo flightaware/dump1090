@@ -58,6 +58,7 @@ static void view1090InitConfig(void) {
     // Now initialise things that should not be 0/NULL to their defaults
     Modes.check_crc               = 1;
     Modes.fix_df                  = 1;
+    Modes.net_accept_position     = 1; // we connect out to a configured Beast source
     Modes.interactive_display_ttl = MODES_INTERACTIVE_DISPLAY_TTL;
     // Default TTL is 60s; width must match so the Ti column pads correctly for values >= 10
     Modes.interactive_display_size = 2;

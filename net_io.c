@@ -1065,7 +1065,10 @@ static void handle_radarcape_position(float lat, float lon, float alt)
 
     writeFATSVPositionUpdate(lat, lon, alt);
 
-    if (!(Modes.bUserFlags & MODES_USER_LATLON_VALID)) {
+    // Any client of the Beast input port can send this message, so only let
+    // it set the receiver location when explicitly allowed (faup1090, which
+    // connects to a configured Beast source, or --net-accept-position)
+    if (Modes.net_accept_position && !(Modes.bUserFlags & MODES_USER_LATLON_VALID)) {
         Modes.fUserLat = lat;
         Modes.fUserLon = lon;
         Modes.bUserFlags |= MODES_USER_LATLON_VALID;

@@ -369,6 +369,7 @@ struct _Modes {                             // Internal state
     int   net_sndbuf_size;           // TCP output buffer size (64Kb * 2^n)
     int   net_verbatim;              // if true, Beast output connections default to verbatim mode
     int   forward_mlat;              // allow forwarding of mlat messages to output ports
+    int   net_accept_position;       // allow a Radarcape position message (Beast type 5) from an input client to set the receiver location
     int   quiet;                     // Suppress stdout
     uint32_t show_only;              // Only show messages from this ICAO
     int   interactive;               // Interactive mode

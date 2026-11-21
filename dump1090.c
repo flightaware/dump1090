@@ -403,6 +403,8 @@ static void showHelp(void)
 "--net-verbatim           Make output connections default to verbatim mode\n"
 "                           (forward all messages without correction)\n"
 "--forward-mlat           Allow forwarding of received mlat results\n"
+"--net-accept-position    Let a Radarcape position message on a Beast input port\n"
+"                         set the receiver location (if none is configured)\n"
 "\n"
 // ------ 80 char limit ----------------------------------------------------------|
 "      Stats and json output\n"
@@ -698,6 +700,8 @@ int main(int argc, char **argv) {
             Modes.net_verbatim = 1;
         } else if (!strcmp(argv[j],"--forward-mlat")) {
             Modes.forward_mlat = 1;
+        } else if (!strcmp(argv[j],"--net-accept-position")) {
+            Modes.net_accept_position = 1;
         } else if (!strcmp(argv[j],"--onlyaddr")) {
             Modes.onlyaddr = 1;
         } else if (!strcmp(argv[j],"--metric")) {
