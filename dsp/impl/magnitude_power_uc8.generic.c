@@ -74,7 +74,7 @@ void STARCH_IMPL(magnitude_power_uc8, lookup_unroll_4) (const uc8_t * restrict i
         out[0] = mag;
 
         sum_level = sum_level + mag;
-        sum_power = sum_power + mag * mag;
+        sum_power = sum_power + (uint32_t)mag * mag;
 
         out += 1;
         in_u += 1;
