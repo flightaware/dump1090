@@ -542,6 +542,24 @@ static inline char *safe_append_uint(char *p, char *end, const char *prefix, uns
     return safe_append(p, end, suffix, strlen(suffix));
 }
 
+// safe_snprintf(p, end, "%s%0<width>x%s", prefix, v, suffix) (or %X if upper),
+// for 0 <= width <= 8
+static inline char *safe_append_hex(char *p, char *end, const char *prefix, unsigned v, int width, bool upper, const char *suffix)
+{
+    char tmp[2 * sizeof(unsigned) + 8];
+    p = safe_append(p, end, prefix, strlen(prefix));
+    p = safe_append(p, end, tmp, put_hex(tmp, v, width, upper) - tmp);
+    return safe_append(p, end, suffix, strlen(suffix));
+}
+
+// safe_snprintf(p, end, "%s%s%s", prefix, s, suffix)
+static inline char *safe_append_str(char *p, char *end, const char *prefix, const char *s, const char *suffix)
+{
+    p = safe_append(p, end, prefix, strlen(prefix));
+    p = safe_append(p, end, s, strlen(s));
+    return safe_append(p, end, suffix, strlen(suffix));
+}
+
 // safe_snprintf(p, end, "%04d-%02d-%02dT%02d:%02d:%02d.%03uZ", <gmtime_r(&sec) fields>, millis)
 static char *safe_append_stratux_time(char *p, char *end, struct time_text_cache *cache, time_t sec, unsigned millis)
 {
@@ -1723,68 +1741,68 @@ static const char *jsonEscapeString(const char *str) {
 
 static char *append_flags(char *p, char *end, struct aircraft *a, datasource_t source)
 {
-    p = safe_snprintf(p, end, "[");
+    p = SAFE_APPEND_LITERAL(p, end, "[");
 
     char *start = p;
     if (a->callsign_valid.source == source)
-        p = safe_snprintf(p, end, "\"callsign\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"callsign\",");
     if (a->altitude_baro_valid.source == source)
-        p = safe_snprintf(p, end, "\"altitude\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"altitude\",");
     if (a->altitude_geom_valid.source == source)
-        p = safe_snprintf(p, end, "\"alt_geom\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"alt_geom\",");
     if (a->gs_valid.source == source)
-        p = safe_snprintf(p, end, "\"gs\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"gs\",");
     if (a->ias_valid.source == source)
-        p = safe_snprintf(p, end, "\"ias\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"ias\",");
     if (a->tas_valid.source == source)
-        p = safe_snprintf(p, end, "\"tas\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"tas\",");
     if (a->mach_valid.source == source)
-        p = safe_snprintf(p, end, "\"mach\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"mach\",");
     if (a->track_valid.source == source)
-        p = safe_snprintf(p, end, "\"track\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"track\",");
     if (a->track_rate_valid.source == source)
-        p = safe_snprintf(p, end, "\"track_rate\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"track_rate\",");
     if (a->roll_valid.source == source)
-        p = safe_snprintf(p, end, "\"roll\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"roll\",");
     if (a->mag_heading_valid.source == source)
-        p = safe_snprintf(p, end, "\"mag_heading\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"mag_heading\",");
     if (a->true_heading_valid.source == source)
-        p = safe_snprintf(p, end, "\"true_heading\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"true_heading\",");
     if (a->baro_rate_valid.source == source)
-        p = safe_snprintf(p, end, "\"baro_rate\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"baro_rate\",");
     if (a->geom_rate_valid.source == source)
-        p = safe_snprintf(p, end, "\"geom_rate\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"geom_rate\",");
     if (a->squawk_valid.source == source)
-        p = safe_snprintf(p, end, "\"squawk\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"squawk\",");
     if (a->emergency_valid.source == source)
-        p = safe_snprintf(p, end, "\"emergency\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"emergency\",");
     if (a->nav_qnh_valid.source == source)
-        p = safe_snprintf(p, end, "\"nav_qnh\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"nav_qnh\",");
     if (a->nav_altitude_mcp_valid.source == source)
-        p = safe_snprintf(p, end, "\"nav_altitude_mcp\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"nav_altitude_mcp\",");
     if (a->nav_altitude_fms_valid.source == source)
-        p = safe_snprintf(p, end, "\"nav_altitude_fms\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"nav_altitude_fms\",");
     if (a->nav_heading_valid.source == source)
-        p = safe_snprintf(p, end, "\"nav_heading\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"nav_heading\",");
     if (a->nav_modes_valid.source == source)
-        p = safe_snprintf(p, end, "\"nav_modes\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"nav_modes\",");
     if (a->position_valid.source == source)
-        p = safe_snprintf(p, end, "\"lat\",\"lon\",\"nic\",\"rc\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"lat\",\"lon\",\"nic\",\"rc\",");
     if (a->nic_baro_valid.source == source)
-        p = safe_snprintf(p, end, "\"nic_baro\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"nic_baro\",");
     if (a->nac_p_valid.source == source)
-        p = safe_snprintf(p, end, "\"nac_p\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"nac_p\",");
     if (a->nac_v_valid.source == source)
-        p = safe_snprintf(p, end, "\"nac_v\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"nac_v\",");
     if (a->sil_valid.source == source)
-        p = safe_snprintf(p, end, "\"sil\",\"sil_type\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"sil\",\"sil_type\",");
     if (a->gva_valid.source == source)
-        p = safe_snprintf(p, end, "\"gva\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"gva\",");
     if (a->sda_valid.source == source)
-        p = safe_snprintf(p, end, "\"sda\",");
+        p = SAFE_APPEND_LITERAL(p, end, "\"sda\",");
     if (p != start)
         --p;
-    p = safe_snprintf(p, end, "]");
+    p = SAFE_APPEND_LITERAL(p, end, "]");
     return p;
 }
 
@@ -1940,25 +1958,25 @@ char *generateAircraftJson(const char *url_path, int *len) {
 
     retry:
         line_start = p;
-        p = safe_snprintf(p, end, "\n    {\"hex\":\"%s%06x\"", (a->addr & MODES_NON_ICAO_ADDRESS) ? "~" : "", a->addr & 0xFFFFFF);
+        p = safe_append_hex(p, end, (a->addr & MODES_NON_ICAO_ADDRESS) ? "\n    {\"hex\":\"~" : "\n    {\"hex\":\"", a->addr & 0xFFFFFF, 6, false, "\"");
         if (a->addrtype != ADDR_ADSB_ICAO)
-            p = safe_snprintf(p, end, ",\"type\":\"%s\"", addrtype_enum_string(a->addrtype));
+            p = safe_append_str(p, end, ",\"type\":\"", addrtype_enum_string(a->addrtype), "\"");
         if (trackDataValid(&a->callsign_valid))
-            p = safe_snprintf(p, end, ",\"flight\":\"%s\"", jsonEscapeString(a->callsign));
+            p = safe_append_str(p, end, ",\"flight\":\"", jsonEscapeString(a->callsign), "\"");
         if (trackDataValid(&a->airground_valid) && a->airground_valid.source >= SOURCE_MODE_S_CHECKED && a->airground == AG_GROUND)
-            p = safe_snprintf(p, end, ",\"alt_baro\":\"ground\"");
+            p = SAFE_APPEND_LITERAL(p, end, ",\"alt_baro\":\"ground\"");
         else {
             if (trackDataValid(&a->altitude_baro_valid))
-                p = safe_snprintf(p, end, ",\"alt_baro\":%d", a->altitude_baro);
+                p = safe_append_int(p, end, ",\"alt_baro\":", a->altitude_baro, "");
             if (trackDataValid(&a->altitude_geom_valid))
-                p = safe_snprintf(p, end, ",\"alt_geom\":%d", a->altitude_geom);
+                p = safe_append_int(p, end, ",\"alt_geom\":", a->altitude_geom, "");
         }
         if (trackDataValid(&a->gs_valid))
             p = safe_snprintf(p, end, ",\"gs\":%.1f", a->gs);
         if (trackDataValid(&a->ias_valid))
-            p = safe_snprintf(p, end, ",\"ias\":%u", a->ias);
+            p = safe_append_uint(p, end, ",\"ias\":", a->ias, "");
         if (trackDataValid(&a->tas_valid))
-            p = safe_snprintf(p, end, ",\"tas\":%u", a->tas);
+            p = safe_append_uint(p, end, ",\"tas\":", a->tas, "");
         if (trackDataValid(&a->mach_valid))
             p = safe_snprintf(p, end, ",\"mach\":%.3f", a->mach);
         if (trackDataValid(&a->track_valid))
@@ -1972,48 +1990,48 @@ char *generateAircraftJson(const char *url_path, int *len) {
         if (trackDataValid(&a->true_heading_valid))
             p = safe_snprintf(p, end, ",\"true_heading\":%.1f", a->true_heading);
         if (trackDataValid(&a->baro_rate_valid))
-            p = safe_snprintf(p, end, ",\"baro_rate\":%d", a->baro_rate);
+            p = safe_append_int(p, end, ",\"baro_rate\":", a->baro_rate, "");
         if (trackDataValid(&a->geom_rate_valid))
-            p = safe_snprintf(p, end, ",\"geom_rate\":%d", a->geom_rate);
+            p = safe_append_int(p, end, ",\"geom_rate\":", a->geom_rate, "");
         if (trackDataValid(&a->squawk_valid))
-            p = safe_snprintf(p, end, ",\"squawk\":\"%04x\"", a->squawk);
+            p = safe_append_hex(p, end, ",\"squawk\":\"", a->squawk, 4, false, "\"");
         if (trackDataValid(&a->emergency_valid))
-            p = safe_snprintf(p, end, ",\"emergency\":\"%s\"", emergency_enum_string(a->emergency));
+            p = safe_append_str(p, end, ",\"emergency\":\"", emergency_enum_string(a->emergency), "\"");
         if (a->category != 0)
-            p = safe_snprintf(p, end, ",\"category\":\"%02X\"", a->category);
+            p = safe_append_hex(p, end, ",\"category\":\"", a->category, 2, true, "\"");
         if (trackDataValid(&a->nav_qnh_valid))
             p = safe_snprintf(p, end, ",\"nav_qnh\":%.1f", a->nav_qnh);
          if (trackDataValid(&a->nav_altitude_mcp_valid))
-            p = safe_snprintf(p, end, ",\"nav_altitude_mcp\":%d", a->nav_altitude_mcp);
+            p = safe_append_int(p, end, ",\"nav_altitude_mcp\":", a->nav_altitude_mcp, "");
          if (trackDataValid(&a->nav_altitude_fms_valid))
-            p = safe_snprintf(p, end, ",\"nav_altitude_fms\":%d", a->nav_altitude_fms);
+            p = safe_append_int(p, end, ",\"nav_altitude_fms\":", a->nav_altitude_fms, "");
         if (trackDataValid(&a->nav_heading_valid))
             p = safe_snprintf(p, end, ",\"nav_heading\":%.1f", a->nav_heading);
         if (trackDataValid(&a->nav_modes_valid)) {
-            p = safe_snprintf(p, end, ",\"nav_modes\":[");
+            p = SAFE_APPEND_LITERAL(p, end, ",\"nav_modes\":[");
             p = append_nav_modes(p, end, a->nav_modes, "\"", ",");
-            p = safe_snprintf(p, end, "]");
+            p = SAFE_APPEND_LITERAL(p, end, "]");
         }
         if (trackDataValid(&a->position_valid))
             p = safe_snprintf(p, end, ",\"lat\":%f,\"lon\":%f,\"nic\":%u,\"rc\":%u,\"seen_pos\":%.1f", a->lat, a->lon, a->pos_nic, a->pos_rc, (now - a->position_valid.updated)/1000.0);
         if (a->adsb_version >= 0)
-            p = safe_snprintf(p, end, ",\"version\":%d", a->adsb_version);
+            p = safe_append_int(p, end, ",\"version\":", a->adsb_version, "");
         if (trackDataValid(&a->nic_baro_valid))
-            p = safe_snprintf(p, end, ",\"nic_baro\":%u", (unsigned) a->nic_baro);
+            p = safe_append_uint(p, end, ",\"nic_baro\":", (unsigned) a->nic_baro, "");
         if (trackDataValid(&a->nac_p_valid))
-            p = safe_snprintf(p, end, ",\"nac_p\":%u", a->nac_p);
+            p = safe_append_uint(p, end, ",\"nac_p\":", a->nac_p, "");
         if (trackDataValid(&a->nac_v_valid))
-            p = safe_snprintf(p, end, ",\"nac_v\":%u", a->nac_v);
+            p = safe_append_uint(p, end, ",\"nac_v\":", a->nac_v, "");
         if (trackDataValid(&a->sil_valid))
-            p = safe_snprintf(p, end, ",\"sil\":%u", a->sil);
+            p = safe_append_uint(p, end, ",\"sil\":", a->sil, "");
         if (a->sil_type != SIL_INVALID)
-            p = safe_snprintf(p, end, ",\"sil_type\":\"%s\"", sil_type_enum_string(a->sil_type));
+            p = safe_append_str(p, end, ",\"sil_type\":\"", sil_type_enum_string(a->sil_type), "\"");
         if (trackDataValid(&a->gva_valid))
-            p = safe_snprintf(p, end, ",\"gva\":%u", a->gva);
+            p = safe_append_uint(p, end, ",\"gva\":", a->gva, "");
         if (trackDataValid(&a->sda_valid))
-            p = safe_snprintf(p, end, ",\"sda\":%u", a->sda);
+            p = safe_append_uint(p, end, ",\"sda\":", a->sda, "");
         if (trackDataValid(&a->mrar_source_valid))
-            p = safe_snprintf(p, end, ",\"mrar_source\":\"%s\"", mrar_source_enum_string(a->mrar_source));
+            p = safe_append_str(p, end, ",\"mrar_source\":\"", mrar_source_enum_string(a->mrar_source), "\"");
         if (trackDataValid(&a->wind_valid))
             p = safe_snprintf(p, end, ",\"wind_speed\":%.0f,\"wind_dir\":%.1f", a->wind_speed, a->wind_dir);
         if (trackDataValid(&a->temperature_valid))
@@ -2021,17 +2039,17 @@ char *generateAircraftJson(const char *url_path, int *len) {
         if (trackDataValid(&a->pressure_valid))
             p = safe_snprintf(p, end, ",\"pressure\":%.0f", a->pressure);
         if (trackDataValid(&a->turbulence_valid))
-            p = safe_snprintf(p, end, ",\"turbulence\":\"%s\"", hazard_enum_string(a->turbulence));
+            p = safe_append_str(p, end, ",\"turbulence\":\"", hazard_enum_string(a->turbulence), "\"");
         if (trackDataValid(&a->humidity_valid))
             p = safe_snprintf(p, end, ",\"humidity\":%.1f", a->humidity);
         if (a->modeA_hit)
-            p = safe_snprintf(p, end, ",\"modea\":true");
+            p = SAFE_APPEND_LITERAL(p, end, ",\"modea\":true");
         if (a->modeC_hit)
-            p = safe_snprintf(p, end, ",\"modec\":true");
+            p = SAFE_APPEND_LITERAL(p, end, ",\"modec\":true");
 
-        p = safe_snprintf(p, end, ",\"mlat\":");
+        p = SAFE_APPEND_LITERAL(p, end, ",\"mlat\":");
         p = append_flags(p, end, a, SOURCE_MLAT);
-        p = safe_snprintf(p, end, ",\"tisb\":");
+        p = SAFE_APPEND_LITERAL(p, end, ",\"tisb\":");
         p = append_flags(p, end, a, SOURCE_TISB);
 
         p = safe_snprintf(p, end, ",\"messages\":%ld,\"seen\":%.1f,\"rssi\":%.1f}",
@@ -2050,7 +2068,7 @@ char *generateAircraftJson(const char *url_path, int *len) {
         }
     }
 
-    p = safe_snprintf(p, end, "\n  ]\n}\n");
+    p = SAFE_APPEND_LITERAL(p, end, "\n  ]\n}\n");
     *len = p-buf;
     return buf;
 }
