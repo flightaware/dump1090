@@ -260,6 +260,9 @@ void demodulate2400(struct mag_buf *mag)
         //
 
         // quick check: we must have a rising edge 0->1 and a falling edge 12->13
+        // (next_preamble_candidate() only returns positions that pass this and
+        // at least one of the phase patterns below; the checks are kept as they
+        // define what the prefilter must match)
         if (! (preamble[0] < preamble[1] && preamble[12] > preamble[13]) )
            continue;
 

@@ -375,7 +375,7 @@ static void prepareSyndromeIndex(struct syndromeindex *index, const struct error
     if (!table)
         return;
 
-    assert (tablesize >= 0 && tablesize <= UINT16_MAX);
+    assert (tablesize >= 0 && (unsigned) tablesize <= UINT16_MAX);
 
     // Use about as many ranges as there are table entries (at most 2^13
     // for the tables we build, i.e. a 16kB index), so a lookup usually
@@ -449,8 +449,10 @@ struct errorinfo *modesChecksumDiagnose(uint32_t syndrome, int bitlen)
     if (!table)
         return NULL;
 
+    // Not a CRC-24 syndrome, so never in the table. This check also keeps
+    // the index lookup below in bounds.
     if (syndrome > 0xffffff)
-        return NULL; // not a CRC-24 syndrome, never in the table
+        return NULL;
 
     // Syndromes in the table are unique, so there is at most one match;
     // it can only be in the (usually empty or single-entry) part of the

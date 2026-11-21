@@ -440,6 +440,7 @@ static char *put_hex(char *p, unsigned v, int width, bool upper)
     const char *digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
     char tmp[2 * sizeof(unsigned) + 8];
     char *t = tmp + sizeof(tmp);
+    assert(width >= 0 && width <= 8);
     do {
         *--t = digits[v & 0x0F];
         v >>= 4;
