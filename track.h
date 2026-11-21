@@ -56,6 +56,13 @@
 /* Maximum age of an unreliable tracked aircraft, in milliseconds */
 #define TRACK_AIRCRAFT_UNRELIABLE_TTL 60000
 
+/* Maximum number of aircraft we will track at once. Real receivers see a
+ * few thousand at most; this bounds memory, aircraft.json size and CPU when
+ * frames with many distinct (spoofed) addresses are received. When the limit
+ * is reached the least recently seen eighth of the table is evicted.
+ */
+#define TRACK_MAX_AIRCRAFT 10000
+
 /* Maximum validity of an aircraft position */
 #define TRACK_AIRCRAFT_POSITION_TTL 60000
 
@@ -287,6 +294,7 @@ struct aircraft {
     uint64_t      fatsv_last_force_emit;          // time (millis) we last emitted only-on-change data
 
     struct aircraft *next;        // Next aircraft in our linked list
+    struct aircraft *hash_next;   // Next aircraft in the same address hash bucket
 };
 
 /* Mode A/C tracking is done separately, not via the aircraft list,
@@ -324,6 +332,9 @@ static inline uint64_t trackDataAge(const data_validity *v)
  */
 struct modesMessage;
 struct aircraft *trackUpdateFromMessage(struct modesMessage *mm);
+
+/* Remove and free every tracked aircraft */
+void trackRemoveAllAircraft();
 
 /* Call periodically */
 void trackPeriodicUpdate();

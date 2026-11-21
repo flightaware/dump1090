@@ -58,6 +58,39 @@ uint32_t modeAC_match[4096];
 uint32_t modeAC_age[4096];
 
 //
+// Index of tracked aircraft by address, so that lookups are O(1) rather
+// than a scan of the whole aircraft list (which made a flood of distinct
+// addresses cost O(n^2)). The list order itself is unchanged.
+//
+#define TRACK_HASH_BITS 14
+#define TRACK_HASH_SIZE (1 << TRACK_HASH_BITS)
+static struct aircraft *aircraft_hash[TRACK_HASH_SIZE];
+static unsigned aircraft_count;
+
+static inline unsigned trackHash(uint32_t addr)
+{
+    return (addr * 2654435761U) >> (32 - TRACK_HASH_BITS);
+}
+
+static void trackHashInsert(struct aircraft *a)
+{
+    unsigned h = trackHash(a->addr);
+    a->hash_next = aircraft_hash[h];
+    aircraft_hash[h] = a;
+}
+
+static void trackHashRemove(struct aircraft *a)
+{
+    struct aircraft **p;
+    for (p = &aircraft_hash[trackHash(a->addr)]; *p; p = &(*p)->hash_next) {
+        if (*p == a) {
+            *p = a->hash_next;
+            return;
+        }
+    }
+}
+
+//
 // Return a new aircraft structure for the linked list of tracked
 // aircraft
 //
@@ -65,6 +98,9 @@ static struct aircraft *trackCreateAircraft(struct modesMessage *mm) {
     static struct aircraft zeroAircraft;
     struct aircraft *a = (struct aircraft *) malloc(sizeof(*a));
     int i;
+
+    if (!a)
+        return NULL;
 
     // Default everything to zero/NULL
     *a = zeroAircraft;
@@ -150,13 +186,99 @@ static struct aircraft *trackCreateAircraft(struct modesMessage *mm) {
 // exists with this address.
 //
 static struct aircraft *trackFindAircraft(uint32_t addr) {
-    struct aircraft *a = Modes.aircrafts;
+    struct aircraft *a;
 
-    while(a) {
+    for (a = aircraft_hash[trackHash(addr)]; a; a = a->hash_next) {
         if (a->addr == addr) return (a);
-        a = a->next;
     }
     return (NULL);
+}
+
+// Unlink an aircraft from the list (prev is its predecessor, or NULL if it
+// is the list head) and free it. Returns the following aircraft.
+static struct aircraft *trackFreeAircraft(struct aircraft *prev, struct aircraft *a)
+{
+    struct aircraft *next = a->next;
+
+    // Count aircraft where we saw only one message before reaping them.
+    // These are likely to be due to messages with bad addresses.
+    if (a->messages == 1)
+        Modes.stats_current.single_message_aircraft++;
+    if (!a->reliable)
+        Modes.stats_current.unreliable_aircraft++;
+
+    if (prev)
+        prev->next = next;
+    else
+        Modes.aircrafts = next;
+    trackHashRemove(a);
+    free(a);
+    --aircraft_count;
+    return next;
+}
+
+void trackRemoveAllAircraft()
+{
+    while (Modes.aircrafts)
+        trackFreeAircraft(NULL, Modes.aircrafts);
+}
+
+// Return the k-th smallest (0-based) of v[0..n), reordering v (quickselect)
+static uint64_t selectKth(uint64_t *v, unsigned n, unsigned k)
+{
+    unsigned lo = 0, hi = n - 1;
+    while (lo < hi) {
+        uint64_t pivot = v[lo + (hi - lo) / 2];
+        unsigned i = lo, j = hi;
+        while (i <= j) {
+            while (v[i] < pivot) ++i;
+            while (v[j] > pivot) --j;
+            if (i <= j) {
+                uint64_t t = v[i]; v[i] = v[j]; v[j] = t;
+                ++i;
+                if (j == 0) break;
+                --j;
+            }
+        }
+        if (k <= j)
+            hi = j;
+        else if (k >= i)
+            lo = i;
+        else
+            return v[k];
+    }
+    return v[k];
+}
+
+// The aircraft table is full: evict the least recently seen eighth of it
+// in one pass, so that the O(n) work here happens at most once per n/8 new
+// aircraft. Aircraft that are actually being received are refreshed several
+// times a second, so it is stale or one-off (e.g. spoofed) addresses that go.
+static void trackMakeRoom()
+{
+    static uint64_t seen[TRACK_MAX_AIRCRAFT + 1];
+    unsigned n = 0;
+
+    for (struct aircraft *a = Modes.aircrafts; a && n < sizeof(seen) / sizeof(seen[0]); a = a->next)
+        seen[n++] = a->seen;
+    if (n == 0)
+        return;
+
+    unsigned evict = n / 8 + 1;
+    uint64_t threshold = selectKth(seen, n, evict - 1);
+
+    // Free everything seen at or before the threshold, but no more than
+    // 'evict' aircraft (ties at the threshold are broken by list order)
+    struct aircraft *a = Modes.aircrafts, *prev = NULL;
+    while (a && evict > 0) {
+        if (a->seen <= threshold) {
+            a = trackFreeAircraft(prev, a);
+            --evict;
+        } else {
+            prev = a;
+            a = a->next;
+        }
+    }
 }
 
 // Should we accept some new data from the given source?
@@ -939,9 +1061,15 @@ struct aircraft *trackUpdateFromMessage(struct modesMessage *mm)
     // Lookup our aircraft or create a new one
     a = trackFindAircraft(mm->addr);
     if (!a) {                              // If it's a currently unknown aircraft....
+        if (aircraft_count >= TRACK_MAX_AIRCRAFT)
+            trackMakeRoom();
         a = trackCreateAircraft(mm);       // ., create a new record for it,
+        if (!a)
+            return NULL;                   // out of memory
         a->next = Modes.aircrafts;         // .. and put it at the head of the list
         Modes.aircrafts = a;
+        trackHashInsert(a);
+        ++aircraft_count;
     }
 
     if (mm->signalLevel > 0) {
@@ -1379,20 +1507,8 @@ static void trackRemoveStaleAircraft(uint64_t now)
 
     while(a) {
         if ((now - a->seen) > TRACK_AIRCRAFT_TTL || (!a->reliable && (now - a->seen) > TRACK_AIRCRAFT_UNRELIABLE_TTL)) {
-            // Count aircraft where we saw only one message before reaping them.
-            // These are likely to be due to messages with bad addresses.
-            if (a->messages == 1)
-                Modes.stats_current.single_message_aircraft++;
-            if (!a->reliable)
-                Modes.stats_current.unreliable_aircraft++;
-
-            // Remove the element from the linked list, with care
-            // if we are removing the first element
-            if (!prev) {
-                Modes.aircrafts = a->next; free(a); a = Modes.aircrafts;
-            } else {
-                prev->next = a->next; free(a); a = prev->next;
-            }
+            // Remove the element from the linked list and the index
+            a = trackFreeAircraft(prev, a);
         } else {
 
 #define EXPIRE(_f) do { if (a->_f##_valid.source != SOURCE_INVALID && now >= a->_f##_valid.expires) { a->_f##_valid.source = SOURCE_INVALID; } } while (0)

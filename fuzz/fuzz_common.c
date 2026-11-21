@@ -82,13 +82,7 @@ void fuzz_init(void)
 
 void fuzz_reset(void)
 {
-    struct aircraft *a = Modes.aircrafts;
-    while (a) {
-        struct aircraft *next = a->next;
-        free(a);
-        a = next;
-    }
-    Modes.aircrafts = NULL;
+    trackRemoveAllAircraft();
     icaoFilterInit();
     Modes.json_aircraft_history_next = 0;
     for (int i = 0; i < HISTORY_SIZE; ++i) {
