@@ -20,7 +20,11 @@
 #include "dump1090.h"
 
 // hash table size, must be a power of two:
-#define ICAO_FILTER_SIZE 4096
+#define ICAO_FILTER_SIZE 16384
+
+// Maximum linear-probe distance. Keeps add/test O(1) even when the table is
+// flooded with spoofed addresses.
+#define ICAO_FILTER_MAX_PROBE 32
 
 // Millis between filter expiry flips:
 #define MODES_ICAO_FILTER_TTL 60000
@@ -70,40 +74,33 @@ void icaoFilterInit()
 
 void icaoFilterAdd(uint32_t addr)
 {
-    uint32_t h, h0;
-    h0 = h = icaoHash(addr);
-    while (icao_filter_active[h] != EMPTY && icao_filter_active[h] != addr) {
-        h = (h+1) & (ICAO_FILTER_SIZE-1);
-        if (h == h0) {
-            fprintf(stderr, "ICAO hash table full, increase ICAO_FILTER_SIZE\n");
+    uint32_t h0 = icaoHash(addr), h = h0;
+    for (unsigned i = 0; i < ICAO_FILTER_MAX_PROBE; ++i, h = (h+1) & (ICAO_FILTER_SIZE-1)) {
+        if (icao_filter_active[h] == addr)
+            return;
+        if (icao_filter_active[h] == EMPTY) {
+            icao_filter_active[h] = addr;
             return;
         }
     }
-    if (icao_filter_active[h] == EMPTY)
-        icao_filter_active[h] = addr;
+    // Probe window full: overwrite the home slot. This only makes the filter forget
+    // one older entry (re-added on that aircraft's next DF11/17/18); it never creates
+    // an EMPTY hole, so other entries stay reachable.
+    icao_filter_active[h0] = addr;
 }
 
 int icaoFilterTest(uint32_t addr)
 {
-    uint32_t h, h0;
+    uint32_t h0 = icaoHash(addr), h;
+    unsigned i;
 
-    h0 = h = icaoHash(addr);
-    while (icao_filter_a[h] != EMPTY && icao_filter_a[h] != addr) {
-        h = (h+1) & (ICAO_FILTER_SIZE-1);
-        if (h == h0)
-            break;
-    }
-    if (icao_filter_a[h] == addr)
-        return 1;
+    for (i = 0, h = h0; i < ICAO_FILTER_MAX_PROBE && icao_filter_a[h] != EMPTY; ++i, h = (h+1) & (ICAO_FILTER_SIZE-1))
+        if (icao_filter_a[h] == addr)
+            return 1;
 
-    h = h0;
-    while (icao_filter_b[h] != EMPTY && icao_filter_b[h] != addr) {
-        h = (h+1) & (ICAO_FILTER_SIZE-1);
-        if (h == h0)
-            break;
-    }
-    if (icao_filter_b[h] == addr)
-        return 1;
+    for (i = 0, h = h0; i < ICAO_FILTER_MAX_PROBE && icao_filter_b[h] != EMPTY; ++i, h = (h+1) & (ICAO_FILTER_SIZE-1))
+        if (icao_filter_b[h] == addr)
+            return 1;
 
     return 0;
 }
