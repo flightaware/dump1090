@@ -136,6 +136,24 @@ static void test_aircraft_table_bound(void)
 
     trackRemoveAllAircraft();
     CHECK(Modes.aircrafts == NULL && count_aircraft() == 0, "aircraft table: trackRemoveAllAircraft empties the table");
+
+    // A flood just under 10000 new addresses per second, so that the table
+    // keeps refilling as fast as it can be emptied of aircraft older than 1s;
+    // eviction must stay cheap and new aircraft must still be tracked.
+    unsigned untracked = 0;
+    uint64_t base = now + 100000;
+    start = now_seconds();
+    for (unsigned i = 0; i < 200000; ++i) {
+        now = base + (uint64_t) (i / 9.99);
+        fake_df17(&mm, 0x400000 + i, now);
+        if (!trackUpdateFromMessage(&mm))
+            ++untracked;
+    }
+    elapsed = now_seconds() - start;
+    n = count_aircraft();
+    CHECK(elapsed < 2.0, "aircraft table: 200000 messages from a ~10000 address/s flood took %.2fs (limit 2s)", elapsed);
+    CHECK(untracked == 0 && n <= (unsigned) TRACK_MAX_AIRCRAFT, "aircraft table: every new aircraft tracked (%u untracked), %u in table", untracked, n);
+    trackRemoveAllAircraft();
 }
 
 // A 7-byte frame whose DF denotes a 112-bit message must be rejected rather
@@ -154,6 +172,14 @@ static void test_short_frame_long_df(void)
     before = Modes.stats_current.remote_rejected_bad;
     decodeBinMessage(NULL, beast);
     CHECK(Modes.stats_current.remote_rejected_bad == before + 1, "Beast input: short frame with a long DF is rejected");
+
+    // a short DF that error correction (--fix) repairs into DF17 must not be
+    // decoded as a 112-bit message either
+    char corrected[] = "*0D4840D6B900F4;";
+    before = Modes.stats_current.remote_rejected_bad;
+    decodeHexMessage(NULL, corrected);
+    CHECK(Modes.stats_current.remote_rejected_bad == before + 1 && !find_aircraft(0x4840D6),
+          "AVR input: short frame whose DF is corrected to a long format is rejected");
 
     // a well-formed short frame (DF11 all-call reply with valid parity) is still accepted
     char good[] = "*5D4840D6F8740F;";
@@ -212,6 +238,26 @@ static void test_radarcape_position(void)
     Modes.net_accept_position = 0;
 }
 
+static int hexval(char c)
+{
+    return (c >= '0' && c <= '9') ? c - '0' : (c >= 'A' && c <= 'F') ? c - 'A' + 10 : (c >= 'a' && c <= 'f') ? c - 'a' + 10 : 0;
+}
+
+// A version 1 target state and status message with an invalid (>= 360)
+// target heading must not produce a heading.
+static void test_target_heading_range(void)
+{
+    const char *hex = "8D4840D6E8827D3FF33808EDEE81";   // TSS v1, heading field 511
+    unsigned char msg[MODES_LONG_MSG_BYTES];
+    struct modesMessage mm;
+
+    for (int i = 0; i < MODES_LONG_MSG_BYTES; ++i)
+        msg[i] = (hexval(hex[2*i]) << 4) | hexval(hex[2*i+1]);
+    memset(&mm, 0, sizeof(mm));
+    int result = decodeModesMessage(&mm, msg);
+    CHECK(result >= 0 && mm.metype == 29 && !mm.nav.heading_valid, "ES target state: heading of 511 degrees is ignored");
+}
+
 int main(void)
 {
     memset(&Modes, 0, sizeof(Modes));
@@ -228,6 +274,7 @@ int main(void)
     test_short_frame_long_df();
     test_faup_command_missing_value();
     test_radarcape_position();
+    test_target_heading_range();
 
     if (failures) {
         fprintf(stderr, "%d regression test(s) FAILED\n", failures);

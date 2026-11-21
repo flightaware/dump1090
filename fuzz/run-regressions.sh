@@ -1,7 +1,7 @@
 #!/bin/sh
 # Build the fuzz harnesses with strict ASan+UBSan (every UBSan check fatal)
-# and run them over the regression inputs in fuzz/regressions/ plus any
-# extra corpus directories given as arguments. Exits non-zero on failure.
+# and run them over the regression inputs in fuzz/regressions/. Exits
+# non-zero on failure.
 #
 #   fuzz/run-regressions.sh [outdir]
 set -e
