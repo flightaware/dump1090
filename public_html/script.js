@@ -2454,12 +2454,23 @@ function refreshDataSourceFilters () {
         PlaneFilter.UAT = (localStorage.getItem('sourceUATFilter') === 'selected') ? true : false;
 }
 
+// Escape a string for inclusion in HTML element content or a quoted attribute
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+// The link builders below return HTML that is inserted with innerHTML / .html(),
+// so every value is escaped (and URL parts are URL-encoded) rather than relying on
+// the decoder having restricted callsigns to [A-Z0-9 ].
+
 function getFlightAwareIdentLink(ident, linkText) {
     if (ident !== null && ident !== "") {
         if (!linkText) {
             linkText = ident;
         }
-        return "<a target=\"_blank\" href=\"https://flightaware.com/live/flight/" + ident.trim() + "\"><span title=\"Bold ident indicates this is an aircraft registration number\"> " + linkText + "</span></a>";
+        return "<a target=\"_blank\" href=\"https://flightaware.com/live/flight/" + escapeHtml(encodeURIComponent(ident.trim())) + "\"><span title=\"Bold ident indicates this is an aircraft registration number\"> " + escapeHtml(linkText) + "</span></a>";
     }
 
     return "";
@@ -2471,11 +2482,11 @@ function getFlightAwareModeSLink(code, ident, linkText) {
             linkText = "FlightAware: " + code.toUpperCase();
         }
 
-        var linkHtml = "<a target=\"_blank\" href=\"https://flightaware.com/live/modes/" + code ;
+        var linkHtml = "<a target=\"_blank\" href=\"https://flightaware.com/live/modes/" + escapeHtml(encodeURIComponent(code));
         if (ident !== null && ident !== "") {
-            linkHtml += "/ident/" + ident.trim();
+            linkHtml += "/ident/" + escapeHtml(encodeURIComponent(ident.trim()));
         }
-        linkHtml += "/redirect\">" + linkText + "</a>";
+        linkHtml += "/redirect\">" + escapeHtml(linkText) + "</a>";
         return linkHtml;
     }
 
@@ -2491,7 +2502,8 @@ function getFlightAwarePhotoLink(registration) {
 }
 
 function getAirframesModeSLink(code) {
-    if (code !== null && code.length > 0 && code[0] !== '~' && code !== "000000") {
+    // code is embedded in an inline onclick handler, so only accept a plain hex address
+    if (code !== null && /^[0-9a-fA-F]{6}$/.test(code) && code !== "000000") {
         return "<a href=\"http://www.airframes.org/\" onclick=\"$('#airframes_post_icao').attr('value','" + code + "'); document.getElementById('horrible_hack').submit.call(document.getElementById('airframes_post')); return false;\">Airframes.org: " + code.toUpperCase() + "</a>";
     }
 
