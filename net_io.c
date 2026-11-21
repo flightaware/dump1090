@@ -400,6 +400,114 @@ static void completeWrite(struct net_writer *writer, void *endptr) {
 //
 //=========================================================================
 //
+// Formatting helpers for the per-message output writers, which run for every
+// message and would otherwise spend most of their time inside printf.
+// Each helper produces exactly the characters of the printf conversion named
+// in its comment.
+//
+
+// Copies the string literal s to p (no NUL); evaluates to the new end of p
+#define APPEND_LITERAL(p, s) (memcpy((p), (s), sizeof(s) - 1), (p) + sizeof(s) - 1)
+
+// sprintf(p, "%u", v), without the NUL; returns the new end of p
+static char *put_uint(char *p, unsigned v)
+{
+    char tmp[3 * sizeof(unsigned)];
+    char *t = tmp + sizeof(tmp);
+    do {
+        *--t = '0' + v % 10;
+        v /= 10;
+    } while (v);
+    size_t n = tmp + sizeof(tmp) - t;
+    memcpy(p, t, n);
+    return p + n;
+}
+
+// sprintf(p, "%d", v), without the NUL; returns the new end of p
+static char *put_int(char *p, int v)
+{
+    if (v < 0) {
+        *p++ = '-';
+        return put_uint(p, 0U - (unsigned) v);
+    }
+    return put_uint(p, (unsigned) v);
+}
+
+// sprintf(p, "%0<width>x", v) (or "%0<width>X" if upper), without the NUL,
+// for 0 <= width <= 8; returns the new end of p
+static char *put_hex(char *p, unsigned v, int width, bool upper)
+{
+    const char *digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
+    char tmp[2 * sizeof(unsigned) + 8];
+    char *t = tmp + sizeof(tmp);
+    do {
+        *--t = digits[v & 0x0F];
+        v >>= 4;
+    } while (v);
+    while (t > tmp + sizeof(tmp) - width)
+        *--t = '0';
+    size_t n = tmp + sizeof(tmp) - t;
+    memcpy(p, t, n);
+    return p + n;
+}
+
+// sprintf(p, "%03u", v), without the NUL; returns the new end of p
+static char *put_millis(char *p, unsigned v)
+{
+    if (v > 999)
+        return p + sprintf(p, "%03u", v);
+    *p++ = '0' + v / 100;
+    *p++ = '0' + v / 10 % 10;
+    *p++ = '0' + v % 10;
+    return p;
+}
+
+// The date and time text of one second of wall-clock time, kept so that it is
+// formatted only once per distinct second rather than once per message.
+// localtime_r/gmtime_r results depend only on the time passed in (the time
+// zone is loaded once; localtime_r does not reload it), so the cached text is
+// exactly what formatting the same second again would produce.
+struct time_text_cache {
+    bool valid;
+    time_t sec;
+    int len;
+    char text[80];  // at most 6 ints of 11 chars plus 6 separators
+};
+
+static void cache_time_text(struct time_text_cache *cache, time_t sec, int len)
+{
+    // snprintf cannot truncate here (see text[]), but never trust that blindly
+    if (len < 0 || len >= (int) sizeof(cache->text))
+        len = 0;
+    cache->len = len;
+    cache->sec = sec;
+    cache->valid = true;
+}
+
+// sprintf(p, "%04d/%02d/%02d,%02d:%02d:%02d.%03u", <localtime_r(&sec) fields>, millis)
+// without the NUL; returns the new end of p
+static char *put_sbs_time(char *p, struct time_text_cache *cache, time_t sec, unsigned millis)
+{
+    if (!cache->valid || cache->sec != sec) {
+        struct tm tm;
+        localtime_r(&sec, &tm);
+        cache_time_text(cache, sec,
+                        snprintf(cache->text, sizeof(cache->text), "%04d/%02d/%02d,%02d:%02d:%02d.",
+                                 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec));
+    }
+    memcpy(p, cache->text, cache->len);
+    return put_millis(p + cache->len, millis);
+}
+
+// SBS flag field value: -1 for true, 0 for false
+static char *put_sbs_flag(char *p, bool flag)
+{
+    return flag ? APPEND_LITERAL(p, "-1") : APPEND_LITERAL(p, "0");
+}
+
+//
+//=========================================================================
+//
 // Write raw output in Beast Binary format with Timestamp to TCP clients
 //
 static void modesSendBeastVerbatimOutput(struct modesMessage *mm) {
@@ -573,7 +681,6 @@ static void send_raw_heartbeat(struct net_service *service)
 static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     char *p;
     struct timespec now;
-    struct tm    stTime_receive, stTime_now;
     int          msgType;
 
     // We require a tracked aircraft for SBS output
@@ -647,144 +754,130 @@ static void modesSendSBSOutput(struct modesMessage *mm, struct aircraft *a) {
     }
 
     // Fields 1 to 6 : SBS message type and ICAO address of the aircraft and some other stuff
-    p += sprintf(p, "MSG,%d,1,1,%06X,1,", msgType, mm->addr);
+    p = APPEND_LITERAL(p, "MSG,");
+    p = put_int(p, msgType);
+    p = APPEND_LITERAL(p, ",1,1,");
+    p = put_hex(p, mm->addr, 6, true);
+    p = APPEND_LITERAL(p, ",1,");
 
     // Find current system time
     clock_gettime(CLOCK_REALTIME, &now);
-    localtime_r(&now.tv_sec, &stTime_now);
 
     // Find message reception time
     time_t received = (time_t) (mm->sysTimestampMsg / 1000);
-    localtime_r(&received, &stTime_receive);
 
     // Fields 7 & 8 are the message reception time and date
-    p += sprintf(p, "%04d/%02d/%02d,", (stTime_receive.tm_year+1900),(stTime_receive.tm_mon+1), stTime_receive.tm_mday);
-    p += sprintf(p, "%02d:%02d:%02d.%03u,", stTime_receive.tm_hour, stTime_receive.tm_min, stTime_receive.tm_sec, (unsigned) (mm->sysTimestampMsg % 1000));
+    static struct time_text_cache received_text, now_text;
+    p = put_sbs_time(p, &received_text, received, (unsigned) (mm->sysTimestampMsg % 1000));
+    *p++ = ',';
 
     // Fields 9 & 10 are the current time and date
-    p += sprintf(p, "%04d/%02d/%02d,", (stTime_now.tm_year+1900),(stTime_now.tm_mon+1), stTime_now.tm_mday);
-    p += sprintf(p, "%02d:%02d:%02d.%03u", stTime_now.tm_hour, stTime_now.tm_min, stTime_now.tm_sec, (unsigned) (now.tv_nsec / 1000000U));
+    p = put_sbs_time(p, &now_text, now.tv_sec, (unsigned) (now.tv_nsec / 1000000U));
+
+    // Each remaining field starts with a comma and is empty if we don't have it
 
     // Field 11 is the callsign (if we have it)
-    if (mm->callsign_valid) {p += sprintf(p, ",%s", mm->callsign);}
-    else                    {p += sprintf(p, ",");}
+    *p++ = ',';
+    if (mm->callsign_valid) {
+        size_t len = strlen(mm->callsign);
+        memcpy(p, mm->callsign, len);
+        p += len;
+    }
 
     // Field 12 is the altitude (if we have it)
+    *p++ = ',';
     if (Modes.use_gnss) {
         if (mm->altitude_geom_valid) {
-            p += sprintf(p, ",%dH", mm->altitude_geom);
+            p = put_int(p, mm->altitude_geom);
+            *p++ = 'H';
         } else if (mm->altitude_baro_valid && trackDataValid(&a->geom_delta_valid)) {
-            p += sprintf(p, ",%dH", mm->altitude_baro + a->geom_delta);
+            p = put_int(p, mm->altitude_baro + a->geom_delta);
+            *p++ = 'H';
         } else if (mm->altitude_baro_valid) {
-            p += sprintf(p, ",%d", mm->altitude_baro);
-        } else {
-            p += sprintf(p, ",");
+            p = put_int(p, mm->altitude_baro);
         }
     } else {
         if (mm->altitude_baro_valid) {
-            p += sprintf(p, ",%d", mm->altitude_baro);
+            p = put_int(p, mm->altitude_baro);
         } else if (mm->altitude_geom_valid && trackDataValid(&a->geom_delta_valid)) {
-            p += sprintf(p, ",%d", mm->altitude_geom - a->geom_delta);
-        } else {
-            p += sprintf(p, ",");
+            p = put_int(p, mm->altitude_geom - a->geom_delta);
         }
     }
 
     // Field 13 is the ground Speed (if we have it)
+    *p++ = ',';
     if (mm->gs_valid) {
-        p += sprintf(p, ",%.0f", mm->gs.selected);
-    } else {
-        p += sprintf(p, ",");
+        p += sprintf(p, "%.0f", mm->gs.selected);
     }
 
     // Field 14 is the ground Heading (if we have it)
+    *p++ = ',';
     if (mm->heading_valid && mm->heading_type == HEADING_GROUND_TRACK) {
-        p += sprintf(p, ",%.0f", mm->heading);
-    } else {
-        p += sprintf(p, ",");
+        p += sprintf(p, "%.0f", mm->heading);
     }
 
     // Fields 15 and 16 are the Lat/Lon (if we have it)
     if (mm->cpr_decoded) {
         p += sprintf(p, ",%1.5f,%1.5f", mm->decoded_lat, mm->decoded_lon);
     } else {
-        p += sprintf(p, ",,");
+        p = APPEND_LITERAL(p, ",,");
     }
 
     // Field 17 is the VerticalRate (if we have it)
+    *p++ = ',';
     if (Modes.use_gnss) {
         if (mm->geom_rate_valid) {
-            p += sprintf(p, ",%dH", mm->geom_rate);
+            p = put_int(p, mm->geom_rate);
+            *p++ = 'H';
         } else if (mm->baro_rate_valid) {
-            p += sprintf(p, ",%d", mm->baro_rate);
-        } else {
-            p += sprintf(p, ",");
+            p = put_int(p, mm->baro_rate);
         }
     } else {
         if (mm->baro_rate_valid) {
-            p += sprintf(p, ",%d", mm->baro_rate);
+            p = put_int(p, mm->baro_rate);
         } else if (mm->geom_rate_valid) {
-            p += sprintf(p, ",%d", mm->geom_rate);
-        } else {
-            p += sprintf(p, ",");
+            p = put_int(p, mm->geom_rate);
         }
     }
 
     // Field 18 is  the Squawk (if we have it)
+    *p++ = ',';
     if (mm->squawk_valid) {
-        p += sprintf(p, ",%04x", mm->squawk);
-    } else {
-        p += sprintf(p, ",");
+        p = put_hex(p, mm->squawk, 4, false);
     }
 
     // Field 19 is the Squawk Changing Alert flag (if we have it)
+    *p++ = ',';
     if (mm->alert_valid) {
-        if (mm->alert) {
-            p += sprintf(p, ",-1");
-        } else {
-            p += sprintf(p, ",0");
-        }
-    } else {
-        p += sprintf(p, ",");
+        p = put_sbs_flag(p, mm->alert);
     }
 
     // Field 20 is the Squawk Emergency flag (if we have it)
+    *p++ = ',';
     if (mm->squawk_valid) {
-        if ((mm->squawk == 0x7500) || (mm->squawk == 0x7600) || (mm->squawk == 0x7700)) {
-            p += sprintf(p, ",-1");
-        } else {
-            p += sprintf(p, ",0");
-        }
-    } else {
-        p += sprintf(p, ",");
+        p = put_sbs_flag(p, (mm->squawk == 0x7500) || (mm->squawk == 0x7600) || (mm->squawk == 0x7700));
     }
 
     // Field 21 is the Squawk Ident flag (if we have it)
+    *p++ = ',';
     if (mm->spi_valid) {
-        if (mm->spi) {
-            p += sprintf(p, ",-1");
-        } else {
-            p += sprintf(p, ",0");
-        }
-    } else {
-        p += sprintf(p, ",");
+        p = put_sbs_flag(p, mm->spi);
     }
 
     // Field 22 is the OnTheGround flag (if we have it)
+    *p++ = ',';
     switch (mm->airground) {
     case AG_GROUND:
-        p += sprintf(p, ",-1");
+        p = put_sbs_flag(p, true);
         break;
     case AG_AIRBORNE:
-        p += sprintf(p, ",0");
+        p = put_sbs_flag(p, false);
         break;
     default:
-        p += sprintf(p, ",");
         break;
     }
 
-    p += sprintf(p, "\r\n");
-
+    p = APPEND_LITERAL(p, "\r\n");
     completeWrite(&Modes.sbs_out, p);
 }
 
