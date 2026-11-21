@@ -717,6 +717,11 @@ void demodulate2400AC(struct mag_buf *mag)
 
         // This message looks good, submit it
 
+        // mm is reused for every reply in this buffer; start each one clean
+        // so that a reply without a valid Mode C code doesn't inherit the
+        // altitude of the previous reply
+        memset(&mm, 0, sizeof(mm));
+
         // For consistency with how the Beast / Radarcape does it,
         // we report the timestamp at the second framing pulse (F2)
         mm.timestampMsg = mag->sampleTimestamp + f2_clock / 5;  // 60MHz -> 12MHz
