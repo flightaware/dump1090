@@ -380,13 +380,21 @@ double get_bearing(double lat0, double lon0, double lat1, double lon1)
 static void update_range_histogram(double lat, double lon)
 {
     if (Modes.stats_range_histo && (Modes.bUserFlags & MODES_USER_LATLON_VALID)) {
-        double range = greatcircle(Modes.fUserLat, Modes.fUserLon, lat, lon);
-        int bucket = round(range / Modes.maxRange * RANGE_BUCKET_COUNT);
+        if (!(Modes.maxRange > 0))
+            return;   // no range limit configured, so no meaningful buckets
 
-        if (bucket < 0)
+        double range = greatcircle(Modes.fUserLat, Modes.fUserLon, lat, lon);
+        double scaled = round(range / Modes.maxRange * RANGE_BUCKET_COUNT);
+        int bucket;
+
+        // clamp before converting, so that an out-of-range (or NaN) value
+        // never reaches the int conversion
+        if (!(scaled >= 0))
             bucket = 0;
-        else if (bucket >= RANGE_BUCKET_COUNT)
+        else if (scaled >= RANGE_BUCKET_COUNT)
             bucket = RANGE_BUCKET_COUNT-1;
+        else
+            bucket = (int) scaled;
 
         ++Modes.stats_current.range_histogram[bucket];
     }
