@@ -357,11 +357,19 @@ int decodeCPRrelative(double reflat, double reflon,
     m = (int) (floor(reflon/AirDlon) +
                floor(0.5 + cprModDouble(reflon, AirDlon)/AirDlon - fractional_lon));
     rlon = AirDlon * (m + fractional_lon);
-    if (rlon > 180) rlon -= 360;
 
-    // Check to see that answer is reasonable - ie no more than 1/2 cell away
+    // Check to see that answer is reasonable - ie no more than 1/2 cell away.
+    // rlon is in the same (unwrapped) frame as reflon here, so do this
+    // before normalizing.
     if (fabs(rlon - reflon) > (AirDlon/2))
         return (-1);                               // Time to give up - Longitude error
+
+    // Normalize to -180 .. +180 (near the antimeridian rlon can be just
+    // outside this range on either side)
+    if (rlon > 180)
+        rlon -= 360;
+    else if (rlon < -180)
+        rlon += 360;
 
     *out_lat = rlat;
     *out_lon = rlon;

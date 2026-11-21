@@ -123,6 +123,13 @@ static const struct {
     { 52.00, -4.10, 80534, 9413, 0, 0, 0, 51.686554, 0.698745 },  // even, airborne
     { 52.00, -4.10, 61714, 9144, 1, 0, 0, 51.686484, 0.697632 },  // odd, airborne
 
+    // positions just across the antimeridian from the reference location;
+    // the result must be normalized to -180..+180 (true position 45N, 179.999E / 179.999W)
+    { 45.00, -179.9995, 65536, 131057, 0, 0, 0, 45.000000, 179.999019 },  // even, airborne, crossing westward
+    { 45.00, -179.9995, 49152,  65521, 1, 0, 0, 45.000000, 179.998995 },  // odd, airborne, crossing westward
+    { 45.00,  179.9995, 65536,     15, 0, 0, 0, 45.000000, -179.999019 }, // even, airborne, crossing eastward
+    { 45.00,  179.9995, 49152,  65551, 1, 0, 0, 45.000000, -179.998995 }, // odd, airborne, crossing eastward
+
     //
     // SURFACE
     //
