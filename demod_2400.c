@@ -93,6 +93,104 @@ static void init_bitsets()
 }
 
 //
+// Preamble prefilter.
+//
+// The preamble search in demodulate2400 looks further at a sample position
+// only if it passes the "quick check" and at least one of the five phase
+// patterns, all of which compare pairs of adjacent samples. Testing these
+// one position at a time is a chain of poorly predictable branches per
+// sample, so instead we find the rising and falling edges of a block of 64
+// positions as bitmasks and combine shifted copies of them into a mask of the
+// positions that pass. The search loop then visits only those positions, in
+// order, and runs the full checks there as before. Every position it skips
+// would have failed those checks and been skipped with no other effect, so
+// the result is unchanged.
+//
+
+// Pack 8 bytes that are each 0 or 1 into an 8-bit mask (b[0] -> bit 0)
+static inline uint64_t pack8(const uint8_t *b)
+{
+    // b[n] in bit 8n (compilers turn this into a single load)
+    uint64_t x = (uint64_t) b[0]       | (uint64_t) b[1] << 8  | (uint64_t) b[2] << 16 | (uint64_t) b[3] << 24 |
+                 (uint64_t) b[4] << 32 | (uint64_t) b[5] << 40 | (uint64_t) b[6] << 48 | (uint64_t) b[7] << 56;
+    // The multiplier has bits 7m+7 (m = 0..7) set, so the product is the sum of
+    // b[n] << (8n + 7m + 7); these 64 bit positions are all different, so
+    // there are no carries, and the top byte gets exactly b[n] at bit 56+n
+    return (x * 0x0102040810204080ULL) >> 56;
+}
+
+// Return a mask with bit i set iff position p+i (0 <= i < 64) passes the
+// quick check and at least one phase pattern in demodulate2400.
+// Reads p[0] .. p[80].
+static uint64_t preamble_candidates(const uint16_t *p)
+{
+    // rise[i] / fall[i]: p[i] < p[i+1] / p[i] > p[i+1]
+    // (computed as bytes first, which compilers can vectorize)
+    uint8_t rise[80], fall[80];
+    for (unsigned i = 0; i < 80; ++i) {
+        rise[i] = (p[i] < p[i+1]);
+        fall[i] = (p[i] > p[i+1]);
+    }
+
+    // the same as bitmasks: bit i of *_lo is [i], bit i of *_hi is [64+i]
+    uint64_t rise_lo = 0, fall_lo = 0, rise_hi, fall_hi;
+    for (unsigned k = 0; k < 8; ++k) {
+        rise_lo |= pack8(&rise[8*k]) << (8*k);
+        fall_lo |= pack8(&fall[8*k]) << (8*k);
+    }
+    rise_hi = pack8(&rise[64]) | pack8(&rise[72]) << 8;
+    fall_hi = pack8(&fall[64]) | pack8(&fall[72]) << 8;
+
+    // bit i of R(d) / F(d): p[i+d] < p[i+d+1] / p[i+d] > p[i+d+1], for 1 <= d <= 12
+#define R(d) ((rise_lo >> (d)) | (rise_hi << (64 - (d))))
+#define F(d) ((fall_lo >> (d)) | (fall_hi << (64 - (d))))
+    uint64_t quick = rise_lo & F(12);
+    uint64_t phase34 = F(1) & R(2) & F(3) & R(8) & F(9) & (R(10) | R(11));
+    uint64_t phase5 = F(1) & R(2) & F(4) & R(8) & F(10) & R(11);
+    uint64_t phase67 = (F(1) | F(2)) & R(3) & F(4) & R(9) & F(10) & R(11);
+#undef R
+#undef F
+
+    return quick & (phase34 | phase5 | phase67);
+}
+
+static inline unsigned ctz64(uint64_t x)   // x must be nonzero
+{
+#ifdef __GNUC__
+    return __builtin_ctzll(x);
+#else
+    unsigned n = 0;
+    while (!(x & 1)) {
+        x >>= 1;
+        ++n;
+    }
+    return n;
+#endif
+}
+
+// Return the first position >= j that passes the checks in
+// preamble_candidates, or a value >= mlen if there is none before mlen.
+// *base and *mask cache the candidate mask of the block starting at *base.
+static uint32_t next_preamble_candidate(const uint16_t *m, uint32_t j, uint32_t mlen, uint32_t *base, uint64_t *mask)
+{
+    while (j < mlen) {
+        if (j - *base >= 64) {
+            // j is outside the cached block (this includes j < *base)
+            *base = j;
+            *mask = preamble_candidates(&m[j]);
+        }
+
+        uint64_t pending = *mask >> (j - *base);
+        if (pending)
+            return j + ctz64(pending);
+
+        j = *base + 64;
+    }
+
+    return j;
+}
+
+//
 // Given 'mlen' magnitude samples in 'm', sampled at 2.4MHz,
 // try to demodulate some Mode S messages.
 //
@@ -117,7 +215,8 @@ void demodulate2400(struct mag_buf *mag)
     unsigned char *bestmsg;
     int bestscore, bestphase;
 
-    // maximum lookahead we use
+    // maximum lookahead we use (preamble_candidates reads up to
+    // m[j + 80], which is well within this)
     assert(mag->overlap >= 19 + 1 + 269);
 
     uint16_t *m = mag->data;
@@ -131,7 +230,16 @@ void demodulate2400(struct mag_buf *mag)
     if (last_message_end > mlen)
         last_message_end = mlen;
 
+    // candidate mask for the block starting at cand_base
+    uint32_t cand_base = last_message_end;
+    uint64_t cand_mask = preamble_candidates(&m[cand_base]);
+
     for (j = last_message_end; j < mlen; j++) {
+        // skip straight to the next position that can pass the checks below
+        j = next_preamble_candidate(m, j, mlen, &cand_base, &cand_mask);
+        if (j >= mlen)
+            break;
+
         uint16_t *preamble = &m[j];
         int high;
         uint32_t base_signal, base_noise;
