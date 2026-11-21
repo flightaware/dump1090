@@ -1198,10 +1198,11 @@ static void decodeESTargetStatus(struct modesMessage *mm, int check_imf)
         }
         // 26-27: horizontal data source
         unsigned h_source = getbits(me, 26, 27);
-        if (h_source != 0) {
-            // 28-36: target heading/track
+        // 28-36: target heading/track, 0-359 degrees (360-511 are invalid encodings)
+        unsigned h_raw = getbits(me, 28, 36);
+        if (h_source != 0 && h_raw < 360) {
             mm->nav.heading_valid = 1;
-            mm->nav.heading = getbits(me, 28, 36);
+            mm->nav.heading = h_raw;
             // 37: track vs heading
             if (getbit(me, 37)) {
                 mm->nav.heading_type = HEADING_GROUND_TRACK;
