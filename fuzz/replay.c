@@ -7,11 +7,12 @@
 // identical, and as a repeatable benchmark workload.
 //
 //   fuzz/build-replay.sh [outdir]
-//   replay [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE | --beast FILE) OUTDIR
+//   replay [--quiet] [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE | --beast FILE) OUTDIR
 //
 // Writes to OUTDIR: messages.txt (decoded messages, as dump1090 prints
-// them), raw.txt, beast.bin, sbs.txt, stratux.txt, fatsv.txt and
-// aircraft.jsonl (aircraft.json once per simulated second).
+// them; empty with --quiet, which is how dump1090 normally runs), raw.txt,
+// beast.bin, sbs.txt, stratux.txt, fatsv.txt and aircraft.jsonl
+// (aircraft.json once per simulated second).
 //
 // net_io.c is included directly to reach its static functions; link with
 // -Wl,--wrap=mstime,--wrap=clock_gettime so that every wall-clock read sees
@@ -250,6 +251,7 @@ int main(int argc, char **argv)
 
     for (int j = 1; j < argc; ++j) {
         if (!strcmp(argv[j], "--modeac")) Modes.mode_ac = 1;
+        else if (!strcmp(argv[j], "--quiet")) Modes.quiet = 1;
         else if (!strcmp(argv[j], "--fix") && j + 1 < argc) Modes.nfix_crc = atoi(argv[++j]);
         else if (!strcmp(argv[j], "--lat") && j + 1 < argc) Modes.fUserLat = atof(argv[++j]);
         else if (!strcmp(argv[j], "--lon") && j + 1 < argc) Modes.fUserLon = atof(argv[++j]);
@@ -257,12 +259,12 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[j], "--beast") && j + 1 < argc) beast = argv[++j];
         else if (argv[j][0] != '-' && !outdir) outdir = argv[j];
         else {
-            fprintf(stderr, "usage: %s [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE | --beast FILE) OUTDIR\n", argv[0]);
+            fprintf(stderr, "usage: %s [--quiet] [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE | --beast FILE) OUTDIR\n", argv[0]);
             return 1;
         }
     }
     if ((!iq && !beast) || !outdir) {
-        fprintf(stderr, "usage: %s [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE | --beast FILE) OUTDIR\n", argv[0]);
+        fprintf(stderr, "usage: %s [--quiet] [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE | --beast FILE) OUTDIR\n", argv[0]);
         return 1;
     }
     if (Modes.nfix_crc > MODES_MAX_BITERRORS)
