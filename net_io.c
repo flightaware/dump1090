@@ -1148,6 +1148,10 @@ static int handleFaupCommand(struct client *c, char *p) {
     while (msg_field != NULL) {
         if (!strcmp(msg_field, "upload_rate_multiplier")) {
             msg_field = strtok (NULL, "\t");
+            if (!msg_field) {
+                fprintf(stderr, "handleFaupCommand(): upload_rate_multiplier is missing a value\n");
+                return 0;
+            }
             multiplier = atof(msg_field);
 
             // Sanity check on multiplier value
@@ -1163,6 +1167,10 @@ static int handleFaupCommand(struct client *c, char *p) {
 
         if (!strcmp(msg_field, "upload_unknown_commb")) {
             msg_field = strtok (NULL, "\t");
+            if (!msg_field) {
+                fprintf(stderr, "handleFaupCommand(): upload_unknown_commb is missing a value\n");
+                return 0;
+            }
             unsigned enable = atoi(msg_field);
             fprintf(stderr, "handleFaupCommand(): %s upload of unknown Comm-B messages\n", enable ? "Enabling" : "Disabling");
             Modes.faup_upload_unknown_commb = enable;
