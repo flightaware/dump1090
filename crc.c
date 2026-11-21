@@ -86,6 +86,18 @@ static int bitErrorTableSize_short;
 static struct errorinfo *bitErrorTable_long;
 static int bitErrorTableSize_long;
 
+// Index into a (sorted) error table, used to speed up syndrome lookups.
+// The 24-bit syndrome space is split into 2^bits equal ranges by the top
+// bits of the syndrome; the table entries with syndromes in range b are
+// those at [start[b], start[b+1]).
+struct syndromeindex {
+    uint16_t *start;    // 2^bits + 1 entries, or NULL if there is no table
+    int shift;          // 24 - bits
+};
+
+static struct syndromeindex bitErrorIndex_short;
+static struct syndromeindex bitErrorIndex_long;
+
 // compare two errorinfo structures
 static int syndrome_compare(const void *x, const void *y) {
     struct errorinfo *ex = (struct errorinfo*)x;
@@ -351,6 +363,41 @@ static struct errorinfo *prepareErrorTable(int bits, int max_correct, int max_de
     return table;
 }
 
+// Build the lookup index for a sorted error table of the given size
+static void prepareSyndromeIndex(struct syndromeindex *index, const struct errorinfo *table, int tablesize)
+{
+    int bits, nranges, i, b;
+
+    free(index->start);
+    index->start = NULL;
+    index->shift = 0;
+
+    if (!table)
+        return;
+
+    assert (tablesize >= 0 && tablesize <= UINT16_MAX);
+
+    // Use about as many ranges as there are table entries (at most 2^13
+    // for the tables we build, i.e. a 16kB index), so a lookup usually
+    // has zero or one candidate entries to look at.
+    for (bits = 8; bits < 16 && (1 << bits) < tablesize; ++bits)
+        ;
+    nranges = 1 << bits;
+
+    index->shift = 24 - bits;
+    index->start = malloc((nranges + 1) * sizeof(index->start[0]));
+    if (!index->start) {
+        fprintf(stderr, "Out of memory allocating error correction tables\n");
+        exit(1);
+    }
+
+    for (i = 0, b = 0; b <= nranges; ++b) {
+        while (i < tablesize && (table[i].syndrome >> index->shift) < (uint32_t)b)
+            ++i;
+        index->start[b] = i;
+    }
+}
+
 // Precompute syndrome tables for 56- and 112-bit messages.
 void modesChecksumInit(int fixBits)
 {
@@ -378,6 +425,9 @@ void modesChecksumInit(int fixBits)
         fprintf(stderr, "done.\n");
         break;
     }
+
+    prepareSyndromeIndex(&bitErrorIndex_short, bitErrorTable_short, bitErrorTableSize_short);
+    prepareSyndromeIndex(&bitErrorIndex_long, bitErrorTable_long, bitErrorTableSize_long);
 }
 
 // Given an error syndrome and message length, return
@@ -386,22 +436,38 @@ void modesChecksumInit(int fixBits)
 struct errorinfo *modesChecksumDiagnose(uint32_t syndrome, int bitlen)
 {
     struct errorinfo *table;
-    int tablesize;
-
-    struct errorinfo ei;
+    const struct syndromeindex *index;
+    unsigned lo, hi;
 
     if (syndrome == 0)
         return &NO_ERRORS;
 
     assert (bitlen == 56 || bitlen == 112);
-    if (bitlen == 56) { table = bitErrorTable_short; tablesize = bitErrorTableSize_short; }
-    else { table = bitErrorTable_long; tablesize = bitErrorTableSize_long; }
+    if (bitlen == 56) { table = bitErrorTable_short; index = &bitErrorIndex_short; }
+    else { table = bitErrorTable_long; index = &bitErrorIndex_long; }
 
     if (!table)
         return NULL;
 
-    ei.syndrome = syndrome;
-    return bsearch(&ei, table, tablesize, sizeof(struct errorinfo), syndrome_compare);
+    if (syndrome > 0xffffff)
+        return NULL; // not a CRC-24 syndrome, never in the table
+
+    // Syndromes in the table are unique, so there is at most one match;
+    // it can only be in the (usually empty or single-entry) part of the
+    // sorted table that shares the top bits of the syndrome.
+    lo = index->start[syndrome >> index->shift];
+    hi = index->start[(syndrome >> index->shift) + 1];
+    while (lo < hi) {
+        unsigned mid = (lo + hi) / 2;
+        if (table[mid].syndrome == syndrome)
+            return &table[mid];
+        if (table[mid].syndrome < syndrome)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+
+    return NULL;
 }
 
 // Given a message and an error-correction descriptor,
