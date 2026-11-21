@@ -1242,7 +1242,7 @@ static int decodeBinMessage(struct client *c, char *p) {
     int msgLen = 0;
     int  j;
     char ch;
-    unsigned char msg[MODES_LONG_MSG_BYTES + 7];
+    unsigned char msg[MODES_LONG_MSG_BYTES + 7] = { 0 };
     static struct modesMessage zeroMessage;
     struct modesMessage mm;
     MODES_NOTUSED(c);
@@ -1310,7 +1310,19 @@ static int decodeBinMessage(struct client *c, char *p) {
             int result;
 
             Modes.stats_current.remote_received_modes++;
+
+            // A short frame whose DF says it is a long message would be
+            // decoded using bytes that were never received; reject it.
+            if (modesMessageLenByType(msg[0] >> 3) > msgLen * 8) {
+                Modes.stats_current.remote_rejected_bad++;
+                return 0;
+            }
+
             result = decodeModesMessage(&mm, msg);
+            if (result >= 0 && mm.msgbits > msgLen * 8) {
+                // error correction turned the DF into a long format
+                result = -2;
+            }
             if (result < 0) {
                 if (result == -1)
                     Modes.stats_current.remote_rejected_unknown_icao++;
@@ -1384,7 +1396,7 @@ static bool signalFromHex(const char *hex, double *signal)
 //
 static int decodeHexMessage(struct client *c, char *hex) {
     int l = strlen(hex), j;
-    unsigned char msg[MODES_LONG_MSG_BYTES];
+    unsigned char msg[MODES_LONG_MSG_BYTES] = { 0 };
     struct modesMessage mm;
     static struct modesMessage zeroMessage;
 
@@ -1482,7 +1494,19 @@ static int decodeHexMessage(struct client *c, char *hex) {
         int result;
 
         Modes.stats_current.remote_received_modes++;
+
+        // A short frame whose DF says it is a long message would be
+        // decoded using bytes that were never received; reject it.
+        if (modesMessageLenByType(msg[0] >> 3) > l * 4) {
+            Modes.stats_current.remote_rejected_bad++;
+            return 0;
+        }
+
         result = decodeModesMessage(&mm, msg);
+        if (result >= 0 && mm.msgbits > l * 4) {
+            // error correction turned the DF into a long format
+            result = -2;
+        }
         if (result < 0) {
             if (result == -1)
                 Modes.stats_current.remote_rejected_unknown_icao++;
