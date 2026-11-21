@@ -534,10 +534,12 @@ static void modesSendRawOutput(struct modesMessage *mm, struct aircraft *a) {
     } else
         *p++ = '*';
 
+    // same as sprintf("%02X") per byte, without the per-byte sprintf call
+    static const char hexdigits[] = "0123456789ABCDEF";
     unsigned char *msg = mm->msg;
     for (int j = 0; j < msgLen; j++) {
-        sprintf(p, "%02X", msg[j]);
-        p += 2;
+        *p++ = hexdigits[msg[j] >> 4];
+        *p++ = hexdigits[msg[j] & 0x0F];
     }
 
     *p++ = ';';
