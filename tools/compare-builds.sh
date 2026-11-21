@@ -116,6 +116,8 @@ checksums() {   # checksums BINDIR OUTFILE
         for f in $(ls "$t" | sort); do
             echo "$name/$f $(sha256sum < "$t/$f" | cut -d' ' -f1) $(wc -c < "$t/$f")" >> "$out"
         done
+        # keep the decoded-message text of Mode A/C runs, to explain differences below
+        case "$args" in *--modeac*) mkdir -p "$bin/out/$name"; mv "$t/messages.txt" "$bin/out/$name/" ;; esac
         rm -rf "$t"
     done
     for fix in --no-fix --fix --fix-2bit; do
@@ -127,7 +129,44 @@ log "running both builds"
 checksums "$WORK/base" "$WORK/base.sums"
 checksums "$WORK/head" "$WORK/head.sums"
 
+# Before the commit "Reset the message for each Mode A/C reply in a sample buffer", a Mode
+# A/C reply without a valid Mode C code showed the altitude of the previous
+# reply. Comparing against an older base on real recordings (which contain
+# Mode A/C replies) therefore differs in exactly that way: lines
+# "  Baro altitude: ..." present only in the base output. Recognise that
+# pattern so it is reported as expected rather than as a regression.
+expected_modeac_diff() {   # expected_modeac_diff NAME (e.g. recording_fix2_modeac/messages.txt)
+    local cfg=${1%/messages.txt}
+    [ "$cfg" != "$1" ] || return 1
+    local b="$WORK/base/out/$cfg/messages.txt" h="$WORK/head/out/$cfg/messages.txt"
+    [ -f "$b" ] && [ -f "$h" ] || return 1
+    local d
+    d=$(diff "$b" "$h" | grep '^[<>]') || return 1
+    # only removals of altitude lines, and each removed line belongs to a Mode A/C reply
+    echo "$d" | grep -qv '^<   Baro altitude: ' && return 1
+    python3 - "$b" "$h" <<'PYEOF'
+import difflib, sys
+base = open(sys.argv[1]).read().split('\n')
+head = open(sys.argv[2]).read().split('\n')
+ok = True
+for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, base, head, autojunk=False).get_opcodes():
+    if tag == 'equal':
+        continue
+    if tag != 'delete':
+        ok = False; break
+    for i in range(i1, i2):
+        # walk back to the message header line
+        k = i
+        while k > 0 and not base[k].startswith('DF:'):
+            k -= 1
+        if not base[k].startswith('DF:32 Mode A/C Reply'):
+            ok = False
+sys.exit(0 if ok else 1)
+PYEOF
+}
+
 STATUS=0
+EXPECTED=0
 RESULT="$WORK/result.md"
 {
     echo "### Output comparison: $(git rev-parse --short HEAD) vs $BASE ($(git rev-parse --short "$BASE")) on $(uname -m)"
@@ -136,18 +175,26 @@ RESULT="$WORK/result.md"
     echo "|---|---|---|"
     while read -r name sum size; do
         other=$(grep "^$name " "$WORK/base.sums" | cut -d' ' -f2)
-        if [ "$sum" = "$other" ]; then r=identical; else r="**DIFFERENT**"; fi
+        if [ "$sum" = "$other" ]; then
+            r=identical
+        elif expected_modeac_diff "$name"; then
+            r="differs as expected (Mode A/C altitude fix, $(diff "$WORK/base/out/${name%/messages.txt}/messages.txt" "$WORK/head/out/${name%/messages.txt}/messages.txt" | grep -c '^<') stale altitudes removed)"
+            echo "$name" >> "$WORK/expected.list"
+        else
+            r="**DIFFERENT**"
+        fi
         echo "| $name | ${size:--} | $r |"
     done < "$WORK/head.sums"
 } > "$RESULT"
-if ! cmp -s "$WORK/base.sums" "$WORK/head.sums"; then
-    # sizes are informational; compare names and hashes only
-    if ! diff <(cut -d' ' -f1,2 "$WORK/base.sums") <(cut -d' ' -f1,2 "$WORK/head.sums") >/dev/null; then
-        STATUS=1
-    fi
-fi
-if [ $STATUS = 0 ]; then
+# any difference not explained above is a failure (sizes are informational)
+UNEXPECTED=$(diff <(cut -d' ' -f1,2 "$WORK/base.sums") <(cut -d' ' -f1,2 "$WORK/head.sums") | grep '^>' | cut -d' ' -f2 |
+             grep -vxF -f <(cat "$WORK/expected.list" 2>/dev/null; echo "-none-") || true)
+[ -n "$UNEXPECTED" ] && STATUS=1
+[ -s "$WORK/expected.list" ] && EXPECTED=$(wc -l < "$WORK/expected.list")
+if [ $STATUS = 0 ] && [ "$EXPECTED" = 0 ]; then
     echo -e "\nAll $(wc -l < "$WORK/head.sums") outputs identical." >> "$RESULT"
+elif [ $STATUS = 0 ]; then
+    echo -e "\nAll $(wc -l < "$WORK/head.sums") outputs identical, apart from $EXPECTED that differ only by the intended Mode A/C altitude fix." >> "$RESULT"
 else
     echo -e "\n**Outputs differ.** Inputs and both builds are in $WORK." >> "$RESULT"
 fi
