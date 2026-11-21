@@ -505,6 +505,60 @@ static char *put_sbs_flag(char *p, bool flag)
     return flag ? APPEND_LITERAL(p, "-1") : APPEND_LITERAL(p, "0");
 }
 
+// safe_snprintf(p, end, "%s", s) for a string s of length len: writes as much
+// of s as fits before end, NUL-terminated, and returns p + len.
+// (A sequence of these produces the same buffer contents and result as one
+// safe_snprintf of the concatenated text.)
+static char *safe_append(char *p, char *end, const char *s, size_t len)
+{
+    if (p < end) {
+        size_t n = (size_t) (end - p) - 1;
+        if (len < n)
+            n = len;
+        memcpy(p, s, n);
+        p[n] = 0;
+    }
+    return p + len;
+}
+
+// safe_snprintf(p, end, "%s", s) for a string literal s
+#define SAFE_APPEND_LITERAL(p, end, s) safe_append((p), (end), (s), sizeof(s) - 1)
+
+// safe_snprintf(p, end, "%s%d%s", prefix, v, suffix)
+static inline char *safe_append_int(char *p, char *end, const char *prefix, int v, const char *suffix)
+{
+    char tmp[3 * sizeof(int) + 2];
+    p = safe_append(p, end, prefix, strlen(prefix));
+    p = safe_append(p, end, tmp, put_int(tmp, v) - tmp);
+    return safe_append(p, end, suffix, strlen(suffix));
+}
+
+// safe_snprintf(p, end, "%s%u%s", prefix, v, suffix)
+static inline char *safe_append_uint(char *p, char *end, const char *prefix, unsigned v, const char *suffix)
+{
+    char tmp[3 * sizeof(unsigned) + 2];
+    p = safe_append(p, end, prefix, strlen(prefix));
+    p = safe_append(p, end, tmp, put_uint(tmp, v) - tmp);
+    return safe_append(p, end, suffix, strlen(suffix));
+}
+
+// safe_snprintf(p, end, "%04d-%02d-%02dT%02d:%02d:%02d.%03uZ", <gmtime_r(&sec) fields>, millis)
+static char *safe_append_stratux_time(char *p, char *end, struct time_text_cache *cache, time_t sec, unsigned millis)
+{
+    if (!cache->valid || cache->sec != sec) {
+        struct tm tm;
+        gmtime_r(&sec, &tm);
+        cache_time_text(cache, sec,
+                        snprintf(cache->text, sizeof(cache->text), "%04d-%02d-%02dT%02d:%02d:%02d.",
+                                 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec));
+    }
+    char tmp[3 * sizeof(unsigned) + 2];
+    char *t = put_millis(tmp, millis);
+    *t++ = 'Z';
+    p = safe_append(p, end, cache->text, cache->len);
+    return safe_append(p, end, tmp, t - tmp);
+}
+
 //
 //=========================================================================
 //
@@ -936,90 +990,89 @@ static void modesSendStratuxOutput(struct modesMessage *mm, struct aircraft *a) 
         cacf = mm->CF;
     }
 
-    const char* is_mlat_str = "false";
-    if (mm->source == SOURCE_MLAT)
-        is_mlat_str = "true";
-
+    p = safe_append_uint(p, end, "{\"Icao_addr\":", mm->addr, ",");
+    p = safe_append_int(p, end, "\"DF\":", mm->msgtype, ",");
+    p = safe_append_int(p, end, "\"CA\":", cacf, ",");
+    p = safe_append_uint(p, end, "\"TypeCode\":", mm->metype, ",");
+    p = safe_append_uint(p, end, "\"SubtypeCode\":", mm->mesub, ",");
     p = safe_snprintf(p, end,
-            "{\"Icao_addr\":%u,"
-            "\"DF\":%d,\"CA\":%d,"
-            "\"TypeCode\":%u,"
-            "\"SubtypeCode\":%u,"
             "\"SignalLevel\":%f,"
-            "\"Gain\":%f,"
-            "\"IsMlat\":%s,",
-            mm->addr,
-            mm->msgtype, cacf,
-            mm->metype,
-            mm->mesub,
+            "\"Gain\":%f,",
             mm->signalLevel, // what precision and range is needed for RSSI?
-            sdrGetGainDb(sdrGetGain()),
-            is_mlat_str);
+            sdrGetGainDb(sdrGetGain()));
+    if (mm->source == SOURCE_MLAT)
+        p = SAFE_APPEND_LITERAL(p, end, "\"IsMlat\":true,");
+    else
+        p = SAFE_APPEND_LITERAL(p, end, "\"IsMlat\":false,");
 
     //// callsign
     if (mm->callsign_valid)
         p = safe_snprintf(p, end, "\"Tail\":\"%s\",", jsonEscapeString(mm->callsign));
     else
-        p = safe_snprintf(p, end, "\"Tail\":null,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"Tail\":null,");
 
     //// altitude & gnss
     bool alt_is_geom;
     if (mm->altitude_baro_valid) {
-        p = safe_snprintf(p, end, "\"Alt\":%d,",mm->altitude_baro);
+        p = safe_append_int(p, end, "\"Alt\":", mm->altitude_baro, ",");
         alt_is_geom = false;
     } else if (mm->altitude_geom_valid) {
-        p = safe_snprintf(p, end, "\"Alt\":%d,",mm->altitude_geom);
+        p = safe_append_int(p, end, "\"Alt\":", mm->altitude_geom, ",");
         alt_is_geom = true;
     } else {
-        p = safe_snprintf(p, end, "\"Alt\":null,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"Alt\":null,");
         alt_is_geom = false;
     }
 
     // altitude source
     if (alt_is_geom)
-        p = safe_snprintf(p, end, "\"AltIsGNSS\":true,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"AltIsGNSS\":true,");
     else
-        p = safe_snprintf(p, end, "\"AltIsGNSS\":false,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"AltIsGNSS\":false,");
 
     // GNSS alt. delta From baro alt.
     if (trackDataValid(&a->geom_delta_valid))
-        p = safe_snprintf(p, end, "\"GnssDiffFromBaroAlt\":%d,",a->geom_delta);
+        p = safe_append_int(p, end, "\"GnssDiffFromBaroAlt\":", a->geom_delta, ",");
     else
-        p = safe_snprintf(p, end, "\"GnssDiffFromBaroAlt\":null,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"GnssDiffFromBaroAlt\":null,");
     ////
 
     //// ground speed and track
     if (mm->gs_valid)
         p = safe_snprintf(p, end, "\"Speed_valid\":true,\"Speed\":%.0f,", mm->gs.selected);
     else
-        p = safe_snprintf(p, end, "\"Speed_valid\":false,\"Speed\":null,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"Speed_valid\":false,\"Speed\":null,");
 
     //// ground heading
     if (mm->heading_valid && mm->heading_type == HEADING_GROUND_TRACK)
         p = safe_snprintf(p, end, "\"Track\":%.0f,", mm->heading);
     else
-        p = safe_snprintf(p, end, "\"Track\":null,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"Track\":null,");
 
     //// position
     if (mm->cpr_decoded)
         p = safe_snprintf(p, end, "\"Lat\":%.6f,\"Lng\":%.6f,\"Position_valid\":true,",
                     mm->decoded_lat, mm->decoded_lon);
     else
-        p = safe_snprintf(p, end, "\"Lat\":null,\"Lng\":null,\"Position_valid\":false,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"Lat\":null,\"Lng\":null,\"Position_valid\":false,");
 
     //// vrate (use barometric if possible)
     if (mm->baro_rate_valid)
-        p = safe_snprintf(p, end, "\"Vvel\":%d,", mm->baro_rate);
+        p = safe_append_int(p, end, "\"Vvel\":", mm->baro_rate, ",");
     else if (mm->geom_rate_valid)
-        p = safe_snprintf(p, end, "\"Vvel\":%d,", mm->geom_rate);
+        p = safe_append_int(p, end, "\"Vvel\":", mm->geom_rate, ",");
     else
-        p = safe_snprintf(p, end, "\"Vvel\":null,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"Vvel\":null,");
 
     //// squawk
-    if (mm->squawk_valid)
-        p = safe_snprintf(p, end, "\"Squawk\":%x,", mm->squawk);
-    else
-        p = safe_snprintf(p, end, "\"Squawk\":null,");
+    if (mm->squawk_valid) {
+        char hex[2 * sizeof(unsigned) + 8];
+        p = SAFE_APPEND_LITERAL(p, end, "\"Squawk\":");
+        p = safe_append(p, end, hex, put_hex(hex, mm->squawk, 0, false) - hex);
+        p = SAFE_APPEND_LITERAL(p, end, ",");
+    } else {
+        p = SAFE_APPEND_LITERAL(p, end, "\"Squawk\":null,");
+    }
 
     // TODO: squawk changing alert support in stratux?
     // TODO: squawk emergency flag?
@@ -1028,20 +1081,20 @@ static void modesSendStratuxOutput(struct modesMessage *mm, struct aircraft *a) 
     // airground
     switch (mm->airground) {
         case AG_GROUND:
-            p = safe_snprintf(p, end, "\"OnGround\":true,");
+            p = SAFE_APPEND_LITERAL(p, end, "\"OnGround\":true,");
             break;
         case AG_AIRBORNE:
-            p = safe_snprintf(p, end, "\"OnGround\":false,");
+            p = SAFE_APPEND_LITERAL(p, end, "\"OnGround\":false,");
             break;
         default:
-            p = safe_snprintf(p, end, "\"OnGround\":null,");
+            p = SAFE_APPEND_LITERAL(p, end, "\"OnGround\":null,");
     }
 
     // navigation accuracy category - position
     if (mm->accuracy.nac_p_valid) {
-        p = safe_snprintf(p, end, "\"NACp\":%u,", mm->accuracy.nac_p);
+        p = safe_append_uint(p, end, "\"NACp\":", mm->accuracy.nac_p, ",");
     } else {
-        p = safe_snprintf(p, end, "\"NACp\":null,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"NACp\":null,");
     }
 
     // emitter type
@@ -1064,21 +1117,18 @@ static void modesSendStratuxOutput(struct modesMessage *mm, struct aircraft *a) 
     }
 
     if (emitter >= 0)
-        p = safe_snprintf(p, end, "\"Emitter_category\":%d,", emitter);
+        p = safe_append_int(p, end, "\"Emitter_category\":", emitter, ",");
     else
-        p = safe_snprintf(p, end, "\"Emitter_category\":null,");
+        p = SAFE_APPEND_LITERAL(p, end, "\"Emitter_category\":null,");
 
     // Time message received (based on system clock). Format is 2016-02-20T06:35:43.155Z
-    struct tm stTime_receive;
+    static struct time_text_cache received_text;
     time_t received = (time_t) (mm->sysTimestampMsg / 1000);
-    gmtime_r(&received, &stTime_receive);
-    p = safe_snprintf(p, end, "\"Timestamp\":\"%04d-%02d-%02dT%02d:%02d:%02d.%03uZ\"",
-            (stTime_receive.tm_year+1900),(stTime_receive.tm_mon+1),
-            stTime_receive.tm_mday, stTime_receive.tm_hour,
-            stTime_receive.tm_min, stTime_receive.tm_sec,
-            (unsigned)(mm->sysTimestampMsg % 1000));
+    p = SAFE_APPEND_LITERAL(p, end, "\"Timestamp\":\"");
+    p = safe_append_stratux_time(p, end, &received_text, received, (unsigned)(mm->sysTimestampMsg % 1000));
+    p = SAFE_APPEND_LITERAL(p, end, "\"");
 
-    p = safe_snprintf(p, end, "}\r\n");
+    p = SAFE_APPEND_LITERAL(p, end, "}\r\n");
 
     if (p < end)
         completeWrite(&Modes.stratux_out, p);
