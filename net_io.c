@@ -220,7 +220,7 @@ void serviceListen(struct net_service *service, char *bind_addr, char *bind_port
             p = end + 1;
         }
 
-        nfds = anetTcpServer(Modes.aneterr, buf, bind_addr, newfds, sizeof(newfds));
+        nfds = anetTcpServer(Modes.aneterr, buf, bind_addr, newfds, sizeof(newfds) / sizeof(newfds[0]));
         if (nfds == ANET_ERR) {
             fprintf(stderr, "Error opening the listening port %s (%s): %s\n",
                     buf, service->descr, Modes.aneterr);
