@@ -545,8 +545,17 @@ void demodulate2400AC(struct mag_buf *mag)
 
     memset(&mm, 0, sizeof(mm));
 
-    double noise_stddev = sqrt(mag->mean_power - mag->mean_level * mag->mean_level); // Var(X) = E[(X-E[X])^2] = E[X^2] - (E[X])^2
-    unsigned noise_level = (unsigned) ((mag->mean_power + noise_stddev) * 65535 + 0.5);
+    // Var(X) = E[(X-E[X])^2] = E[X^2] - (E[X])^2
+    // Rounding can make the estimate slightly negative for a constant-envelope
+    // block, and an empty block gives NaN statistics; clamp both so that we
+    // never take sqrt() of a negative number or convert NaN to unsigned.
+    double noise_variance = mag->mean_power - mag->mean_level * mag->mean_level;
+    if (!(noise_variance > 0))
+        noise_variance = 0;
+    double noise = mag->mean_power + sqrt(noise_variance);
+    if (!(noise >= 0))
+        noise = 0;
+    unsigned noise_level = (unsigned) (noise * 65535 + 0.5);
 
     for (f1_sample = 1; f1_sample < mlen; ++f1_sample) {
         // Mode A/C messages should match this bit sequence:

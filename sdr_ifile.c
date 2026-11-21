@@ -219,6 +219,12 @@ void ifileRun()
         }
 
         unsigned samples_read = bytes_read / ifile.bytes_per_sample;
+        if (samples_read == 0) {
+            // Nothing new (EOF on a sample boundary, or a partial sample):
+            // don't pass on an empty buffer with undefined (0/0) statistics
+            fifo_release(outbuf);
+            break;
+        }
 
         // Convert the new data
         ifile.converter(ifile.readbuf, &outbuf->data[outbuf->overlap], samples_read, ifile.converter_state, &outbuf->mean_level, &outbuf->mean_power);
