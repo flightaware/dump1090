@@ -4,13 +4,14 @@
 # traffic, and check that every decoded output is byte-for-byte identical.
 # Optionally time both builds on the same input.
 #
-#   tools/compare-builds.sh [--base REF] [--small] [--timing ROUNDS] [--iq FILE] [--workdir DIR]
+#   tools/compare-builds.sh [--base REF] [--small] [--timing ROUNDS] [--iq FILE [--iformat FMT]] [--workdir DIR]
 #
 #   --base REF        git ref to compare against (default: origin/master, else master)
 #   --small           smaller inputs (for slow or emulated machines)
 #   --timing ROUNDS   also time both builds, alternating, ROUNDS runs each
 #   --iq FILE         also compare (and time) on a real 2.4MS/s UC8 IQ recording,
 #                     e.g. one made with: rtl_sdr -f 1090000000 -s 2400000 -n 288000000 FILE
+#   --iformat FMT     sample format of the --iq recording: UC8 (default, rtl_sdr), SC16 or SC16Q11
 #   --workdir DIR     where to build and write data (default: a new temp dir)
 #
 # Needs: a C toolchain, git, python3 with numpy (for tools/gen-traffic.py).
@@ -27,6 +28,7 @@ BASE=
 SMALL=0
 ROUNDS=0
 IQ_EXTRA=
+IQ_FORMAT=UC8
 WORK=
 
 while [ $# -gt 0 ]; do
@@ -35,8 +37,9 @@ while [ $# -gt 0 ]; do
         --small) SMALL=1; shift ;;
         --timing) ROUNDS=$2; shift 2 ;;
         --iq) IQ_EXTRA=$(realpath "$2"); shift 2 ;;
+        --iformat) IQ_FORMAT=$2; shift 2 ;;
         --workdir) WORK=$2; shift 2 ;;
-        *) sed -n '2,25p' "$0"; exit 2 ;;
+        *) sed -n '2,26p' "$0"; exit 2 ;;
     esac
 done
 
@@ -98,7 +101,8 @@ CONFIGS=(
     "beast_fix1|--fix 1 --lat 45 --lon 10 --beast $DATA/traffic.beast"
 )
 if [ -n "$IQ_EXTRA" ]; then
-    CONFIGS+=("recording_fix1|--fix 1 --iq $IQ_EXTRA" "recording_fix2_modeac|--fix 2 --modeac --iq $IQ_EXTRA")
+    CONFIGS+=("recording_fix1|--fix 1 --iformat $IQ_FORMAT --iq $IQ_EXTRA"
+              "recording_fix2_modeac|--fix 2 --modeac --iformat $IQ_FORMAT --iq $IQ_EXTRA")
 fi
 
 checksums() {   # checksums BINDIR OUTFILE
@@ -152,11 +156,13 @@ if [ "$ROUNDS" -gt 0 ]; then
     log "timing ($ROUNDS rounds per build, alternating)"
     TIMING_IQ=$DATA/clean.iq
     [ -n "$IQ_EXTRA" ] && TIMING_IQ=$IQ_EXTRA
-    python3 - "$WORK" "$ROUNDS" "$TIMING_IQ" "$DATA/traffic.beast" >> "$RESULT" <<'EOF'
+    TIMING_FMT=UC8
+    [ -n "$IQ_EXTRA" ] && TIMING_FMT=$IQ_FORMAT
+    python3 - "$WORK" "$ROUNDS" "$TIMING_IQ" "$DATA/traffic.beast" "$TIMING_FMT" >> "$RESULT" <<'EOF'
 import os, resource, shutil, statistics, subprocess, sys, tempfile
-work, rounds, iq, beast = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+work, rounds, iq, beast, fmt = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5]
 loads = {
-    'dump1090 --ifile (IQ)': lambda b: [f'{b}/dump1090', '--device-type', 'ifile', '--ifile', iq, '--iformat', 'UC8', '--quiet', '--fix'],
+    'dump1090 --ifile (IQ)': lambda b: [f'{b}/dump1090', '--device-type', 'ifile', '--ifile', iq, '--iformat', fmt, '--quiet', '--fix'],
     'Beast input, all outputs': lambda b, o: [f'{b}/replay', '--quiet', '--fix', '1', '--beast', beast, o],
 }
 def cpu(argv):

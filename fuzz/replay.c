@@ -7,7 +7,7 @@
 // identical, and as a repeatable benchmark workload.
 //
 //   fuzz/build-replay.sh [outdir]
-//   replay [--quiet] [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE | --beast FILE) OUTDIR
+//   replay [--quiet] [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE [--iformat UC8|SC16|SC16Q11] | --beast FILE) OUTDIR
 //
 // Writes to OUTDIR: messages.txt (decoded messages, as dump1090 prints
 // them; empty with --quiet, which is how dump1090 normally runs), raw.txt,
@@ -95,6 +95,8 @@ static void periodic(void)
     }
 }
 
+static input_format_t iq_format = INPUT_UC8;
+
 static void replay_iq(const char *path)
 {
     int fd = open(path, O_RDONLY);
@@ -106,21 +108,22 @@ static void replay_iq(const char *path)
     unsigned overlap = Modes.trailing_samples;
     unsigned block = MODES_MAG_BUF_SAMPLES;
     uint16_t *data = calloc(block + overlap, sizeof(uint16_t));
-    uint8_t *iq = malloc(block * 2);
+    unsigned bytes_per_sample = (iq_format == INPUT_UC8) ? 2 : 4;
+    uint8_t *iq = malloc(block * bytes_per_sample);
     struct converter_state *state = NULL;
-    iq_convert_fn convert = init_converter(INPUT_UC8, Modes.sample_rate, 0, &state);
+    iq_convert_fn convert = init_converter(iq_format, Modes.sample_rate, 0, &state);
     uint64_t start = sim_now;
     uint64_t samples = 0;
 
     for (;;) {
         size_t got = 0;
-        while (got < block * 2) {
-            ssize_t n = read(fd, iq + got, block * 2 - got);
+        while (got < block * bytes_per_sample) {
+            ssize_t n = read(fd, iq + got, block * bytes_per_sample - got);
             if (n <= 0)
                 break;
             got += n;
         }
-        unsigned nsamples = got / 2;
+        unsigned nsamples = got / bytes_per_sample;
         if (nsamples == 0)
             break;
 
@@ -256,15 +259,22 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[j], "--lat") && j + 1 < argc) Modes.fUserLat = atof(argv[++j]);
         else if (!strcmp(argv[j], "--lon") && j + 1 < argc) Modes.fUserLon = atof(argv[++j]);
         else if (!strcmp(argv[j], "--iq") && j + 1 < argc) iq = argv[++j];
+        else if (!strcmp(argv[j], "--iformat") && j + 1 < argc) {
+            const char *f = argv[++j];
+            if (!strcasecmp(f, "UC8")) iq_format = INPUT_UC8;
+            else if (!strcasecmp(f, "SC16")) iq_format = INPUT_SC16;
+            else if (!strcasecmp(f, "SC16Q11")) iq_format = INPUT_SC16Q11;
+            else { fprintf(stderr, "unknown --iformat %s (UC8, SC16 or SC16Q11)\n", f); return 1; }
+        }
         else if (!strcmp(argv[j], "--beast") && j + 1 < argc) beast = argv[++j];
         else if (argv[j][0] != '-' && !outdir) outdir = argv[j];
         else {
-            fprintf(stderr, "usage: %s [--quiet] [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE | --beast FILE) OUTDIR\n", argv[0]);
+            fprintf(stderr, "usage: %s [--quiet] [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE [--iformat UC8|SC16|SC16Q11] | --beast FILE) OUTDIR\n", argv[0]);
             return 1;
         }
     }
     if ((!iq && !beast) || !outdir) {
-        fprintf(stderr, "usage: %s [--quiet] [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE | --beast FILE) OUTDIR\n", argv[0]);
+        fprintf(stderr, "usage: %s [--quiet] [--modeac] [--fix N] [--lat LAT --lon LON] (--iq FILE [--iformat UC8|SC16|SC16Q11] | --beast FILE) OUTDIR\n", argv[0]);
         return 1;
     }
     if (Modes.nfix_crc > MODES_MAX_BITERRORS)
