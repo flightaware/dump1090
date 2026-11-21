@@ -1131,7 +1131,8 @@ function initialize_map() {
                     rules: {
                         ringCount: {
                             number: true,
-		            min: 0
+		            min: 0,
+                            max: MaxSiteCirclesCount
                         },
                         baseRing: {
                             number: true,
@@ -2675,11 +2676,24 @@ function setRingInterval(val) {
     createSiteCircleFeatures();
 }
 
+// Upper limit on the number of range rings drawn
+var MaxSiteCirclesCount = 100;
+
 // Set range ring globals and populate form values
 function setRangeRings() {
-    SiteCirclesCount = Number(localStorage['SiteCirclesCount']) || DefaultSiteCirclesCount;
-    SiteCirclesBaseDistance = Number(localStorage['SiteCirclesBaseDistance']) || DefaultSiteCirclesBaseDistance;
-    SiteCirclesInterval = Number(localStorage['SiteCirclesInterval']) || DefaultSiteCirclesInterval;
+    // Values may come from the URL (?ringCount=...), the form or an older
+    // stored setting; sanitize them here so that a huge ring count can't hang
+    // the page (and stay stored, hanging it on every later visit).
+    SiteCirclesCount = Number(localStorage['SiteCirclesCount']);
+    if (!isFinite(SiteCirclesCount) || SiteCirclesCount <= 0)
+        SiteCirclesCount = DefaultSiteCirclesCount;
+    SiteCirclesCount = Math.min(Math.floor(SiteCirclesCount), MaxSiteCirclesCount);
+    SiteCirclesBaseDistance = Number(localStorage['SiteCirclesBaseDistance']);
+    if (!isFinite(SiteCirclesBaseDistance) || SiteCirclesBaseDistance <= 0)
+        SiteCirclesBaseDistance = DefaultSiteCirclesBaseDistance;
+    SiteCirclesInterval = Number(localStorage['SiteCirclesInterval']);
+    if (!isFinite(SiteCirclesInterval) || SiteCirclesInterval <= 0)
+        SiteCirclesInterval = DefaultSiteCirclesInterval;
 
     // Populate text fields with current values
     $('#range_ring_count').val(SiteCirclesCount);
