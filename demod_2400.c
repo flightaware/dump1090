@@ -63,12 +63,12 @@ static uint32_t valid_df_long_bitset;         // set of acceptable DF values for
 
 static uint32_t generate_damage_set(uint8_t df, unsigned damage_bits)
 {
-    uint32_t result = (1 << df);
+    uint32_t result = (1U << df);
     if (!damage_bits)
         return result;
 
     for (unsigned bit = 0; bit < 5; ++bit) {
-        unsigned damaged_df = df ^ (1 << bit);
+        unsigned damaged_df = df ^ (1U << bit);
         result |= generate_damage_set(damaged_df, damage_bits - 1);
     }
 
@@ -78,11 +78,11 @@ static uint32_t generate_damage_set(uint8_t df, unsigned damage_bits)
 static void init_bitsets()
 {
     // DFs that we directly understand without correction
-    valid_df_short_bitset = (1 << 0) | (1 << 4) | (1 << 5) | (1 << 11);
-    valid_df_long_bitset = (1 << 16) | (1 << 17) | (1 << 18) | (1 << 20) | (1 << 21);
+    valid_df_short_bitset = (1U << 0) | (1U << 4) | (1U << 5) | (1U << 11);
+    valid_df_long_bitset = (1U << 16) | (1U << 17) | (1U << 18) | (1U << 20) | (1U << 21);
 
     if (Modes.enable_df24)
-        valid_df_long_bitset |= (1 << 24) | (1 << 25) | (1 << 26) | (1 << 27) | (1 << 28) | (1 << 29) | (1 << 30) | (1 << 31);
+        valid_df_long_bitset |= (1U << 24) | (1U << 25) | (1U << 26) | (1U << 27) | (1U << 28) | (1U << 29) | (1U << 30) | (1U << 31);
 
     // if we can also repair DF damage, include those corrections
     if (Modes.fix_df && Modes.nfix_crc) {
@@ -318,9 +318,9 @@ void demodulate2400(struct mag_buf *mag)
                     // inspect DF field early, only continue processing
                     // messages where the DF appears valid
                     unsigned df = theByte >> 3;
-                    if (valid_df_long_bitset & (1 << df))
+                    if (valid_df_long_bitset & (1U << df))
                         bytelen = MODES_LONG_MSG_BYTES;
-                    else if (valid_df_short_bitset & (1 << df))
+                    else if (valid_df_short_bitset & (1U << df))
                         bytelen = MODES_SHORT_MSG_BYTES;
                 }
             }

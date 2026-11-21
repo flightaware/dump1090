@@ -271,7 +271,7 @@ static int correctMessage(const unsigned char *in, unsigned char *out, uint32_t 
     // that determines message format
 
     const unsigned uncorrected_df = getbits(in, 1, 5);
-    const uint32_t df_bit = 1 << uncorrected_df;
+    const uint32_t df_bit = 1U << uncorrected_df;
 
     // Select the right bitset based on the maximum number of bit errors in the DF field that we could correct.
     // nb: strictly speaking, --no-fix-df doesn't _entirely_ disable correction of the DF field when nfix_crc == 2
