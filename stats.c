@@ -265,7 +265,8 @@ static void display_range_histogram(struct stats *st)
     }
 
     for (i = 0; i < RANGE_BUCKET_COUNT; ++i) {
-        heights[i] = st->range_histogram[i] * 20.0 * NPIXELS / peak;
+        // an empty histogram (peak == 0) would otherwise compute 0/0
+        heights[i] = peak ? st->range_histogram[i] * 20.0 * NPIXELS / peak : 0;
         if (st->range_histogram[i] > 0 && heights[i] == 0)
             heights[i] = 1;
     }
